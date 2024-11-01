@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const {
   fetchReportData,
-  fetchTest,
   redirectToGoogle,
   handleOAuthCallback,
+  fetchTest,
+  testFilterByFormula
 } = require('../controllers/GoogleAdsController');
 
 router.get('/report', fetchReportData);

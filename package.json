@@ -19,6 +19,7 @@
     "express": "^4.21.1",
     "google-ads-api": "^17.1.0-rest-beta",
     "google-auth-library": "^9.14.2",
+    "node-schedule": "^2.1.1",
     "nodemon": "^3.1.7"
   }
 }
