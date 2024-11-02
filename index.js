@@ -8,6 +8,7 @@ const app = express();
 // ConnectDB();
 
 const adsRoutes = require('./routes/ApiRoutes');
+const apiRoutes = require('./routes/AuthRoutes');
 
 app.use(express.json());
 
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/ads', adsRoutes);
+app.use('/api/auth', apiRoutes)
 
 app.listen(process.env.PORT, () =>
   console.log(`Server started on port ${process.env.PORT}`)

@@ -1,16 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const {
-  fetchReportData,
-  redirectToGoogle,
-  handleOAuthCallback,
-  fetchTest,
-  testFilterByFormula
-} = require('../controllers/GoogleAdsController');
 
-router.get('/report', fetchReportData);
-router.get('/test', fetchTest);
-router.get('/google', redirectToGoogle);
-router.get('/callback', handleOAuthCallback);
+const {
+  fetchReportDataDaily,
+  testFetchDaily
+} = require('../controllers/GoogleAdsDaily');
+
+const {
+  fetchReportDataWeekly,
+  fetchReportDataWeeklyBrand,
+  fetchReportDataWeeklyNB,
+  sendFinalReportToAirtable,
+  testFetchWeekly
+} = require('../controllers/GoogleAdsWeekly');
+
+router.get('/report', fetchReportDataDaily);
+
+router.get('/report-week', fetchReportDataWeekly);
+router.get('/report-brand', fetchReportDataWeeklyBrand);
+router.get('/report-nb', fetchReportDataWeeklyNB);
+router.get('/report-final', sendFinalReportToAirtable);
+
+router.get('/test', testFetchWeekly);
 
 module.exports = router;
