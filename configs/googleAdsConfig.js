@@ -1,7 +1,6 @@
 const { GoogleAdsApi } = require('google-ads-api');
-const { OAuth2Client } = require('google-auth-library'); // Add this for OAuth2
+const { OAuth2Client } = require('google-auth-library'); 
 
-// Initialize Google Ads API client with environment variables
 const client = new GoogleAdsApi({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID,
     client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,

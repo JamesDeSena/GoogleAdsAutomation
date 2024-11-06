@@ -7,7 +7,8 @@ const app = express();
 
 // ConnectDB();
 
-const adsRoutes = require('./routes/ApiRoutes');
+const googleRoutes = require('./routes/GoogleRoutes');
+const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 
 app.use(express.json());
@@ -31,7 +32,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api/ads', adsRoutes);
+app.use('/api/gooogle', googleRoutes);
+app.use('/api/bing', bingRoutes)
 app.use('/api/auth', apiRoutes)
 
 app.listen(process.env.PORT, () =>

@@ -1,12 +1,19 @@
 const Airtable = require('airtable');
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID_HISKIN);
 const { client } = require('../configs/googleAdsConfig');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+const { getStoredRefreshToken } = require('./GoogleAuth'); 
 
 async function fetchReportDataDaily(req, res) {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (!refreshToken_Google) {
+    throw new Error("Access token is missing. Please authenticate.");
+  }
+
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID,
-      refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+      refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
     });
 
@@ -202,7 +209,7 @@ async function testFetchDaily(req, res) {
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID,
-      refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+      refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
     });
 
