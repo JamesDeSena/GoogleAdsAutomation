@@ -34,7 +34,8 @@ const redirectToBing = async (req, res) => {
   try {
     const authUrl = await msalClient.getAuthCodeUrl({
       scopes: ["https://ads.microsoft.com/.default"],
-      redirectUri: process.env.BING_ADS_REDIRECT_URI,
+      // redirectUri: process.env.BING_ADS_REDIRECT_URI_DEV,
+      redirectUri: process.env.BING_ADS_REDIRECT_URI_PROD
     });
 
     res.redirect(authUrl);
@@ -50,7 +51,8 @@ const handleOAuthCallbackBing = async (req, res) => {
   try {
     const tokenResponse = await msalClient.acquireTokenByCode({
       code,
-      redirectUri: process.env.BING_ADS_REDIRECT_URI,
+      // redirectUri: process.env.BING_ADS_REDIRECT_URI_DEV,
+      redirectUri: process.env.BING_ADS_REDIRECT_URI_PROD,
       scopes: ["https://ads.microsoft.com/.default"],
     });
 

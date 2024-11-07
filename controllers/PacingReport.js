@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Airtable = require('airtable');
+const schedule = require('node-schedule');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID_PACING);
 const { client } = require('../configs/googleAdsConfig');
 const { getStoredRefreshToken } = require('./GoogleAuth');
@@ -8,7 +9,14 @@ const { getStoredAccessToken } = require('./BingAuth');
 function getCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
+};
+
+function formatDateUTC(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+};
 
 async function getAmountBing(accountId) {
   const accessToken_Bing = getStoredAccessToken();
@@ -25,7 +33,7 @@ async function getAmountBing(accountId) {
       <s:Body>
         <GetAccountMonthlySpendRequest xmlns="https://bingads.microsoft.com/Billing/v13">
           <AccountId>${accountId}</AccountId>
-          <MonthYear>2024-11</MonthYear>
+          <MonthYear>${currentMonth}</MonthYear>
         </GetAccountMonthlySpendRequest>
       </s:Body>
     </s:Envelope>
@@ -51,7 +59,7 @@ async function getAmountBing(accountId) {
     console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
     throw error;
   }
-}
+};
 
 async function getGoogleAdsCost(customerId) {
   const refreshToken_Google = getStoredRefreshToken();
@@ -63,6 +71,13 @@ async function getGoogleAdsCost(customerId) {
     login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
   });
 
+  const now = new Date();
+  const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+
+  const startDate = formatDateUTC(firstDayOfMonth);
+  const endDate = formatDateUTC(yesterday);
+
   const metricsQuery = `
     SELECT
       campaign.name,
@@ -71,7 +86,7 @@ async function getGoogleAdsCost(customerId) {
     FROM
       campaign
     WHERE
-      segments.date BETWEEN '20241101' AND '20241104'
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
     ORDER BY
       segments.date DESC
   `;
@@ -79,19 +94,17 @@ async function getGoogleAdsCost(customerId) {
   try {
     const metricsResponse = await customer.query(metricsQuery);
 
-    // Calculate the total cost across all campaigns for the given customer
     const totalCost = metricsResponse.reduce((total, campaign) => {
       const costInDollars = campaign.metrics.cost_micros / 1_000_000;
       return total + costInDollars;
     }, 0);
 
-    // Return the total cost in dollars
     return parseFloat(totalCost.toFixed(2));
   } catch (error) {
     console.error('Error fetching Google Ads data:', error);
     throw error;
   }
-}
+};
 
 async function getAmountGoogleLPC() {
   try {
@@ -100,7 +113,7 @@ async function getAmountGoogleLPC() {
   } catch (error) {
     throw new Error('Error fetching Google Ads LPC data');
   }
-}
+};
 
 async function getAmountGoogleVault() {
   try {
@@ -109,7 +122,7 @@ async function getAmountGoogleVault() {
   } catch (error) {
     throw new Error('Error fetching Google Ads Vault data');
   }
-}
+};
 
 async function getAmountGoogleWB() {
   try {
@@ -118,7 +131,7 @@ async function getAmountGoogleWB() {
   } catch (error) {
     throw new Error('Error fetching Google Ads WB data');
   }
-}
+};
 
 async function getAmountGoogleCampaigns() {
   const refreshToken_Google = getStoredRefreshToken();
@@ -129,6 +142,13 @@ async function getAmountGoogleCampaigns() {
     refresh_token: refreshToken_Google,
     login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
   });
+
+  const now = new Date();
+  const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+
+  const startDate = formatDateUTC(firstDayOfMonth);
+  const endDate = formatDateUTC(yesterday);
 
   const campaigns = ['MKTHeights', 'Gilbert', 'Scottsdale', 'Phoenix', 'Montrose', 'Uptown', 'RiceVillage'];
 
@@ -144,7 +164,7 @@ async function getAmountGoogleCampaigns() {
         FROM
           campaign
         WHERE
-          segments.date BETWEEN '20241101' AND '20241104'
+          segments.date BETWEEN '${startDate}' AND '${endDate}'
           AND campaign.name LIKE '%${campaignName}%'
         ORDER BY
           segments.date DESC
@@ -166,7 +186,7 @@ async function getAmountGoogleCampaigns() {
   } catch (error) {
     throw new Error('Error fetching Google Ads campaigns data');
   }
-}
+};
 
 async function getAmountBingTotal() {
   try {
@@ -176,7 +196,7 @@ async function getAmountBingTotal() {
   } catch (error) {
     throw new Error(error.message);
   }
-}
+};
 
 async function getAllMetrics(req, res) {
   try {
@@ -185,6 +205,14 @@ async function getAllMetrics(req, res) {
     const googleVault = await getAmountGoogleVault();
     const googleWB = await getAmountGoogleWB();
     const googleCampaigns = await getAmountGoogleCampaigns();
+
+    console.log({data: {
+      ...bingTotal,
+      ...googleLPC,
+      ...googleVault,
+      ...googleWB,
+      ...googleCampaigns
+    }})
 
     return ({data: {
       ...bingTotal,
@@ -205,14 +233,14 @@ async function getAllMetrics(req, res) {
     // });
 
   } catch (error) {
-    res.status(500).send('Error fetching all data');
+    return (error.message)
+    //res.status(500).send('Error fetching all data');
   }
-}
+};
 
 const sendFinalReportToAirtable = async () => {
   try {
     const record = await getAllMetrics();
-
     const isoDateString = new Date().toISOString();
 
     const records = [
@@ -220,7 +248,7 @@ const sendFinalReportToAirtable = async () => {
         fields: {
           'Date': isoDateString,
           'Brand': 'LP+C',
-          'Campaign': 'TOTAL',
+          'Campaign': 'Total',
           'Monthly Budget': 31000.00,
           'MTD Spend': record.data.BingLPC + record.data.GoogleLPC,
         },
@@ -353,7 +381,6 @@ const sendFinalReportToAirtable = async () => {
       }
     ];
 
-    // Send records in batches of 10 to Airtable
     const batchSize = 10;
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
@@ -366,6 +393,15 @@ const sendFinalReportToAirtable = async () => {
     console.error('Error sending pacing report to Airtable:', error);
   }
 };
+
+schedule.scheduleJob('0 15 * * *', () => {
+    sendFinalReportToAirtable();
+    console.log("Scheduled report sent at 7 AM PST.");
+});
+
+schedule.scheduleJob('* * * * *', () => {
+  console.log("Testing Node Schedule");
+});
 
 module.exports = {
   getAllMetrics,

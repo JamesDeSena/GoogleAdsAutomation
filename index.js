@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/gooogle', googleRoutes);
-app.use('/api/bing', bingRoutes)
+app.use('/api/pacing', bingRoutes)
 app.use('/api/auth', apiRoutes)
 
 app.listen(process.env.PORT, () =>
