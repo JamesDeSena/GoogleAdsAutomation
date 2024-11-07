@@ -20,7 +20,15 @@ function formatDateUTC(date) {
 
 async function getAmountBing(accountId) {
   const accessToken_Bing = getStoredAccessToken();
-  if (!accessToken_Bing) throw new Error("Access token is missing. Please authenticate.");
+
+  // if (!accessToken_Bing) {
+  //   throw new Error("Access token is missing. Please authenticate.");
+  // }
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
 
   const currentMonth = getCurrentMonth();
   const requestBody = `
@@ -63,7 +71,15 @@ async function getAmountBing(accountId) {
 
 async function getGoogleAdsCost(customerId) {
   const refreshToken_Google = getStoredRefreshToken();
-  if (!refreshToken_Google) throw new Error("Access token is missing. Please authenticate.");
+
+  // if (!refreshToken_Google) {
+  //   throw new Error("Access token is missing. Please authenticate.");
+  // }
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
 
   const customer = client.Customer({
     customer_id: customerId,
@@ -135,7 +151,14 @@ async function getAmountGoogleWB() {
 
 async function getAmountGoogleCampaigns() {
   const refreshToken_Google = getStoredRefreshToken();
-  if (!refreshToken_Google) throw new Error("Access token is missing. Please authenticate.");
+  // if (!refreshToken_Google) {
+  //   throw new Error("Access token is missing. Please authenticate.");
+  // }
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
 
   const customer = client.Customer({
     customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,

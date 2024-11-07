@@ -6,8 +6,13 @@ const { getStoredRefreshToken } = require('./GoogleAuth');
 async function fetchReportDataDaily(req, res) {
   const refreshToken_Google = getStoredRefreshToken();
 
+  // if (!refreshToken_Google) {
+  //   throw new Error("Access token is missing. Please authenticate.");
+  // }
+
   if (!refreshToken_Google) {
-    throw new Error("Access token is missing. Please authenticate.");
+    console.error("Access token is missing. Please authenticate.");
+    return;
   }
 
   try {
