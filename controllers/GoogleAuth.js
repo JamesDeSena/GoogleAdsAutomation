@@ -46,6 +46,7 @@ const handleOAuthCallbackGoogle = async (req, res) => {
     oauth2Client.setCredentials(tokens);
 
     saveRefreshToken(tokens.refresh_token);
+    console.log(tokens.refresh_token)
 
     res.send("OAuth2 authentication successful.");
   } catch (error) {
