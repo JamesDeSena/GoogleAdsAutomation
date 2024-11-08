@@ -280,7 +280,6 @@ const sendFinalReportToAirtable = async () => {
     const records = [
       {
         fields: {
-          Date: isoDateString,
           Brand: "LP+C",
           Campaign: "Total",
           "Monthly Budget": 31000.0,
@@ -289,7 +288,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "LP+C",
           Campaign: "Google",
           "Monthly Budget": 25000.0,
@@ -298,7 +296,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "LP+C",
           Campaign: "Bing",
           "Monthly Budget": 1000.0,
@@ -307,7 +304,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "The Vault",
           Campaign: "Total",
           "Monthly Budget": 10000.0,
@@ -316,7 +312,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "The Vault",
           Campaign: "Google",
           "Monthly Budget": 0,
@@ -325,7 +320,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "The Vault",
           Campaign: "Bing",
           "Monthly Budget": 0,
@@ -334,7 +328,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Wall Blush",
           Campaign: "Google",
           "Monthly Budget": 40000.0,
@@ -343,7 +336,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Google Total",
           "Monthly Budget": 9000.0,
@@ -359,7 +351,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Houston_MKTHeights",
           "Monthly Budget": 1500.0,
@@ -368,7 +359,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Gilbert",
           "Monthly Budget": 1500.0,
@@ -377,7 +367,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Scottsdale",
           "Monthly Budget": 1500.0,
@@ -386,7 +375,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Phoenix",
           "Monthly Budget": 1500.0,
@@ -395,7 +383,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Houston_Montrose",
           "Monthly Budget": 1500.0,
@@ -404,7 +391,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Houston_UptownPark",
           "Monthly Budget": 1500.0,
@@ -413,7 +399,6 @@ const sendFinalReportToAirtable = async () => {
       },
       {
         fields: {
-          Date: isoDateString,
           Brand: "Hi, Skin",
           Campaign: "Rice Village",
           "Monthly Budget": 1500.0,
