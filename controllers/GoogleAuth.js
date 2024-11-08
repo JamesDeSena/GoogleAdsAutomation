@@ -34,6 +34,7 @@ const redirectToGoogle = (req, res) => {
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: ["https://www.googleapis.com/auth/adwords"],
+    prompt: "consent",
   });
   res.redirect(authUrl);
 };
@@ -46,7 +47,8 @@ const handleOAuthCallbackGoogle = async (req, res) => {
     oauth2Client.setCredentials(tokens);
 
     saveRefreshToken(tokens.refresh_token);
-    console.log(tokens.refresh_token)
+    console.log("tokens", tokens)
+    console.log("refresh", tokens.refresh_token)
 
     res.send("OAuth2 authentication successful.");
   } catch (error) {
