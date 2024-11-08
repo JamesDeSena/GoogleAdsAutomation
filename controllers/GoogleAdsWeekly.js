@@ -1,13 +1,11 @@
-const Airtable = require('airtable');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID_HISKIN);
-const { client } = require('../configs/googleAdsConfig');
-const { getStoredRefreshToken } = require('./GoogleAuth');
+const Airtable = require("airtable");
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+  process.env.AIRTABLE_BASE_ID_HISKIN
+);
+const { client } = require("../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("./GoogleAuth");
 
 const refreshToken_Google = getStoredRefreshToken();
-
-// if (!refreshToken_Google) {
-//   throw new Error("Access token is missing. Please authenticate.");
-// }
 
 if (!refreshToken_Google) {
   console.error("Access token is missing. Please authenticate.");
@@ -15,47 +13,57 @@ if (!refreshToken_Google) {
 }
 
 const dateRanges = [
-  { start: '2024-09-13', end: '2024-09-19' },
-  { start: '2024-09-20', end: '2024-09-26' },
-  { start: '2024-09-27', end: '2024-10-03' },
-  { start: '2024-10-04', end: '2024-10-10' },
-  { start: '2024-10-11', end: '2024-10-17' },
-  { start: '2024-10-18', end: '2024-10-24' },
+  { start: "2024-09-13", end: "2024-09-19" },
+  { start: "2024-09-20", end: "2024-09-26" },
+  { start: "2024-09-27", end: "2024-10-03" },
+  { start: "2024-10-04", end: "2024-10-10" },
+  { start: "2024-10-11", end: "2024-10-17" },
+  { start: "2024-10-18", end: "2024-10-24" },
 ];
 
-const getCustomer = () => client.Customer({
-  customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-  refresh_token: refreshToken_Google,
-  login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-});
+const getCustomer = () =>
+  client.Customer({
+    customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+    refresh_token: refreshToken_Google,
+    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+  });
 
 const fetchWeeklyData = async (customer, metricsQuery, conversionQuery) => {
   const formattedMetricsMap = {};
   for (const { start, end } of dateRanges) {
-    let metricsPageToken = null, conversionPageToken = null;
+    let metricsPageToken = null,
+      conversionPageToken = null;
     do {
       const metricsResponse = await customer.query(metricsQuery(start, end));
-      metricsResponse.forEach(campaign => {
+      metricsResponse.forEach((campaign) => {
         const key = `week-${start}`;
         formattedMetricsMap[key] = formattedMetricsMap[key] || {
-          date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step6Value: 0
+          date: `${start} - ${end}`,
+          impressions: 0,
+          clicks: 0,
+          cost: 0,
+          step1Value: 0,
+          step6Value: 0,
         };
         formattedMetricsMap[key].impressions += campaign.metrics.impressions;
         formattedMetricsMap[key].clicks += campaign.metrics.clicks;
-        formattedMetricsMap[key].cost += campaign.metrics.cost_micros / 1_000_000;
+        formattedMetricsMap[key].cost +=
+          campaign.metrics.cost_micros / 1_000_000;
       });
       metricsPageToken = metricsResponse.next_page_token;
     } while (metricsPageToken);
 
     do {
-      const conversionBatchResponse = await customer.query(conversionQuery(start, end));
-      conversionBatchResponse.forEach(conversion => {
+      const conversionBatchResponse = await customer.query(
+        conversionQuery(start, end)
+      );
+      conversionBatchResponse.forEach((conversion) => {
         const key = `week-${start}`;
         if (formattedMetricsMap[key]) {
-          if (conversion.conversion_action.name === 'Book Now - Step 1: Email Signup') {
+          if (conversion.conversion_action.name === "Book Now - Step 1: Email Signup") {
             formattedMetricsMap[key].step1Value += conversion.metrics.all_conversions;
-          } else if (conversion.conversion_action.name === 'Book Now - Step 6: Booking Confirmation') {
-            formattedMetricsMap[key].step6Value += conversion.metrics.all_conversions;
+          } else if ( conversion.conversion_action.name === "Book Now - Step 6: Booking Confirmation") {
+            formattedMetricsMap[key].step6Value +=conversion.metrics.all_conversions;
           }
         }
       });
@@ -68,18 +76,18 @@ const fetchWeeklyData = async (customer, metricsQuery, conversionQuery) => {
 const sendToAirtable = async (data, tableName, field) => {
   for (const record of data) {
     const dateField = record.date;
-    const recordDate = dateField.split(' - ')[0];
+    const recordDate = dateField.split(" - ")[0];
     try {
       const existingRecords = await base(tableName).select({
-        filterByFormula: `{${field}} = '${dateField}'`
-      }).firstPage();
+          filterByFormula: `{${field}} = '${dateField}'`,
+        }).firstPage();
       const recordFields = {
-        [field]: dateField, 
-        'Impr.': record.impressions, 
-        'Clicks': record.clicks,
-        'Cost': record.cost, 
-        'Book Now - Step 1: Email Signup': record.step1Value,
-        'Book Now - Step 6: Booking Confirmation': record.step6Value
+        [field]: dateField,
+        "Impr.": record.impressions,
+        Clicks: record.clicks,
+        Cost: record.cost,
+        "Book Now - Step 1: Email Signup": record.step1Value,
+        "Book Now - Step 6: Booking Confirmation": record.step6Value,
       };
       if (existingRecords.length > 0) {
         await base(tableName).update(existingRecords[0].id, recordFields);
@@ -123,12 +131,12 @@ const fetchReportDataWeekly = async (req, res) => {
         segments.date DESC 
       LIMIT 100`;
     const data = await fetchWeeklyData(customer, metricsQuery, conversionQuery);
-    await sendToAirtable(data, 'All Weekly Report', 'All Search');
+    await sendToAirtable(data, "All Weekly Report", "All Search");
     return data;
     // res.json(data);
   } catch (error) {
-    console.error('Error fetching report data:', error);
-    res.status(500).send('Error fetching report data');
+    console.error("Error fetching report data:", error);
+    res.status(500).send("Error fetching report data");
   }
 };
 
@@ -164,12 +172,12 @@ const fetchReportDataWeeklyBrand = async (req, res) => {
         segments.date DESC 
       LIMIT 100`;
     const data = await fetchWeeklyData(customer, metricsQuery, conversionQuery);
-    await sendToAirtable(data, 'Brand Weekly Report', 'Brand');
+    await sendToAirtable(data, "Brand Weekly Report", "Brand");
     return data;
     // res.json(data);
   } catch (error) {
-    console.error('Error fetching report data:', error);
-    res.status(500).send('Error fetching report data');
+    console.error("Error fetching report data:", error);
+    res.status(500).send("Error fetching report data");
   }
 };
 
@@ -205,12 +213,12 @@ const fetchReportDataWeeklyNB = async (req, res) => {
         segments.date DESC 
       LIMIT 100`;
     const data = await fetchWeeklyData(customer, metricsQuery, conversionQuery);
-    await sendToAirtable(data, 'NB Weekly Report', 'No Brand');
+    await sendToAirtable(data, "NB Weekly Report", "No Brand");
     return data;
     // res.json(data);
   } catch (error) {
-    console.error('Error fetching report data:', error);
-    res.status(500).send('Error fetching report data');
+    console.error("Error fetching report data:", error);
+    res.status(500).send("Error fetching report data");
   }
 };
 
@@ -222,67 +230,73 @@ const sendFinalReportToAirtable = async () => {
 
     const records = [];
 
-    records.push({ fields: { Week: 'All Search' } });
-    weeklyData.forEach(record => {
+    records.push({ fields: { Week: "All Search" } });
+    weeklyData.forEach((record) => {
       records.push({
         fields: {
-          'Week': record.date,
-          'Impr.': record.impressions,
-          'Clicks': record.clicks,
-          'Cost': record.cost,
-          'Book Now - Step 1: Email Signup': record.step1Value,
-          'Book Now - Step 6: Booking Confirmation': record.step6Value,
-        }
+          Week: record.date,
+          "Impr.": record.impressions,
+          Clicks: record.clicks,
+          Cost: record.cost,
+          "Book Now - Step 1: Email Signup": record.step1Value,
+          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+        },
       });
     });
 
     records.push({ fields: {} });
-    records.push({ fields: { Week: 'Brand' } });
+    records.push({ fields: { Week: "Brand" } });
 
-    brandData.forEach(record => {
+    brandData.forEach((record) => {
       records.push({
         fields: {
-          'Week': record.date,
-          'Impr.': record.impressions,
-          'Clicks': record.clicks,
-          'Cost': record.cost,
-          'Book Now - Step 1: Email Signup': record.step1Value,
-          'Book Now - Step 6: Booking Confirmation': record.step6Value,
-        }
+          Week: record.date,
+          "Impr.": record.impressions,
+          Clicks: record.clicks,
+          Cost: record.cost,
+          "Book Now - Step 1: Email Signup": record.step1Value,
+          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+        },
       });
     });
 
     records.push({ fields: {} });
-    records.push({ fields: { Week: 'No Brand' } });
+    records.push({ fields: { Week: "No Brand" } });
 
-    noBrandData.forEach(record => {
+    noBrandData.forEach((record) => {
       records.push({
         fields: {
-          'Week': record.date,
-          'Impr.': record.impressions,
-          'Clicks': record.clicks,
-          'Cost': record.cost,
-          'Book Now - Step 1: Email Signup': record.step1Value,
-          'Book Now - Step 6: Booking Confirmation': record.step6Value,
-        }
+          Week: record.date,
+          "Impr.": record.impressions,
+          Clicks: record.clicks,
+          Cost: record.cost,
+          "Book Now - Step 1: Email Signup": record.step1Value,
+          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+        },
       });
     });
 
     const batchSize = 10;
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
-      await base('Final Report').create(batch);
+      await base("Final Report").create(batch);
       console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
     }
 
-    console.log('Final report sent to Airtable successfully!');
+    console.log("Final report sent to Airtable successfully!");
   } catch (error) {
-    console.error('Error sending final report to Airtable:', error);
+    console.error("Error sending final report to Airtable:", error);
   }
 };
 
 const testFetchWeekly = async (req, res) => {
-  res.json(await fetchWeeklyData(getCustomer(), req.query.metricsQuery, req.query.conversionQuery));
+  res.json(
+    await fetchWeeklyData(
+      getCustomer(),
+      req.query.metricsQuery,
+      req.query.conversionQuery
+    )
+  );
 };
 
 module.exports = {
@@ -290,5 +304,5 @@ module.exports = {
   fetchReportDataWeeklyBrand,
   fetchReportDataWeeklyNB,
   sendFinalReportToAirtable,
-  testFetchWeekly
+  testFetchWeekly,
 };

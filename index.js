@@ -10,6 +10,7 @@ const app = express();
 // const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
+const { pingRenderApp } = require('./controllers/RenderPing');
 
 app.use(express.json());
 
@@ -32,9 +33,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use('/api/gooogle', googleRoutes);
+// app.use('/api/google', googleRoutes);
 app.use('/api/pacing', bingRoutes)
 app.use('/api/auth', apiRoutes)
+app.use("/", (req, res) => {
+  res.sendStatus(200);
+});
+
+pingRenderApp();
 
 app.listen(process.env.PORT, () =>
   console.log(`Server started on port ${process.env.PORT}`)

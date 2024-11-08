@@ -10,21 +10,6 @@ const msalConfig = {
 
 const msalClient = new ConfidentialClientApplication(msalConfig);
 
-// async function getAccessToken() {
-//   const tokenRequest = {
-//     scopes: ["https://ads.microsoft.com/.default"],
-//   };
-
-//   try {
-//     const response = await msalClient.acquireTokenByClientCredential(tokenRequest);
-//     return response.accessToken;
-//   } catch (error) {
-//     console.error("Error acquiring access token:", error);
-//     throw new Error("Failed to acquire access token");
-//   }
-// }
-
 module.exports = {
   msalClient,
-  // getAccessToken
 };

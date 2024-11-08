@@ -1,14 +1,12 @@
-const Airtable = require('airtable');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID_HISKIN);
-const { client } = require('../configs/googleAdsConfig');
-const { getStoredRefreshToken } = require('./GoogleAuth'); 
+const Airtable = require("airtable");
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+  process.env.AIRTABLE_BASE_ID_HISKIN
+);
+const { client } = require("../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("./GoogleAuth");
 
 async function fetchReportDataDaily(req, res) {
   const refreshToken_Google = getStoredRefreshToken();
-
-  // if (!refreshToken_Google) {
-  //   throw new Error("Access token is missing. Please authenticate.");
-  // }
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
@@ -17,9 +15,9 @@ async function fetchReportDataDaily(req, res) {
 
   try {
     const customer = client.Customer({
-      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID,
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
       refresh_token: refreshToken_Google,
-      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
     const metricsQuery = `
@@ -62,7 +60,7 @@ async function fetchReportDataDaily(req, res) {
 
     do {
       const metricsResponse = await customer.query(metricsQuery);
-      metricsResponse.forEach(campaign => {
+      metricsResponse.forEach((campaign) => {
         const key = `${campaign.campaign.id}-${campaign.segments.date}`;
         formattedMetricsMap[key] = {
           id: campaign.campaign.id,
@@ -90,33 +88,33 @@ async function fetchReportDataDaily(req, res) {
       conversionPageToken = conversionBatchResponse.next_page_token;
     } while (conversionPageToken);
 
-    conversionResponse.forEach(conversion => {
+    conversionResponse.forEach((conversion) => {
       const key = `${conversion.campaign.id}-${conversion.segments.date}`;
       const conversionValue = conversion.metrics.conversions;
-    
-      if (conversion.segments.conversion_action_name === 'Book Now - Step 1: Email Signup') {
+
+      if (conversion.segments.conversion_action_name === "Book Now - Step 1: Email Signup") {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step1Value += conversionValue;
         }
-      } else if (conversion.segments.conversion_action_name === 'Book Now - Step 5: Add Payment Info') {
+      } else if (conversion.segments.conversion_action_name === "Book Now - Step 5: Add Payment Info") {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step5Value += conversionValue;
         }
-      } else if (conversion.segments.conversion_action_name === 'Book Now - Step 6: Booking Confirmation') {
+      } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step6Value += conversionValue;
         }
       }
-    });    
-    
+    });
+
     const formattedMetrics = Object.values(formattedMetricsMap);
 
     await sendToAirtableDaily(formattedMetrics);
 
     res.json(formattedMetrics);
   } catch (error) {
-    console.error('Error fetching report data:', error);
-    res.status(500).send('Error fetching report data');
+    console.error("Error fetching report data:", error);
+    res.status(500).send("Error fetching report data");
   }
 }
 
@@ -125,15 +123,13 @@ async function sendToAirtableDaily(data) {
   const recordsToCreate = [];
 
   for (const record of data) {
-    const campaignName = record.name; 
-    const recordDate = record.date; 
+    const campaignName = record.name;
+    const recordDate = record.date;
 
     try {
-      const existingRecords = await base('Daily Report').select({
-        filterByFormula: `AND(
-          {Campaign} = '${campaignName}', 
-          DATETIME_FORMAT({Day}, 'YYYY-MM-DD') = '${recordDate}'
-        )`
+      const existingRecords = await base("Daily Report").select({
+        filterByFormula: `AND({Campaign} = '${campaignName}', 
+        DATETIME_FORMAT({Day}, 'YYYY-MM-DD') = '${recordDate}')`,
       }).firstPage();
 
       if (existingRecords.length > 0) {
@@ -141,39 +137,39 @@ async function sendToAirtableDaily(data) {
         recordsToUpdate.push({
           id: existingRecordId,
           fields: {
-            'Impr.': record.impressions,
-            'Clicks': record.clicks,
-            'Cost': record.cost,
-            'Book Now - Step 1: Email Signup': record.step1Value,
-            'Book Now - Step 5: Add Payment Info': record.step5Value,
-            'Book Now - Step 6: Booking Confirmation': record.step6Value
-          }
+            "Impr.": record.impressions,
+            Clicks: record.clicks,
+            Cost: record.cost,
+            "Book Now - Step 1: Email Signup": record.step1Value,
+            "Book Now - Step 5: Add Payment Info": record.step5Value,
+            "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          },
         });
         console.log(`Record prepared for update for Campaign Name: ${campaignName} on Date: ${recordDate}`);
       } else {
         recordsToCreate.push({
           fields: {
-            'Day': recordDate,
-            'Campaign': campaignName,
-            'Impr.': record.impressions,
-            'Clicks': record.clicks,
-            'Cost': record.cost,
-            'Book Now - Step 1: Email Signup': record.step1Value,
-            'Book Now - Step 5: Add Payment Info': record.step5Value,
-            'Book Now - Step 6: Booking Confirmation': record.step6Value
-          }
+            Day: recordDate,
+            Campaign: campaignName,
+            "Impr.": record.impressions,
+            Clicks: record.clicks,
+            Cost: record.cost,
+            "Book Now - Step 1: Email Signup": record.step1Value,
+            "Book Now - Step 5: Add Payment Info": record.step5Value,
+            "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          },
         });
         console.log(`Record prepared for creation for Campaign Name: ${campaignName} on Date: ${recordDate}`);
       }
     } catch (error) {
-      console.error(`Error processing record for Campaign Name: ${campaignName} on Date: ${recordDate}`, error);
+      console.error(`Error processing record for Campaign Name: ${campaignName} on Date: ${recordDate}`,error);
     }
   }
 
   const batchProcessUpdates = async (records) => {
     for (let i = 0; i < records.length; i += 10) {
       const batch = records.slice(i, i + 10);
-      await base('Daily Report').update(batch);
+      await base("Daily Report").update(batch);
       console.log(`Updated ${batch.length} records in batch.`);
     }
   };
@@ -181,7 +177,7 @@ async function sendToAirtableDaily(data) {
   const batchProcessCreations = async (records) => {
     for (let i = 0; i < records.length; i += 10) {
       const batch = records.slice(i, i + 10);
-      await base('Daily Report').create(batch);
+      await base("Daily Report").create(batch);
       console.log(`Created ${batch.length} records in batch.`);
     }
   };
@@ -198,6 +194,13 @@ async function sendToAirtableDaily(data) {
 }
 
 async function testFetchDaily(req, res) {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
   const metricsQuery = `
     SELECT
       conversion_action.name,
@@ -213,22 +216,22 @@ async function testFetchDaily(req, res) {
 
   try {
     const customer = client.Customer({
-      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID,
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
       refresh_token: refreshToken_Google,
-      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
     const metricsResponse = await customer.query(metricsQuery);
-    
+
     res.json(metricsResponse);
     console.log(metricsResponse);
   } catch (error) {
-    console.error('Error fetching report data:', error);
-    res.status(500).send('Error fetching report data');
+    console.error("Error fetching report data:", error);
+    res.status(500).send("Error fetching report data");
   }
 }
 
 module.exports = {
   fetchReportDataDaily,
-  testFetchDaily
+  testFetchDaily,
 };

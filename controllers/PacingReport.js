@@ -1,31 +1,28 @@
-const axios = require('axios');
-const Airtable = require('airtable');
-const schedule = require('node-schedule');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID_PACING);
-const { client } = require('../configs/googleAdsConfig');
-const { getStoredRefreshToken } = require('./GoogleAuth');
-const { getStoredAccessToken } = require('./BingAuth');
+const axios = require("axios");
+const Airtable = require("airtable");
+const schedule = require("node-schedule");
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+  process.env.AIRTABLE_BASE_ID_PACING
+);
+const { client } = require("../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("./GoogleAuth");
+const { getStoredAccessToken } = require("./BingAuth");
 
 function getCurrentMonth() {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function formatDateUTC(date) {
   const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}${month}${day}`;
-};
+}
 
 async function getAmountBing(accountId) {
-  const accessToken_Bing = getStoredAccessToken();
-
-  // if (!accessToken_Bing) {
-  //   throw new Error("Access token is missing. Please authenticate.");
-  // }
-
-  if (!refreshToken_Google) {
+  const token = getStoredAccessToken();
+  if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -35,7 +32,7 @@ async function getAmountBing(accountId) {
     <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
       <s:Header xmlns="https://bingads.microsoft.com/Billing/v13">
         <Action mustUnderstand="1">GetAccountMonthlySpend</Action>
-        <AuthenticationToken i:nil="false">${accessToken_Bing}</AuthenticationToken>
+        <AuthenticationToken i:nil="false">${token.accessToken_Bing}</AuthenticationToken>
         <DeveloperToken i:nil="false">${process.env.BING_ADS_DEVELOPER_TOKEN}</DeveloperToken>
       </s:Header>
       <s:Body>
@@ -53,7 +50,7 @@ async function getAmountBing(accountId) {
       requestBody,
       {
         headers: {
-          Authorization: `Bearer ${accessToken_Bing}`,
+          Authorization: `Bearer ${token.accessToken_Bing}`,
           "Content-Type": "text/xml;charset=utf-8",
           SOAPAction: "GetAccountMonthlySpend",
         },
@@ -64,18 +61,17 @@ async function getAmountBing(accountId) {
     const amount = amountMatch ? parseFloat(amountMatch[1]) : null;
     return amount;
   } catch (error) {
-    console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
+    console.error(
+      "Error fetching Bing data:",
+      error.response ? error.response.data : error.message
+    );
     throw error;
   }
-};
+}
 
 async function getGoogleAdsCost(customerId) {
   const refreshToken_Google = getStoredRefreshToken();
-
-  // if (!refreshToken_Google) {
-  //   throw new Error("Access token is missing. Please authenticate.");
-  // }
-
+  console.log(refreshToken_Google)
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -84,12 +80,16 @@ async function getGoogleAdsCost(customerId) {
   const customer = client.Customer({
     customer_id: customerId,
     refresh_token: refreshToken_Google,
-    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
+    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
   });
 
   const now = new Date();
-  const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+  const firstDayOfMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  );
+  const yesterday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)
+  );
 
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
@@ -117,43 +117,46 @@ async function getGoogleAdsCost(customerId) {
 
     return parseFloat(totalCost.toFixed(2));
   } catch (error) {
-    console.error('Error fetching Google Ads data:', error);
+    console.error("Error fetching Google Ads data:", error);
     throw error;
   }
-};
+}
 
 async function getAmountGoogleLPC() {
   try {
-    const totalCost = await getGoogleAdsCost(process.env.GOOGLE_ADS_CUSTOMER_ID_LPC);
-    return { "GoogleLPC": totalCost };
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_LPC
+    );
+    return { GoogleLPC: totalCost };
   } catch (error) {
-    throw new Error('Error fetching Google Ads LPC data');
+    throw new Error("Error fetching Google Ads LPC data");
   }
-};
+}
 
 async function getAmountGoogleVault() {
   try {
-    const totalCost = await getGoogleAdsCost(process.env.GOOGLE_ADS_CUSTOMER_ID_VAULT);
-    return { "GoogleVault": totalCost };
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_VAULT
+    );
+    return { GoogleVault: totalCost };
   } catch (error) {
-    throw new Error('Error fetching Google Ads Vault data');
+    throw new Error("Error fetching Google Ads Vault data");
   }
-};
+}
 
 async function getAmountGoogleWB() {
   try {
-    const totalCost = await getGoogleAdsCost(process.env.GOOGLE_ADS_CUSTOMER_ID_WB);
-    return { "WB": totalCost };
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_WB
+    );
+    return { WB: totalCost };
   } catch (error) {
-    throw new Error('Error fetching Google Ads WB data');
+    throw new Error("Error fetching Google Ads WB data");
   }
-};
+}
 
 async function getAmountGoogleCampaigns() {
   const refreshToken_Google = getStoredRefreshToken();
-  // if (!refreshToken_Google) {
-  //   throw new Error("Access token is missing. Please authenticate.");
-  // }
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
@@ -163,17 +166,29 @@ async function getAmountGoogleCampaigns() {
   const customer = client.Customer({
     customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
     refresh_token: refreshToken_Google,
-    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID
+    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
   });
 
   const now = new Date();
-  const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+  const firstDayOfMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  );
+  const yesterday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)
+  );
 
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
 
-  const campaigns = ['MKTHeights', 'Gilbert', 'Scottsdale', 'Phoenix', 'Montrose', 'Uptown', 'RiceVillage'];
+  const campaigns = [
+    "MKTHeights",
+    "Gilbert",
+    "Scottsdale",
+    "Phoenix",
+    "Montrose",
+    "Uptown",
+    "RiceVillage",
+  ];
 
   try {
     let totalCosts = {};
@@ -194,10 +209,10 @@ async function getAmountGoogleCampaigns() {
       `;
 
       const metricsResponse = await customer.query(metricsQuery);
-      
+
       let campaignTotalCost = 0;
 
-      metricsResponse.forEach(campaign => {
+      metricsResponse.forEach((campaign) => {
         const costInDollars = campaign.metrics.cost_micros / 1_000_000;
         campaignTotalCost += parseFloat(costInDollars);
       });
@@ -207,21 +222,25 @@ async function getAmountGoogleCampaigns() {
 
     return totalCosts;
   } catch (error) {
-    throw new Error('Error fetching Google Ads campaigns data');
+    throw new Error("Error fetching Google Ads campaigns data");
   }
-};
+}
 
 async function getAmountBingTotal() {
   try {
-    const BingLPC = await getAmountBing(process.env.BING_ADS_ACCOUNT_ID_LPC);
-    const BingVault = await getAmountBing(process.env.BING_ADS_ACCOUNT_ID_VAULT);
+    const BingLPC = await getAmountBing(
+      process.env.BING_ADS_ACCOUNT_ID_LPC
+    );
+    const BingVault = await getAmountBing(
+      process.env.BING_ADS_ACCOUNT_ID_VAULT
+    );
     return { BingLPC, BingVault };
   } catch (error) {
     throw new Error(error.message);
   }
-};
+}
 
-async function getAllMetrics(req, res) {
+async function getAllMetrics() {
   try {
     const bingTotal = await getAmountBingTotal();
     const googleLPC = await getAmountGoogleLPC();
@@ -229,37 +248,30 @@ async function getAllMetrics(req, res) {
     const googleWB = await getAmountGoogleWB();
     const googleCampaigns = await getAmountGoogleCampaigns();
 
-    console.log({data: {
-      ...bingTotal,
-      ...googleLPC,
-      ...googleVault,
-      ...googleWB,
-      ...googleCampaigns
-    }})
+    console.log({
+      data: {
+        ...bingTotal,
+        ...googleLPC,
+        ...googleVault,
+        ...googleWB,
+        ...googleCampaigns,
+      },
+    });
 
-    return ({data: {
-      ...bingTotal,
-      ...googleLPC,
-      ...googleVault,
-      ...googleWB,
-      ...googleCampaigns
-    }})
-
-    // res.json({
-    //   data: {
-    //     ...bingTotal,
-    //     ...googleLPC,
-    //     ...googleVault,
-    //     ...googleWB,
-    //     ...googleCampaigns
-    //   }
-    // });
-
+    return {
+      data: {
+        ...bingTotal,
+        ...googleLPC,
+        ...googleVault,
+        ...googleWB,
+        ...googleCampaigns,
+      },
+    };
   } catch (error) {
-    return (error.message)
-    //res.status(500).send('Error fetching all data');
+    console.error("Error fetching all data:", error.message);
+    throw new Error("Error fetching all data");
   }
-};
+}
 
 const sendFinalReportToAirtable = async () => {
   try {
@@ -269,164 +281,178 @@ const sendFinalReportToAirtable = async () => {
     const records = [
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'LP+C',
-          'Campaign': 'Total',
-          'Monthly Budget': 31000.00,
-          'MTD Spend': record.data.BingLPC + record.data.GoogleLPC,
+          Date: isoDateString,
+          Brand: "LP+C",
+          Campaign: "Total",
+          "Monthly Budget": 31000.0,
+          "MTD Spend": record.data.BingLPC + record.data.GoogleLPC,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'LP+C',
-          'Campaign': 'Google',
-          'Monthly Budget': 25000.00,
-          'MTD Spend': record.data.GoogleLPC,
+          Date: isoDateString,
+          Brand: "LP+C",
+          Campaign: "Google",
+          "Monthly Budget": 25000.0,
+          "MTD Spend": record.data.GoogleLPC,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'LP+C',
-          'Campaign': 'Bing',
-          'Monthly Budget': 1000.00,
-          'MTD Spend': record.data.BingLPC,
+          Date: isoDateString,
+          Brand: "LP+C",
+          Campaign: "Bing",
+          "Monthly Budget": 1000.0,
+          "MTD Spend": record.data.BingLPC,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'The Vault',
-          'Campaign': 'Total',
-          'Monthly Budget': 10000.00,
-          'MTD Spend': record.data.BingVault + record.data.GoogleVault,
+          Date: isoDateString,
+          Brand: "The Vault",
+          Campaign: "Total",
+          "Monthly Budget": 10000.0,
+          "MTD Spend": record.data.BingVault + record.data.GoogleVault,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'The Vault',
-          'Campaign': 'Google',
-          'Monthly Budget': 0,
-          'MTD Spend': record.data.GoogleVault,
+          Date: isoDateString,
+          Brand: "The Vault",
+          Campaign: "Google",
+          "Monthly Budget": 0,
+          "MTD Spend": record.data.GoogleVault,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'The Vault',
-          'Campaign': 'Bing',
-          'Monthly Budget': 0,
-          'MTD Spend': record.data.BingVault,
+          Date: isoDateString,
+          Brand: "The Vault",
+          Campaign: "Bing",
+          "Monthly Budget": 0,
+          "MTD Spend": record.data.BingVault,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Wall Blush',
-          'Campaign': 'Google',
-          'Monthly Budget': 40000.00,
-          'MTD Spend': record.data.WB,
+          Date: isoDateString,
+          Brand: "Wall Blush",
+          Campaign: "Google",
+          "Monthly Budget": 40000.0,
+          "MTD Spend": record.data.WB,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Google Total',
-          'Monthly Budget': 9000.00,
-          'MTD Spend': record.data.MKTHeights + record.data.Gilbert + record.data.Scottsdale + record.data.Phoenix + record.data.Montrose + record.data.Uptown + record.data.RiceVillage,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Google Total",
+          "Monthly Budget": 9000.0,
+          "MTD Spend":
+            record.data.MKTHeights +
+            record.data.Gilbert +
+            record.data.Scottsdale +
+            record.data.Phoenix +
+            record.data.Montrose +
+            record.data.Uptown +
+            record.data.RiceVillage,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Houston_MKTHeights',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.MKTHeights,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Houston_MKTHeights",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.MKTHeights,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Gilbert',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.Gilbert,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Gilbert",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Gilbert,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Scottsdale',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.Scottsdale,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Scottsdale",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Scottsdale,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Phoenix',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.Phoenix,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Phoenix",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Phoenix,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Houston_Montrose',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.Montrose,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Houston_Montrose",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Montrose,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Houston_UptownPark',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.Uptown,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Houston_UptownPark",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Uptown,
         },
       },
       {
         fields: {
-          'Date': isoDateString,
-          'Brand': 'Hi, Skin',
-          'Campaign': 'Rice Village',
-          'Monthly Budget': 1500.00,
-          'MTD Spend': record.data.RiceVillage,
+          Date: isoDateString,
+          Brand: "Hi, Skin",
+          Campaign: "Rice Village",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.RiceVillage,
         },
-      }
+      },
     ];
 
     const batchSize = 10;
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
-      await base('Pacing Report').create(batch);
-      console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
+      await base("Pacing Report").create(batch);
+      console.log(
+        `Batch of ${batch.length} records sent to Airtable successfully!`
+      );
     }
 
-    console.log('Pacing report sent to Airtable successfully!');
+    console.log("Pacing report sent to Airtable successfully!");
   } catch (error) {
-    console.error('Error sending pacing report to Airtable:', error);
+    console.error("Error sending pacing report to Airtable:", error);
   }
 };
 
-schedule.scheduleJob('0 15 * * *', () => {
-    sendFinalReportToAirtable();
-    console.log("Scheduled report sent at 7 AM PST.");
+const rule = new schedule.RecurrenceRule();
+rule.hour = 7;
+rule.minute = 0;
+rule.tz = 'America/Los_Angeles';
+
+const job = schedule.scheduleJob(rule, () => {
+  sendFinalReportToAirtable();
+  console.log("Scheduled report sent at 7 AM PST California/Irvine.");
 });
 
-schedule.scheduleJob('* * * * *', () => {
-  console.log("Testing Node Schedule");
-});
+// schedule.scheduleJob('* * * * *', () => {
+//   console.log("Testing Node Schedule");
+// });
 
 module.exports = {
   getAllMetrics,
-  sendFinalReportToAirtable
+  sendFinalReportToAirtable,
 };
