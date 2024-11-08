@@ -6,6 +6,7 @@ const {
   sendFinalReportToAirtable
 } = require("../controllers/PacingReport");
 
-router.get("/test", sendFinalReportToAirtable);
+router.get("/test", getAllMetrics);
+router.get("/send", sendFinalReportToAirtable);
 
 module.exports = router;

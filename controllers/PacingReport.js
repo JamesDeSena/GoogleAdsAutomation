@@ -71,9 +71,9 @@ async function getAmountBing(accountId) {
 
 async function getGoogleAdsCost(customerId) {
   const refreshToken_Google = getStoredRefreshToken();
-  console.log(refreshToken_Google)
+
   if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
+    console.error("Refresh token is missing. Please authenticate.");
     return;
   }
 
