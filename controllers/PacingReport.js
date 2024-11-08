@@ -159,7 +159,7 @@ async function getAmountGoogleCampaigns() {
   const refreshToken_Google = getStoredRefreshToken();
 
   if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
+    console.error("Refresh token is missing. Please authenticate.");
     return;
   }
 
