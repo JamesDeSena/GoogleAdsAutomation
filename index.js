@@ -36,6 +36,9 @@ app.use((req, res, next) => {
 // app.use('/api/google', googleRoutes);
 app.use('/api/pacing', bingRoutes)
 app.use('/api/auth', apiRoutes)
+app.use("/test", (req, res) => {
+  res.send("Hello Akorn Media!");
+});
 app.use("/", (req, res) => {
   res.sendStatus(200);
 });
