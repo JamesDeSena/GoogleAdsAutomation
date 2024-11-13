@@ -1,6 +1,6 @@
 const axios = require("axios");
-const Airtable = require("airtable");
 const schedule = require("node-schedule");
+const Airtable = require("airtable");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_PACING
 );
@@ -429,7 +429,7 @@ rule1.tz = 'America/Los_Angeles';
 
 const AM = schedule.scheduleJob(rule1, () => {
   sendFinalReportToAirtable();
-  console.log("Scheduled report sent at 7 AM PST California/Irvine.");
+  console.log("Scheduled pacing report sent at 7 AM PST California/Irvine.");
 });
 
 const rule2 = new schedule.RecurrenceRule();
@@ -439,12 +439,8 @@ rule2.tz = 'America/Los_Angeles';
 
 const PM = schedule.scheduleJob(rule2, () => {
   sendFinalReportToAirtable();
-  console.log("Scheduled report sent at 7 PM PST California/Irvine.");
+  console.log("Scheduled pacing report sent at 7 PM PST California/Irvine.");
 });
-
-// schedule.scheduleJob('* * * * *', () => {
-//   console.log("Testing Node Schedule");
-// });
 
 module.exports = {
   getAllMetrics,

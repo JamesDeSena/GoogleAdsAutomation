@@ -1,3 +1,4 @@
+const schedule = require("node-schedule");
 const Airtable = require("airtable");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
@@ -20,6 +21,13 @@ async function fetchReportDataDaily(req, res) {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1); // Move the date to yesterday
+    const formattedYesterday = yesterday
+      .toISOString()
+      .split("T")[0]
+      .replace(/-/g, "");
+
     const metricsQuery = `
       SELECT
         campaign.id,
@@ -31,29 +39,24 @@ async function fetchReportDataDaily(req, res) {
       FROM
         campaign
       WHERE
-        segments.date BETWEEN '20240913' AND '20241031'
+        segments.date = '${formattedYesterday}'
       ORDER BY
         segments.date DESC
     `;
 
     const conversionQuery = `
-      SELECT
+      SELECT 
         campaign.id,
+        metrics.all_conversions,
         segments.conversion_action_name,
-        metrics.conversions,
-        segments.date
-      FROM
+        segments.date 
+      FROM 
         campaign
-      WHERE
-        segments.date BETWEEN '20240913' AND '20241031'
-        AND segments.conversion_action_name IN (
-          'Book Now - Step 1: Email Signup', 
-          'Book Now - Step 5: Add Payment Info', 
-          'Book Now - Step 6: Booking Confirmation'
-        )
-      ORDER BY
-        segments.date DESC
-    `;
+      WHERE 
+        segments.date = '${formattedYesterday}'
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation') 
+      ORDER BY 
+        segments.date DESC`;
 
     const formattedMetricsMap = {};
     let metricsPageToken = null;
@@ -90,13 +93,13 @@ async function fetchReportDataDaily(req, res) {
 
     conversionResponse.forEach((conversion) => {
       const key = `${conversion.campaign.id}-${conversion.segments.date}`;
-      const conversionValue = conversion.metrics.conversions;
+      const conversionValue = conversion.metrics.all_conversions;
 
-      if (conversion.segments.conversion_action_name === "Book Now - Step 1: Email Signup") {
+      if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step1Value += conversionValue;
         }
-      } else if (conversion.segments.conversion_action_name === "Book Now - Step 5: Add Payment Info") {
+      } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step5Value += conversionValue;
         }
@@ -110,8 +113,9 @@ async function fetchReportDataDaily(req, res) {
     const formattedMetrics = Object.values(formattedMetricsMap);
 
     await sendToAirtableDaily(formattedMetrics);
+    return formattedMetrics;
 
-    res.json(formattedMetrics);
+    // res.json(formattedMetrics);
   } catch (error) {
     console.error("Error fetching report data:", error);
     res.status(500).send("Error fetching report data");
@@ -140,8 +144,8 @@ async function sendToAirtableDaily(data) {
             "Impr.": record.impressions,
             Clicks: record.clicks,
             Cost: record.cost,
-            "Book Now - Step 1: Email Signup": record.step1Value,
-            "Book Now - Step 5: Add Payment Info": record.step5Value,
+            "Book Now - Step 1: Locations": record.step1Value,
+            "Book Now - Step 5: Confirm Booking": record.step5Value,
             "Book Now - Step 6: Booking Confirmation": record.step6Value,
           },
         });
@@ -154,8 +158,8 @@ async function sendToAirtableDaily(data) {
             "Impr.": record.impressions,
             Clicks: record.clicks,
             Cost: record.cost,
-            "Book Now - Step 1: Email Signup": record.step1Value,
-            "Book Now - Step 5: Add Payment Info": record.step5Value,
+            "Book Now - Step 1: Locations": record.step1Value,
+            "Book Now - Step 5: Confirm Booking": record.step5Value,
             "Book Now - Step 6: Booking Confirmation": record.step6Value,
           },
         });
@@ -230,6 +234,16 @@ async function testFetchDaily(req, res) {
     res.status(500).send("Error fetching report data");
   }
 }
+
+const rule = new schedule.RecurrenceRule();
+rule.hour = 7;
+rule.minute = 0;
+rule.tz = "America/Los_Angeles";
+
+const dailyReportJob = schedule.scheduleJob(rule, () => {
+  fetchReportDataDaily();
+  console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
+});
 
 module.exports = {
   fetchReportDataDaily,
