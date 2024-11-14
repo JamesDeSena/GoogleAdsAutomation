@@ -188,12 +188,12 @@ async function sendToAirtableDaily(data) {
 
   if (recordsToUpdate.length > 0) {
     await batchProcessUpdates(recordsToUpdate);
-    console.log("Automation Update Done");
+    console.log("Daily Automation Update Done");
   }
 
   if (recordsToCreate.length > 0) {
     await batchProcessCreations(recordsToCreate);
-    console.log("Automation Create Done");
+    console.log("Daily Automation Create Done");
   }
 }
 
@@ -228,22 +228,22 @@ async function testFetchDaily(req, res) {
     const metricsResponse = await customer.query(metricsQuery);
 
     res.json(metricsResponse);
-    console.log(metricsResponse);
+    // console.log(metricsResponse);
   } catch (error) {
     console.error("Error fetching report data:", error);
     res.status(500).send("Error fetching report data");
   }
 }
 
-const rule = new schedule.RecurrenceRule();
-rule.hour = 7;
-rule.minute = 0;
-rule.tz = "America/Los_Angeles";
+// const rule = new schedule.RecurrenceRule();
+// rule.hour = 7;
+// rule.minute = 0;
+// rule.tz = "America/Los_Angeles";
 
-const dailyReportJob = schedule.scheduleJob(rule, () => {
-  fetchReportDataDaily();
-  console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
-});
+// const dailyReportJob = schedule.scheduleJob(rule, () => {
+//   fetchReportDataDaily();
+//   console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
+// });
 
 module.exports = {
   fetchReportDataDaily,

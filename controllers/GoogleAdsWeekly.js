@@ -46,16 +46,18 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
 const getOrGenerateDateRanges = () => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysUntilFriday = (dayOfWeek + 2) % 7;
+  const daysSinceFriday = (dayOfWeek + 1) % 7;
 
   const previousFriday = new Date(today);
-  previousFriday.setDate(today.getDate() - daysUntilFriday);
+  previousFriday.setDate(today.getDate() - daysSinceFriday);
 
   const currentThursday = new Date(previousFriday);
   currentThursday.setDate(previousFriday.getDate() + 6);
 
-  const startDate = previousFriday;
-  const endDate = currentThursday;
+  const startDate = '2024-09-13'; //previousFriday 2024-09-13
+  const fixedEndDate = '2024-11-07'; // currentThursday
+
+  const endDate = currentThursday //new Date(fixedEndDate);
 
   if (
     !storedDateRanges ||
@@ -203,7 +205,7 @@ const fetchReportDataWeekly = async (req, res) => {
     // res.json(allWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    res.status(500).send("Error fetching report data");
+    // res.status(500).send("Error fetching report data");
   }
 };
 
@@ -303,7 +305,7 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
     // res.json(allWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    res.status(500).send("Error fetching report data");
+    // res.status(500).send("Error fetching report data");
   }
 };
 
@@ -323,66 +325,122 @@ const sendFinalReportToAirtable = async () => {
 
     const records = [];
 
+    const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
+
+    const addWoWVariance = (lastRecord, secondToLastRecord, filter) => {
+      records.push({
+        fields: {
+          Week: "Wow Variance %",
+          Filter: filter,
+          "Impr. Raw": calculateWoWVariance(lastRecord.impressions, secondToLastRecord.impressions),
+          'Clicks Raw': calculateWoWVariance(lastRecord.clicks, secondToLastRecord.clicks),
+          'Cost Raw': calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost),
+          "Book Now - Step 1: Locations Raw": calculateWoWVariance(lastRecord.step1Value, secondToLastRecord.step1Value),
+          "Book Now - Step 5: Confirm Booking Raw": calculateWoWVariance(lastRecord.step5Value, secondToLastRecord.step5Value),
+          "Book Now - Step 6: Booking Confirmation Raw": calculateWoWVariance(lastRecord.step6Value, secondToLastRecord.step6Value),
+          "CPC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks),
+          "CTR Raw": calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions),
+          "Step 1 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step1Value, secondToLastRecord.cost / secondToLastRecord.step1Value),
+          "Step 5 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step5Value, secondToLastRecord.cost / secondToLastRecord.step5Value),
+          "Step 6 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step6Value, secondToLastRecord.cost / secondToLastRecord.step6Value),
+          "Step 1 Conv Rate Raw": calculateWoWVariance(lastRecord.step1Value / lastRecord.clicks, secondToLastRecord.step1Value / secondToLastRecord.clicks),
+          "Step 5 Conv Rate Raw": calculateWoWVariance(lastRecord.step5Value / lastRecord.clicks, secondToLastRecord.step5Value / secondToLastRecord.clicks),
+          "Step 6 Conv Rate Raw": calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks),
+        },
+      });
+    };
+
     weeklyData.forEach((record) => {
       records.push({
         fields: {
           Week: record.date,
           Filter: "All Search",
-          "Impr.": record.impressions,
-          Clicks: record.clicks,
-          Cost: record.cost,
-          "Book Now - Step 1: Locations": record.step1Value,
-          "Book Now - Step 5: Confirm Booking": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          "Impr. Raw": record.impressions,
+          'Clicks Raw': record.clicks,
+          'Cost Raw': record.cost,
+          "Book Now - Step 1: Locations Raw": record.step1Value,
+          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
+          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
+          "CPC Raw": record.cost / record.clicks,
+          "CTR Raw": record.clicks / record.impressions,
+          "Step 1 CAC Raw": record.cost / record.step1Value,
+          "Step 5 CAC Raw": record.cost / record.step5Value,
+          "Step 6 CAC Raw": record.cost / record.step6Value,
+          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
+          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
+          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
         },
       });
     });
 
-    records.push({ fields: {} });
+    const [secondToLastWeekly, lastWeekly] = weeklyData.slice(-2);
+    addWoWVariance(lastWeekly, secondToLastWeekly, "All Search");
 
     brandData.forEach((record) => {
       records.push({
         fields: {
           Week: record.date,
           Filter: "Brand",
-          "Impr.": record.impressions,
-          Clicks: record.clicks,
-          Cost: record.cost,
-          "Book Now - Step 1: Locations": record.step1Value,
-          "Book Now - Step 5: Confirm Booking": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          "Impr. Raw": record.impressions,
+          'Clicks Raw': record.clicks,
+          'Cost Raw': record.cost,
+          "Book Now - Step 1: Locations Raw": record.step1Value,
+          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
+          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
+          "CPC Raw": record.cost / record.clicks,
+          "CTR Raw": record.clicks / record.impressions,
+          "Step 1 CAC Raw": record.cost / record.step1Value,
+          "Step 5 CAC Raw": record.cost / record.step5Value,
+          "Step 6 CAC Raw": record.cost / record.step6Value,
+          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
+          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
+          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
         },
       });
     });
 
-    records.push({ fields: {} });
-    records.push({ fields: { Week: "No Brand" } });
+    const [secondToLastBrand, lastBrand] = brandData.slice(-2);
+    addWoWVariance(lastBrand, secondToLastBrand, "Brand");
 
     noBrandData.forEach((record) => {
       records.push({
         fields: {
           Week: record.date,
           Filter: "NB",
-          "Impr.": record.impressions,
-          Clicks: record.clicks,
-          Cost: record.cost,
-          "Book Now - Step 1: Locations": record.step1Value,
-          "Book Now - Step 5: Confirm Booking": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          "Impr. Raw": record.impressions,
+          'Clicks Raw': record.clicks,
+          'Cost Raw': record.cost,
+          "Book Now - Step 1: Locations Raw": record.step1Value,
+          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
+          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
+          "CPC Raw": record.cost / record.clicks,
+          "CTR Raw": record.clicks / record.impressions,
+          "Step 1 CAC Raw": record.cost / record.step1Value,
+          "Step 5 CAC Raw": record.cost / record.step5Value,
+          "Step 6 CAC Raw": record.cost / record.step6Value,
+          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
+          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
+          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
         },
       });
     });
 
+    const [secondToLastNB, lastNB] = noBrandData.slice(-2);
+    addWoWVariance(lastNB, secondToLastNB, "NB");
+
+    const table = base("Final Report");
+    const existingRecords = await table.select().all();
+    const deletePromises = existingRecords.map(record => table.destroy(record.id));
+    await Promise.all(deletePromises);
+
     const batchSize = 10;
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
-      await base("Final Report").create(batch);
-      console.log(
-        `Batch of ${batch.length} records sent to Airtable successfully!`
-      );
+      await table.create(batch);
+      console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
     }
 
-    console.log("Final report sent to Airtable successfully!");
+    console.log("Final weekly report sent to Airtable successfully!");
   } catch (error) {
     console.error("Error sending final report to Airtable:", error);
   }
@@ -398,16 +456,16 @@ const testFetchWeekly = async (req, res) => {
   );
 };
 
-const rule = new schedule.RecurrenceRule();
-rule.dayOfWeek = 6;
-rule.hour = 7;
-rule.minute = 0;
-rule.tz = "America/Los_Angeles";
+// const rule = new schedule.RecurrenceRule();
+// rule.dayOfWeek = 6;
+// rule.hour = 7;
+// rule.minute = 0;
+// rule.tz = "America/Los_Angeles";
 
-const AM = schedule.scheduleJob(rule, () => {
-  sendFinalReportToAirtable();
-  console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
-});
+// const AM = schedule.scheduleJob(rule, () => {
+//   sendFinalReportToAirtable();
+//   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
+// });
 
 module.exports = {
   fetchReportDataWeekly,
