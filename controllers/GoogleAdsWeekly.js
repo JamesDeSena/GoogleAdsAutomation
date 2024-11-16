@@ -199,7 +199,7 @@ const fetchReportDataWeekly = async (req, res) => {
       allWeeklyData.push(weeklyData);
     }
 
-    await sendToAirtable(allWeeklyData, "All Weekly Report", "All Search");
+    // await sendToAirtable(allWeeklyData, "All Weekly Report", "All Search");
     return allWeeklyData;
 
     // res.json(allWeeklyData);
@@ -299,10 +299,12 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
 
     const allWeeklyData = await Promise.all(allWeeklyDataPromises);
 
-    await sendToAirtable(allWeeklyData,`${reportName} Weekly Report`,campaignNameFilter);
+    // if (campaignNameFilter === "Brand" || campaignNameFilter === "NB") {
+    //   await sendToAirtable(allWeeklyData, `${reportName} Weekly Report`, campaignNameFilter);
+    // }
+
     return allWeeklyData;
 
-    // res.json(allWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
     // res.status(500).send("Error fetching report data");
@@ -317,14 +319,48 @@ const fetchReportDataWeeklyNB = (req, res) => {
   return fetchReportDataWeeklyFilter(req, res, "NB", "NB");
 };
 
+const fetchReportDataWeeklyGilbert = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "Gilbert", "Gilbert");
+};
+
+const fetchReportDataWeeklyMKT = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "MKT", "MKT");
+};
+
+const fetchReportDataWeeklyPhoenix = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "Phoenix", "Phoenix");
+};
+
+const fetchReportDataWeeklyScottsdale = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "Scottsdale", "Scottsdale");
+};
+
+const fetchReportDataWeeklyUptownPark = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "UptownPark", "UptownPark");
+};
+
+const fetchReportDataWeeklyMontrose = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "Montrose", "Montrose");
+};
+
+const fetchReportDataWeeklyRiceVillage = (req, res) => {
+  return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage");
+};
+
 const sendFinalReportToAirtable = async () => {
   try {
     const weeklyData = await fetchReportDataWeekly();
     const brandData = await fetchReportDataWeeklyBrand();
     const noBrandData = await fetchReportDataWeeklyNB();
+    const gilbertData = await fetchReportDataWeeklyGilbert();
+    const mktData = await fetchReportDataWeeklyMKT();
+    const phoenixData = await fetchReportDataWeeklyPhoenix();
+    const scottsdaleData = await fetchReportDataWeeklyScottsdale();
+    const uptownParkData = await fetchReportDataWeeklyUptownPark();
+    const montroseData = await fetchReportDataWeeklyMontrose();
+    const riceVillageData = await fetchReportDataWeeklyRiceVillage();
 
     const records = [];
-
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
     const addWoWVariance = (lastRecord, secondToLastRecord, filter) => {
@@ -350,85 +386,54 @@ const sendFinalReportToAirtable = async () => {
       });
     };
 
-    weeklyData.forEach((record) => {
-      records.push({
-        fields: {
-          Week: record.date,
-          Filter: "All Search",
-          "Impr. Raw": record.impressions,
-          'Clicks Raw': record.clicks,
-          'Cost Raw': record.cost,
-          "Book Now - Step 1: Locations Raw": record.step1Value,
-          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
-          "CPC Raw": record.cost / record.clicks,
-          "CTR Raw": record.clicks / record.impressions,
-          "Step 1 CAC Raw": record.cost / record.step1Value,
-          "Step 5 CAC Raw": record.cost / record.step5Value,
-          "Step 6 CAC Raw": record.cost / record.step6Value,
-          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
-          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
-          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
-        },
+    const addDataToRecords = (data, filter) => {
+      data.forEach((record) => {
+        records.push({
+          fields: {
+            Week: record.date,
+            Filter: filter,
+            "Impr. Raw": record.impressions,
+            'Clicks Raw': record.clicks,
+            'Cost Raw': record.cost,
+            "Book Now - Step 1: Locations Raw": record.step1Value,
+            "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
+            "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
+            "CPC Raw": record.cost / record.clicks,
+            "CTR Raw": record.clicks / record.impressions,
+            "Step 1 CAC Raw": record.cost / record.step1Value,
+            "Step 5 CAC Raw": record.cost / record.step5Value,
+            "Step 6 CAC Raw": record.cost / record.step6Value,
+            "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
+            "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
+            "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
+          },
+        });
       });
-    });
+    };
 
-    const [secondToLastWeekly, lastWeekly] = weeklyData.slice(-2);
-    addWoWVariance(lastWeekly, secondToLastWeekly, "All Search");
+    addDataToRecords(weeklyData, "All Search");
+    addDataToRecords(brandData, "Brand");
+    addDataToRecords(noBrandData, "NB");
+    addDataToRecords(gilbertData, "Gilbert");
+    addDataToRecords(mktData, "MKT");
+    addDataToRecords(phoenixData, "Phoenix");
+    addDataToRecords(scottsdaleData, "Scottsdale");
+    addDataToRecords(uptownParkData, "UptownPark");
+    addDataToRecords(montroseData, "Montrose");
+    addDataToRecords(riceVillageData, "RiceVillage");
 
-    brandData.forEach((record) => {
-      records.push({
-        fields: {
-          Week: record.date,
-          Filter: "Brand",
-          "Impr. Raw": record.impressions,
-          'Clicks Raw': record.clicks,
-          'Cost Raw': record.cost,
-          "Book Now - Step 1: Locations Raw": record.step1Value,
-          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
-          "CPC Raw": record.cost / record.clicks,
-          "CTR Raw": record.clicks / record.impressions,
-          "Step 1 CAC Raw": record.cost / record.step1Value,
-          "Step 5 CAC Raw": record.cost / record.step5Value,
-          "Step 6 CAC Raw": record.cost / record.step6Value,
-          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
-          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
-          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
-        },
-      });
-    });
+    addWoWVariance(weeklyData.slice(-1)[0], weeklyData.slice(-2)[0], "All Search");
+    addWoWVariance(brandData.slice(-1)[0], brandData.slice(-2)[0], "Brand");
+    addWoWVariance(noBrandData.slice(-1)[0], noBrandData.slice(-2)[0], "NB");
+    addWoWVariance(gilbertData.slice(-1)[0], gilbertData.slice(-2)[0], "Gilbert");
+    addWoWVariance(mktData.slice(-1)[0], mktData.slice(-2)[0], "MKT");
+    addWoWVariance(phoenixData.slice(-1)[0], phoenixData.slice(-2)[0], "Phoenix");
+    addWoWVariance(scottsdaleData.slice(-1)[0], scottsdaleData.slice(-2)[0], "Scottsdale");
+    addWoWVariance(uptownParkData.slice(-1)[0], uptownParkData.slice(-2)[0], "UptownPark");
+    addWoWVariance(montroseData.slice(-1)[0], montroseData.slice(-2)[0], "Montrose");
+    addWoWVariance(riceVillageData.slice(-1)[0], riceVillageData.slice(-2)[0], "RiceVillage");
 
-    const [secondToLastBrand, lastBrand] = brandData.slice(-2);
-    addWoWVariance(lastBrand, secondToLastBrand, "Brand");
-
-    noBrandData.forEach((record) => {
-      records.push({
-        fields: {
-          Week: record.date,
-          Filter: "NB",
-          "Impr. Raw": record.impressions,
-          'Clicks Raw': record.clicks,
-          'Cost Raw': record.cost,
-          "Book Now - Step 1: Locations Raw": record.step1Value,
-          "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
-          "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
-          "CPC Raw": record.cost / record.clicks,
-          "CTR Raw": record.clicks / record.impressions,
-          "Step 1 CAC Raw": record.cost / record.step1Value,
-          "Step 5 CAC Raw": record.cost / record.step5Value,
-          "Step 6 CAC Raw": record.cost / record.step6Value,
-          "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
-          "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
-          "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
-        },
-      });
-    });
-
-    const [secondToLastNB, lastNB] = noBrandData.slice(-2);
-    addWoWVariance(lastNB, secondToLastNB, "NB");
-
-    const table = base("Final Report");
+    const table = base("Final Report copy");
     const existingRecords = await table.select().all();
     const deletePromises = existingRecords.map(record => table.destroy(record.id));
     await Promise.all(deletePromises);
