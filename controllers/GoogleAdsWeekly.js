@@ -433,7 +433,7 @@ const sendFinalReportToAirtable = async () => {
     addWoWVariance(montroseData.slice(-1)[0], montroseData.slice(-2)[0], "Montrose");
     addWoWVariance(riceVillageData.slice(-1)[0], riceVillageData.slice(-2)[0], "RiceVillage");
 
-    const table = base("Final Report copy");
+    const table = base("Final Report");
     const existingRecords = await table.select().all();
     const deletePromises = existingRecords.map(record => table.destroy(record.id));
     await Promise.all(deletePromises);
