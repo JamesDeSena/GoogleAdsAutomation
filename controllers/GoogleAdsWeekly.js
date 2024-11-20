@@ -8,11 +8,6 @@ const { getStoredRefreshToken } = require("./GoogleAuth");
 
 const refreshToken_Google = getStoredRefreshToken();
 
-if (!refreshToken_Google) {
-  console.error("Access token is missing. Please authenticate.");
-  return;
-}
-
 const getCustomer = () =>
   client.Customer({
     customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
