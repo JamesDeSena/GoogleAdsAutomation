@@ -6,15 +6,6 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
 const { client } = require("../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("./GoogleAuth");
 
-const refreshToken_Google = getStoredRefreshToken();
-
-const getCustomer = () =>
-  client.Customer({
-    customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-    refresh_token: refreshToken_Google,
-    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-  });
-
 let storedDateRanges = null;
 
 const generateWeeklyDateRanges = (startDate, endDate) => {
@@ -102,8 +93,19 @@ const sendToAirtable = async (data, tableName, field) => {
 };
 
 const fetchReportDataWeekly = async (dateRanges) => {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
   try {
-    const customer = getCustomer();
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+      refresh_token: refreshToken_Google,
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
 
     // const dateRanges = getOrGenerateDateRanges();
 
@@ -283,9 +285,20 @@ const aggregateDataForWeek = async (
 };
 
 const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
-  try {
-    const customer = getCustomer();
+  const refreshToken_Google = getStoredRefreshToken();
 
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
+  try {
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+      refresh_token: refreshToken_Google,
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
+    
     // const dateRanges = getOrGenerateDateRanges();
 
     const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
@@ -436,14 +449,15 @@ const sendFinalReportToAirtable = async (req, res) => {
 
     const table = base("Final Report");
     const existingRecords = await table.select().all();
-    
+
     const recordExists = (week, filter) => {
-      return existingRecords.some(record => 
-        record.fields.Week === week && record.fields.Filter === filter);
+      return existingRecords.some(record =>
+        record.fields.Week === week && record.fields.Filter === filter
+      );
     };
 
     const updateRecord = async (id, fields) => {
-      await table.update(id, fields);  
+      await table.update(id, fields);
     };
 
     const createNewRecord = async (fields) => {
@@ -469,37 +483,21 @@ const sendFinalReportToAirtable = async (req, res) => {
       );
     };
 
-    let updated = false;
-    let created = false;
-
     for (const record of records) {
       const exists = recordExists(record.fields.Week, record.fields.Filter);
-      
+
       if (exists) {
         const existingRecord = existingRecords.find(r => r.fields.Week === record.fields.Week && r.fields.Filter === record.fields.Filter);
 
         if (!isDataEqual(existingRecord, record.fields)) {
           await updateRecord(existingRecord.id, record.fields);
-          updated = true;
         }
       } else {
         await createNewRecord(record.fields);
-        created = true;
       }
     }
 
-    if (updated || created) {
-      console.log("Process completed successfully. Records updated and/or created.");
-    } else {
-      console.log("No changes were needed. All records are up to date.");
-    }
-
-    const batchSize = 10;
-    for (let i = 0; i < records.length; i += batchSize) {
-      const batch = records.slice(i, i + batchSize);
-      await table.create(batch);
-      console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
-    }
+    console.log("Process completed successfully. Records updated and/or created.");
 
     // const deletePromises = existingRecords.map(record => table.destroy(record.id));
     // await Promise.all(deletePromises);
