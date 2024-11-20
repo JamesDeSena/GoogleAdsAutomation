@@ -32,7 +32,7 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
 const getOrGenerateDateRanges = (inputStartDate = null) => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysSinceLast = (dayOfWeek + 1) % 7; //Friday (dayOfWeek + 1) % 7; Monday (dayOfWeek + 6) % 7;
+  const daysSinceLast = (dayOfWeek + 6) % 7; //Friday (dayOfWeek + 1) % 7; Monday (dayOfWeek + 6) % 7;
 
   const previousLast = new Date(today);
   previousLast.setDate(today.getDate() - daysSinceLast);
