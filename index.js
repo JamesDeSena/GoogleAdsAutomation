@@ -8,7 +8,7 @@ const app = express();
 
 // ConnectDB();
 
-// const googleRoutes = require('./routes/GoogleRoutes');
+const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./controllers/RenderPing');
@@ -36,7 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use('/api/google', googleRoutes);
+app.use('/api/google', googleRoutes);
 app.use('/api/pacing', bingRoutes)
 app.use('/api/auth', apiRoutes)
 app.use("/test", (req, res) => {

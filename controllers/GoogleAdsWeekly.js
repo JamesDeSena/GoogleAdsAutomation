@@ -43,30 +43,33 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
   return dateRanges;
 };
 
-const getOrGenerateDateRanges = () => {
+const getOrGenerateDateRanges = (inputStartDate = null) => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysSinceFriday = (dayOfWeek + 1) % 7;
+  const daysSinceLast = (dayOfWeek + 1) % 7; //Friday (dayOfWeek + 1) % 7; Monday (dayOfWeek + 6) % 7;
 
-  const previousFriday = new Date(today);
-  previousFriday.setDate(today.getDate() - daysSinceFriday);
+  const previousLast = new Date(today);
+  previousLast.setDate(today.getDate() - daysSinceLast);
 
-  const currentThursday = new Date(previousFriday);
-  currentThursday.setDate(previousFriday.getDate() + 6);
+  const currentDay = new Date(previousLast);
+  currentDay.setDate(previousLast.getDate() + 6);
 
-  const startDate = '2024-09-13'; //previousFriday 2024-09-13
-  const fixedEndDate = '2024-11-07'; // currentThursday
+  const startDate = '2024-11-11'; //previousFriday 2024-09-13
+  // const fixedEndDate = '2024-11-07'; // currentDay
 
-  const endDate = currentThursday //new Date(fixedEndDate);
+  const endDate = currentDay; //new Date(fixedEndDate); //currentDay;
 
-  if (
-    !storedDateRanges ||
-    new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate
-  ) {
-    storedDateRanges = generateWeeklyDateRanges(startDate, endDate);
+  if (inputStartDate) {
+    return generateWeeklyDateRanges(inputStartDate, new Date(new Date(inputStartDate).setDate(new Date(inputStartDate).getDate() + 6)));
+  } else {
+    if (
+      !storedDateRanges ||
+      new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate
+    ) {
+      storedDateRanges = generateWeeklyDateRanges(startDate, endDate);
+    }
+    return storedDateRanges;
   }
-
-  return storedDateRanges;
 };
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
@@ -85,33 +88,29 @@ const sendToAirtable = async (data, tableName, field) => {
         [field]: dateField,
         "Impr.": record.impressions,
         Clicks: record.clicks,
-        Cost: record.cost,
+        Spend: record.cost,
         "Book Now - Step 1: Locations": record.step1Value,
         "Book Now - Step 5: Confirm Booking": record.step5Value,
         "Book Now - Step 6: Booking Confirmation": record.step6Value,
       };
       if (existingRecords.length > 0) {
         await base(tableName).update(existingRecords[0].id, recordFields);
-        console.log(
-          `Record updated for Date: ${recordDate} Table: ${tableName}`
-        );
       } else {
         await base(tableName).create(recordFields);
-        console.log(
-          `Record created for Date: ${recordDate} Table: ${tableName}`
-        );
       }
+
+      console.log(`${tableName} sent to Airtable successfully!`);
     } catch (error) {
       console.error(`Error processing record for Date: ${recordDate}`, error);
     }
   }
 };
 
-const fetchReportDataWeekly = async (req, res) => {
+const fetchReportDataWeekly = async (dateRanges) => {
   try {
     const customer = getCustomer();
 
-    const dateRanges = getOrGenerateDateRanges();
+    // const dateRanges = getOrGenerateDateRanges();
 
     const aggregateDataForWeek = async (startDate, endDate) => {
       const aggregatedData = {
@@ -288,10 +287,11 @@ const aggregateDataForWeek = async (
   return aggregatedData;
 };
 
-const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName) => {
+const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
   try {
     const customer = getCustomer();
-    const dateRanges = getOrGenerateDateRanges();
+
+    // const dateRanges = getOrGenerateDateRanges();
 
     const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
       return aggregateDataForWeek(customer, start, end, campaignNameFilter);
@@ -311,54 +311,58 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
   }
 };
 
-const fetchReportDataWeeklyBrand = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "Brand", "Brand");
+const fetchReportDataWeeklyBrand = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Brand", "Brand", dateRanges);
 };
 
-const fetchReportDataWeeklyNB = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "NB", "NB");
+const fetchReportDataWeeklyNB = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "NB", "NB", dateRanges);
 };
 
-const fetchReportDataWeeklyGilbert = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "Gilbert", "Gilbert");
+const fetchReportDataWeeklyGilbert = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Gilbert", "Gilbert", dateRanges);
 };
 
-const fetchReportDataWeeklyMKT = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "MKT", "MKT");
+const fetchReportDataWeeklyMKT = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "MKT", "MKT", dateRanges);
 };
 
-const fetchReportDataWeeklyPhoenix = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "Phoenix", "Phoenix");
+const fetchReportDataWeeklyPhoenix = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Phoenix", "Phoenix", dateRanges);
 };
 
-const fetchReportDataWeeklyScottsdale = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "Scottsdale", "Scottsdale");
+const fetchReportDataWeeklyScottsdale = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Scottsdale", "Scottsdale", dateRanges);
 };
 
-const fetchReportDataWeeklyUptownPark = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "UptownPark", "UptownPark");
+const fetchReportDataWeeklyUptownPark = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "UptownPark", "UptownPark", dateRanges);
 };
 
-const fetchReportDataWeeklyMontrose = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "Montrose", "Montrose");
+const fetchReportDataWeeklyMontrose = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Montrose", "Montrose", dateRanges);
 };
 
-const fetchReportDataWeeklyRiceVillage = (req, res) => {
-  return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage");
+const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage", dateRanges);
 };
 
-const sendFinalReportToAirtable = async () => {
+const sendFinalReportToAirtable = async (req, res) => {
   try {
-    const weeklyData = await fetchReportDataWeekly();
-    const brandData = await fetchReportDataWeeklyBrand();
-    const noBrandData = await fetchReportDataWeeklyNB();
-    const gilbertData = await fetchReportDataWeeklyGilbert();
-    const mktData = await fetchReportDataWeeklyMKT();
-    const phoenixData = await fetchReportDataWeeklyPhoenix();
-    const scottsdaleData = await fetchReportDataWeeklyScottsdale();
-    const uptownParkData = await fetchReportDataWeeklyUptownPark();
-    const montroseData = await fetchReportDataWeeklyMontrose();
-    const riceVillageData = await fetchReportDataWeeklyRiceVillage();
+    const { date } = req.params;
+
+    const dateRanges = getOrGenerateDateRanges(date);
+
+    const weeklyData = await fetchReportDataWeekly(dateRanges);
+    const brandData = await fetchReportDataWeeklyBrand(req, res, dateRanges);
+    const noBrandData = await fetchReportDataWeeklyNB(req, res, dateRanges);
+    const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
+    const mktData = await fetchReportDataWeeklyMKT(req, res, dateRanges);
+    const phoenixData = await fetchReportDataWeeklyPhoenix(req, res, dateRanges);
+    const scottsdaleData = await fetchReportDataWeeklyScottsdale(req, res, dateRanges);
+    const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
+    const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
+    const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -399,7 +403,7 @@ const sendFinalReportToAirtable = async () => {
             "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
             "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
             "CPC Raw": record.cost / record.clicks,
-            "CTR Raw": record.clicks / record.impressions,
+            "CTR Raw": (record.clicks / record.impressions) * 100,
             "Step 1 CAC Raw": record.cost / record.step1Value,
             "Step 5 CAC Raw": record.cost / record.step5Value,
             "Step 6 CAC Raw": record.cost / record.step6Value,
@@ -411,32 +415,89 @@ const sendFinalReportToAirtable = async () => {
       });
     };
 
-    addDataToRecords(weeklyData, "All Search");
-    addDataToRecords(brandData, "Brand");
-    addDataToRecords(noBrandData, "NB");
-    addDataToRecords(gilbertData, "Gilbert");
-    addDataToRecords(mktData, "MKT");
-    addDataToRecords(phoenixData, "Phoenix");
-    addDataToRecords(scottsdaleData, "Scottsdale");
-    addDataToRecords(uptownParkData, "UptownPark");
-    addDataToRecords(montroseData, "Montrose");
-    addDataToRecords(riceVillageData, "RiceVillage");
+    addDataToRecords(weeklyData, "1 - All Search");
+    addDataToRecords(brandData, "2 - Brand");
+    addDataToRecords(noBrandData, "3 - NB");
+    addDataToRecords(gilbertData, "4 - Gilbert");
+    addDataToRecords(mktData, "5 - MKT");
+    addDataToRecords(phoenixData, "6 - Phoenix");
+    addDataToRecords(scottsdaleData, "7 - Scottsdale");
+    addDataToRecords(uptownParkData, "8 - UptownPark");
+    addDataToRecords(montroseData, "9 - Montrose");
+    addDataToRecords(riceVillageData, "10 - RiceVillage");
 
-    addWoWVariance(weeklyData.slice(-1)[0], weeklyData.slice(-2)[0], "All Search");
-    addWoWVariance(brandData.slice(-1)[0], brandData.slice(-2)[0], "Brand");
-    addWoWVariance(noBrandData.slice(-1)[0], noBrandData.slice(-2)[0], "NB");
-    addWoWVariance(gilbertData.slice(-1)[0], gilbertData.slice(-2)[0], "Gilbert");
-    addWoWVariance(mktData.slice(-1)[0], mktData.slice(-2)[0], "MKT");
-    addWoWVariance(phoenixData.slice(-1)[0], phoenixData.slice(-2)[0], "Phoenix");
-    addWoWVariance(scottsdaleData.slice(-1)[0], scottsdaleData.slice(-2)[0], "Scottsdale");
-    addWoWVariance(uptownParkData.slice(-1)[0], uptownParkData.slice(-2)[0], "UptownPark");
-    addWoWVariance(montroseData.slice(-1)[0], montroseData.slice(-2)[0], "Montrose");
-    addWoWVariance(riceVillageData.slice(-1)[0], riceVillageData.slice(-2)[0], "RiceVillage");
+    if (!date || date.trim() === '') {
+      addWoWVariance(weeklyData.slice(-1)[0], weeklyData.slice(-2)[0], "1 - All Search");
+      addWoWVariance(brandData.slice(-1)[0], brandData.slice(-2)[0], "2 - Brand");
+      addWoWVariance(noBrandData.slice(-1)[0], noBrandData.slice(-2)[0], "3 - NB");
+      addWoWVariance(gilbertData.slice(-1)[0], gilbertData.slice(-2)[0], "4 - Gilbert");
+      addWoWVariance(mktData.slice(-1)[0], mktData.slice(-2)[0], "5 - MKT");
+      addWoWVariance(phoenixData.slice(-1)[0], phoenixData.slice(-2)[0], "6 - Phoenix");
+      addWoWVariance(scottsdaleData.slice(-1)[0], scottsdaleData.slice(-2)[0], "7 - Scottsdale");
+      addWoWVariance(uptownParkData.slice(-1)[0], uptownParkData.slice(-2)[0], "8 - UptownPark");
+      addWoWVariance(montroseData.slice(-1)[0], montroseData.slice(-2)[0], "9 - Montrose");
+      addWoWVariance(riceVillageData.slice(-1)[0], riceVillageData.slice(-2)[0], "10 - RiceVillage");
+    }
 
     const table = base("Final Report");
     const existingRecords = await table.select().all();
-    const deletePromises = existingRecords.map(record => table.destroy(record.id));
-    await Promise.all(deletePromises);
+    
+    const recordExists = (week, filter) => {
+      return existingRecords.some(record => 
+        record.fields.Week === week && record.fields.Filter === filter);
+    };
+
+    const updateRecord = async (id, fields) => {
+      await table.update(id, fields);  
+    };
+
+    const createNewRecord = async (fields) => {
+      await table.create([{ fields }]);
+    };
+
+    const isDataEqual = (existingRecord, newRecordFields) => {
+      return (
+        existingRecord.fields["Impr. Raw"] === newRecordFields["Impr. Raw"] &&
+        existingRecord.fields["Clicks Raw"] === newRecordFields["Clicks Raw"] &&
+        existingRecord.fields["Cost Raw"] === newRecordFields["Cost Raw"] &&
+        existingRecord.fields["Book Now - Step 1: Locations Raw"] === newRecordFields["Book Now - Step 1: Locations Raw"] &&
+        existingRecord.fields["Book Now - Step 5: Confirm Booking Raw"] === newRecordFields["Book Now - Step 5: Confirm Booking Raw"] &&
+        existingRecord.fields["Book Now - Step 6: Booking Confirmation Raw"] === newRecordFields["Book Now - Step 6: Booking Confirmation Raw"] &&
+        existingRecord.fields["CPC Raw"] === newRecordFields["CPC Raw"] &&
+        existingRecord.fields["CTR Raw"] === newRecordFields["CTR Raw"] &&
+        existingRecord.fields["Step 1 CAC Raw"] === newRecordFields["Step 1 CAC Raw"] &&
+        existingRecord.fields["Step 5 CAC Raw"] === newRecordFields["Step 5 CAC Raw"] &&
+        existingRecord.fields["Step 6 CAC Raw"] === newRecordFields["Step 6 CAC Raw"] &&
+        existingRecord.fields["Step 1 Conv Rate Raw"] === newRecordFields["Step 1 Conv Rate Raw"] &&
+        existingRecord.fields["Step 5 Conv Rate Raw"] === newRecordFields["Step 5 Conv Rate Raw"] &&
+        existingRecord.fields["Step 6 Conv Rate Raw"] === newRecordFields["Step 6 Conv Rate Raw"]
+      );
+    };
+
+    let updated = false;
+    let created = false;
+
+    for (const record of records) {
+      const exists = recordExists(record.fields.Week, record.fields.Filter);
+      
+      if (exists) {
+        const existingRecord = existingRecords.find(r => r.fields.Week === record.fields.Week && r.fields.Filter === record.fields.Filter);
+
+        if (!isDataEqual(existingRecord, record.fields)) {
+          await updateRecord(existingRecord.id, record.fields);
+          updated = true;
+        }
+      } else {
+        await createNewRecord(record.fields);
+        created = true;
+      }
+    }
+
+    if (updated || created) {
+      console.log("Process completed successfully. Records updated and/or created.");
+    } else {
+      console.log("No changes were needed. All records are up to date.");
+    }
 
     const batchSize = 10;
     for (let i = 0; i < records.length; i += batchSize) {
@@ -445,20 +506,20 @@ const sendFinalReportToAirtable = async () => {
       console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
     }
 
+    // const deletePromises = existingRecords.map(record => table.destroy(record.id));
+    // await Promise.all(deletePromises);
+
+    // const batchSize = 10;
+    // for (let i = 0; i < records.length; i += batchSize) {
+    //   const batch = records.slice(i, i + batchSize);
+    //   await table.create(batch);
+    //   console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
+    // }
+
     console.log("Final weekly report sent to Airtable successfully!");
   } catch (error) {
     console.error("Error sending final report to Airtable:", error);
   }
-};
-
-const testFetchWeekly = async (req, res) => {
-  res.json(
-    await fetchWeeklyData(
-      getCustomer(),
-      req.query.metricsQuery,
-      req.query.conversionQuery
-    )
-  );
 };
 
 // const rule = new schedule.RecurrenceRule();
@@ -476,6 +537,5 @@ module.exports = {
   fetchReportDataWeekly,
   fetchReportDataWeeklyBrand,
   fetchReportDataWeeklyNB,
-  sendFinalReportToAirtable,
-  testFetchWeekly,
+  sendFinalReportToAirtable
 };

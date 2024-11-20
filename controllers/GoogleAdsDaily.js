@@ -21,12 +21,14 @@ async function fetchReportDataDaily(req, res) {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1); // Move the date to yesterday
-    const formattedYesterday = yesterday
-      .toISOString()
-      .split("T")[0]
-      .replace(/-/g, "");
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const formattedStartOfMonth = startOfMonth.toISOString().split("T")[0].replace(/-/g, "");
+    const formattedYesterday = yesterday.toISOString().split("T")[0].replace(/-/g, "");
 
     const metricsQuery = `
       SELECT
@@ -39,7 +41,7 @@ async function fetchReportDataDaily(req, res) {
       FROM
         campaign
       WHERE
-        segments.date = '${formattedYesterday}'
+        segments.date BETWEEN '${formattedStartOfMonth}' AND '${formattedYesterday}'
       ORDER BY
         segments.date DESC
     `;
@@ -53,7 +55,7 @@ async function fetchReportDataDaily(req, res) {
       FROM 
         campaign
       WHERE 
-        segments.date = '${formattedYesterday}'
+        segments.date BETWEEN '${formattedStartOfMonth}' AND '${formattedYesterday}'
         AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation') 
       ORDER BY 
         segments.date DESC`;
@@ -70,7 +72,7 @@ async function fetchReportDataDaily(req, res) {
           name: campaign.campaign.name,
           impressions: campaign.metrics.impressions,
           clicks: campaign.metrics.clicks,
-          cost: campaign.metrics.cost_micros / 1_000_000,
+          spend: campaign.metrics.cost_micros / 1_000_000,
           date: campaign.segments.date,
           step1Value: 0,
           step5Value: 0,
@@ -143,13 +145,12 @@ async function sendToAirtableDaily(data) {
           fields: {
             "Impr.": record.impressions,
             Clicks: record.clicks,
-            Cost: record.cost,
+            Spend: record.spend,
             "Book Now - Step 1: Locations": record.step1Value,
             "Book Now - Step 5: Confirm Booking": record.step5Value,
             "Book Now - Step 6: Booking Confirmation": record.step6Value,
           },
         });
-        console.log(`Record prepared for update for Campaign Name: ${campaignName} on Date: ${recordDate}`);
       } else {
         recordsToCreate.push({
           fields: {
@@ -157,13 +158,12 @@ async function sendToAirtableDaily(data) {
             Campaign: campaignName,
             "Impr.": record.impressions,
             Clicks: record.clicks,
-            Cost: record.cost,
+            Spend: record.spend,
             "Book Now - Step 1: Locations": record.step1Value,
             "Book Now - Step 5: Confirm Booking": record.step5Value,
             "Book Now - Step 6: Booking Confirmation": record.step6Value,
           },
         });
-        console.log(`Record prepared for creation for Campaign Name: ${campaignName} on Date: ${recordDate}`);
       }
     } catch (error) {
       console.error(`Error processing record for Campaign Name: ${campaignName} on Date: ${recordDate}`,error);
@@ -174,7 +174,7 @@ async function sendToAirtableDaily(data) {
     for (let i = 0; i < records.length; i += 10) {
       const batch = records.slice(i, i + 10);
       await base("Daily Report").update(batch);
-      console.log(`Updated ${batch.length} records in batch.`);
+      console.log(`Updated ${batch.length} records in Daily batch.`);
     }
   };
 
@@ -182,7 +182,7 @@ async function sendToAirtableDaily(data) {
     for (let i = 0; i < records.length; i += 10) {
       const batch = records.slice(i, i + 10);
       await base("Daily Report").create(batch);
-      console.log(`Created ${batch.length} records in batch.`);
+      console.log(`Created ${batch.length} records in Daily batch.`);
     }
   };
 
@@ -197,44 +197,6 @@ async function sendToAirtableDaily(data) {
   }
 }
 
-async function testFetchDaily(req, res) {
-  const refreshToken_Google = getStoredRefreshToken();
-
-  if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
-    return;
-  }
-
-  const metricsQuery = `
-    SELECT
-      conversion_action.name,
-      metrics.all_conversions,
-      segments.date
-    FROM
-      conversion_action
-    WHERE
-      segments.date = '20240923'
-    ORDER BY
-      segments.date DESC
-    LIMIT 100`;
-
-  try {
-    const customer = client.Customer({
-      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: refreshToken_Google,
-      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-    });
-
-    const metricsResponse = await customer.query(metricsQuery);
-
-    res.json(metricsResponse);
-    // console.log(metricsResponse);
-  } catch (error) {
-    console.error("Error fetching report data:", error);
-    res.status(500).send("Error fetching report data");
-  }
-}
-
 // const rule = new schedule.RecurrenceRule();
 // rule.hour = 7;
 // rule.minute = 0;
@@ -246,6 +208,5 @@ async function testFetchDaily(req, res) {
 // });
 
 module.exports = {
-  fetchReportDataDaily,
-  testFetchDaily,
+  fetchReportDataDaily
 };

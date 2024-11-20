@@ -129,5 +129,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+#data
+date.json
+
 #tokens
 token.json
