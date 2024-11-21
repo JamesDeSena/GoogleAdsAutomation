@@ -12,8 +12,9 @@ const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./controllers/RenderPing');
+const { sendFinalPacingReportToAirtable } = require('./controllers/PacingReport');
 const { fetchReportDataDaily } = require('./controllers/GoogleAdsDaily');
-const { sendFinalReportToAirtable } = require('./controllers/GoogleAdsWeekly');
+const { sendFinalWeeklyReportToAirtable } = require('./controllers/GoogleAdsWeekly');
 
 app.use(express.json());
 
@@ -51,21 +52,41 @@ pingRenderApp();
 const rule1 = new schedule.RecurrenceRule();
 rule1.hour = 7;
 rule1.minute = 0;
-rule1.tz = "America/Los_Angeles";
+rule1.tz = 'America/Los_Angeles';
 
-const dailyReportJob = schedule.scheduleJob(rule1, () => {
+const AM = schedule.scheduleJob(rule1, () => {
+  sendFinalPacingReportToAirtable();
+  console.log("Scheduled pacing report sent at 7 AM PST California/Irvine.");
+});
+
+const rule2 = new schedule.RecurrenceRule();
+rule2.hour = 19;
+rule2.minute = 0;
+rule2.tz = 'America/Los_Angeles';
+
+const PM = schedule.scheduleJob(rule2, () => {
+  sendFinalPacingReportToAirtable();
+  console.log("Scheduled pacing report sent at 7 PM PST California/Irvine.");
+});
+
+const rule3 = new schedule.RecurrenceRule();
+rule3.hour = 7;
+rule3.minute = 0;
+rule3.tz = 'America/Los_Angeles';
+
+const dailyReportJob = schedule.scheduleJob(rule3, () => {
   fetchReportDataDaily();
   console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
 });
 
-const rule2 = new schedule.RecurrenceRule();
-rule2.dayOfWeek = 6;
-rule2.hour = 7;
-rule2.minute = 0;
-rule2.tz = "America/Los_Angeles";
+const rule4 = new schedule.RecurrenceRule();
+rule4.dayOfWeek = 6;
+rule4.hour = 7;
+rule4.minute = 0;
+rule4.tz = 'America/Los_Angeles';
 
-const weeklyReportJob = schedule.scheduleJob(rule2, () => {
-  sendFinalReportToAirtable();
+const weeklyReportJob = schedule.scheduleJob(rule4, () => {
+  sendFinalWeeklyReportToAirtable();
   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
 });
 

@@ -355,7 +355,7 @@ const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
   return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage", dateRanges);
 };
 
-const sendFinalReportToAirtable = async (req, res) => {
+const sendFinalWeeklyReportToAirtable = async (req, res) => {
   try {
     const { date } = req.params;
 
@@ -522,7 +522,7 @@ const sendFinalReportToAirtable = async (req, res) => {
 // rule.tz = "America/Los_Angeles";
 
 // const AM = schedule.scheduleJob(rule, () => {
-//   sendFinalReportToAirtable();
+//   sendFinalWeeklyReportToAirtable();
 //   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
 // });
 
@@ -530,5 +530,5 @@ module.exports = {
   fetchReportDataWeekly,
   fetchReportDataWeeklyBrand,
   fetchReportDataWeeklyNB,
-  sendFinalReportToAirtable
+  sendFinalWeeklyReportToAirtable
 };

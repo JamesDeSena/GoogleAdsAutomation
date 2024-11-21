@@ -273,7 +273,7 @@ async function getAllMetrics() {
   }
 }
 
-const sendFinalReportToAirtable = async () => {
+const sendFinalPacingReportToAirtable = async () => {
   try {
     const record = await getAllMetrics();
 
@@ -422,27 +422,84 @@ const sendFinalReportToAirtable = async () => {
   }
 };
 
+const fetchAndFormatTimeCreatedCST = async () => {
+  try {
+    const today = new Date();
+    today.setHours(11, 0, 0, 0);
+
+    const formattedToday = today.toISOString().split("T")[0]; 
+
+    const records = await base("Pacing Report")
+      .select({
+        fields: ["Time Created CST", "Brand", "Campaign", "MTD Spend"],
+      })
+      .all();
+
+    records.forEach(record => {
+      const timeCreated = record.fields["Time Created CST"];
+      const brand = record.fields["Brand"];
+      const campaign = record.fields["Campaign"];
+
+      if (timeCreated && brand && campaign) {
+        const recordDate = new Date(timeCreated);
+        const formattedRecordDate = recordDate.toISOString().split("T")[0];
+        
+        if (
+          formattedRecordDate === formattedToday &&
+          recordDate.getHours() === 11 &&
+          recordDate.getMinutes() === 0 &&
+          (brand === "LP+C" || brand === "The Vault") && 
+          campaign === "Bing"
+        ) {
+          const formattedTimeCreated = recordDate.toLocaleString("en-US", {
+            weekday: "short",
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
+          console.log(`Brand: ${brand}`);
+          console.log(`Campaign: ${campaign}`);
+          console.log(`Time Created CST: ${formattedTimeCreated}`);
+          console.log(`Spend: ${record.fields["MTD Spend"]}`);
+        }
+      } else {
+        console.log(`Record ID: ${record.id} is missing necessary fields.`);
+      }
+    });
+
+    console.log("Fetched and formatted Time Created CST successfully.");
+  } catch (error) {
+    console.error("Error fetching Time Created CST:", error);
+  }
+};
+
+
 const rule1 = new schedule.RecurrenceRule();
 rule1.hour = 7;
 rule1.minute = 0;
 rule1.tz = 'America/Los_Angeles';
 
 const AM = schedule.scheduleJob(rule1, () => {
-  sendFinalReportToAirtable();
-  console.log("Scheduled pacing report sent at 7 AM PST California/Irvine.");
+  fetchAndFormatTimeCreatedCST();
+  console.log("Scheduled 11 AM sent at 7 AM PST California/Irvine.");
 });
 
 const rule2 = new schedule.RecurrenceRule();
 rule2.hour = 19;
-rule2.minute = 0;
+rule2.minute = 10;
 rule2.tz = 'America/Los_Angeles';
 
 const PM = schedule.scheduleJob(rule2, () => {
-  sendFinalReportToAirtable();
-  console.log("Scheduled pacing report sent at 7 PM PST California/Irvine.");
+  fetchAndFormatTimeCreatedCST();
+  console.log("Scheduled 11 AM sent at 7 PM PST California/Irvine.");
 });
 
 module.exports = {
   getAllMetrics,
-  sendFinalReportToAirtable,
+  sendFinalPacingReportToAirtable,
+  fetchAndFormatTimeCreatedCST
 };

@@ -128,73 +128,109 @@ async function sendToAirtableDaily(data) {
   const recordsToUpdate = [];
   const recordsToCreate = [];
 
+  const validFields = [
+    "Impr.",
+    "Clicks",
+    "Spend",
+    "Book Now - Step 1: Locations",
+    "Book Now - Step 5: Confirm Booking",
+    "Book Now - Step 6: Booking Confirmation",
+    "Day",
+    "Campaign",
+  ];
+
+  const validateFields = (fields) => {
+    const invalidFields = Object.keys(fields).filter(
+      (key) => !validFields.includes(key)
+    );
+    if (invalidFields.length > 0) {
+      console.warn(
+        `Warning: Invalid field(s) detected and excluded: ${invalidFields.join(
+          ", "
+        )}`
+      );
+      for (const field of invalidFields) {
+        delete fields[field];
+      }
+    }
+  };
+
   for (const record of data) {
     const campaignName = record.name;
     const recordDate = record.date;
 
     try {
-      const existingRecords = await base("Daily Report").select({
-        filterByFormula: `AND({Campaign} = '${campaignName}', 
-        DATETIME_FORMAT({Day}, 'YYYY-MM-DD') = '${recordDate}')`,
-      }).firstPage();
+      const existingRecords = await base("Daily Report")
+        .select({
+          filterByFormula: `AND({Campaign} = '${campaignName}', 
+          DATETIME_FORMAT({Day}, 'YYYY-MM-DD') = '${recordDate}')`,
+        })
+        .firstPage();
 
       if (existingRecords.length > 0) {
         const existingRecordId = existingRecords[0].id;
+        const fieldsToUpdate = {
+          "Impr.": record.impressions,
+          Clicks: record.clicks,
+          Spend: record.spend,
+          "Book Now - Step 1: Locations": record.step1Value,
+          "Book Now - Step 5: Confirm Booking": record.step5Value,
+          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+        };
+        validateFields(fieldsToUpdate);
         recordsToUpdate.push({
           id: existingRecordId,
-          fields: {
-            "Impr.": record.impressions,
-            Clicks: record.clicks,
-            Spend: record.spend,
-            "Book Now - Step 1: Locations": record.step1Value,
-            "Book Now - Step 5: Confirm Booking": record.step5Value,
-            "Book Now - Step 6: Booking Confirmation": record.step6Value,
-          },
+          fields: fieldsToUpdate,
         });
       } else {
-        recordsToCreate.push({
-          fields: {
-            Day: recordDate,
-            Campaign: campaignName,
-            "Impr.": record.impressions,
-            Clicks: record.clicks,
-            Spend: record.spend,
-            "Book Now - Step 1: Locations": record.step1Value,
-            "Book Now - Step 5: Confirm Booking": record.step5Value,
-            "Book Now - Step 6: Booking Confirmation": record.step6Value,
-          },
-        });
+        const fieldsToCreate = {
+          Day: recordDate,
+          Campaign: campaignName,
+          "Impr.": record.impressions,
+          Clicks: record.clicks,
+          Spend: record.spend,
+          "Book Now - Step 1: Locations": record.step1Value,
+          "Book Now - Step 5: Confirm Booking": record.step5Value,
+          "Book Now - Step 6: Booking Confirmation": record.step6Value,
+        };
+        validateFields(fieldsToCreate);
+        recordsToCreate.push({ fields: fieldsToCreate });
       }
     } catch (error) {
-      console.error(`Error processing record for Campaign Name: ${campaignName} on Date: ${recordDate}`,error);
+      console.error(
+        `Error processing record for Campaign Name: ${campaignName} on Date: ${recordDate}`,
+        error
+      );
     }
   }
 
-  const batchProcessUpdates = async (records) => {
+  const batchProcess = async (records, operation, label) => {
     for (let i = 0; i < records.length; i += 10) {
       const batch = records.slice(i, i + 10);
-      await base("Daily Report").update(batch);
-      console.log(`Updated ${batch.length} records in Daily batch.`);
-    }
-  };
-
-  const batchProcessCreations = async (records) => {
-    for (let i = 0; i < records.length; i += 10) {
-      const batch = records.slice(i, i + 10);
-      await base("Daily Report").create(batch);
-      console.log(`Created ${batch.length} records in Daily batch.`);
+      try {
+        if (operation === "update") {
+          await base("Daily Report").update(batch);
+        } else if (operation === "create") {
+          await base("Daily Report").create(batch);
+        }
+        console.log(
+          `${label}: Successfully processed ${batch.length} records in a batch.`
+        );
+      } catch (error) {
+        console.error(`${label}: Error processing batch`, error);
+      }
     }
   };
 
   if (recordsToUpdate.length > 0) {
-    await batchProcessUpdates(recordsToUpdate);
-    console.log("Daily Automation Update Done");
+    await batchProcess(recordsToUpdate, "update", "Update");
   }
 
   if (recordsToCreate.length > 0) {
-    await batchProcessCreations(recordsToCreate);
-    console.log("Daily Automation Create Done");
+    await batchProcess(recordsToCreate, "create", "Create");
   }
+
+  console.log("Daily Airtable sync process completed.");
 }
 
 // const rule = new schedule.RecurrenceRule();
