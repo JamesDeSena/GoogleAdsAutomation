@@ -428,7 +428,7 @@ const fetchAndFormatTimeCreatedCST = async () => {
     today.setHours(11, 0, 0, 0);
 
     const formattedToday = today.toISOString().split("T")[0]; 
-
+    console.log(formattedToday)
     const records = await base("Pacing Report")
       .select({
         fields: ["Time Created CST", "Brand", "Campaign", "MTD Spend"],
@@ -476,7 +476,6 @@ const fetchAndFormatTimeCreatedCST = async () => {
     console.error("Error fetching Time Created CST:", error);
   }
 };
-
 
 const rule1 = new schedule.RecurrenceRule();
 rule1.hour = 7;
