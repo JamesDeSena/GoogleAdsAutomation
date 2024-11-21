@@ -429,6 +429,7 @@ const fetchAndFormatTimeCreatedCST = async () => {
 
     const formattedToday = today.toISOString().split("T")[0]; 
     console.log(formattedToday)
+    console.log(today)
     const records = await base("Pacing Report")
       .select({
         fields: ["Time Created CST", "Brand", "Campaign", "MTD Spend"],
