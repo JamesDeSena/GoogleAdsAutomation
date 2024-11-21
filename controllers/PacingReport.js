@@ -425,7 +425,7 @@ const sendFinalPacingReportToAirtable = async () => {
 const fetchAndFormatTimeCreatedCST = async () => {
   try {
     const today = new Date();
-    today.setHours(11, 0, 0, 0);
+    today.setUTCHours(3, 0, 0, 0);
 
     const formattedToday = today.toISOString().split("T")[0]; 
     console.log(formattedToday)
@@ -444,10 +444,9 @@ const fetchAndFormatTimeCreatedCST = async () => {
       if (timeCreated && brand && campaign) {
         const recordDate = new Date(timeCreated);
         const formattedRecordDate = recordDate.toISOString().split("T")[0];
-        
         if (
           formattedRecordDate === formattedToday &&
-          recordDate.getHours() === 11 &&
+          recordDate.getHours() === 3 &&
           recordDate.getMinutes() === 0 &&
           (brand === "LP+C" || brand === "The Vault") && 
           campaign === "Bing"
