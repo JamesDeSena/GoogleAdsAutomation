@@ -80,7 +80,7 @@ const dailyReportJob = schedule.scheduleJob(rule3, () => {
 });
 
 const rule4 = new schedule.RecurrenceRule();
-rule4.dayOfWeek = 6;
+// rule4.dayOfWeek = 6;
 rule4.hour = 7;
 rule4.minute = 0;
 rule4.tz = 'America/Los_Angeles';

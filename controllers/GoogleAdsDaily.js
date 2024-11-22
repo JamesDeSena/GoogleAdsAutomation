@@ -122,7 +122,7 @@ async function fetchReportDataDaily(req, res) {
     console.error("Error fetching report data:", error);
     res.status(500).send("Error fetching report data");
   }
-}
+};
 
 async function sendToAirtableDaily(data) {
   const recordsToUpdate = [];
@@ -231,17 +231,7 @@ async function sendToAirtableDaily(data) {
   }
 
   console.log("Daily Airtable sync process completed.");
-}
-
-// const rule = new schedule.RecurrenceRule();
-// rule.hour = 7;
-// rule.minute = 0;
-// rule.tz = "America/Los_Angeles";
-
-// const dailyReportJob = schedule.scheduleJob(rule, () => {
-//   fetchReportDataDaily();
-//   console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
-// });
+};
 
 module.exports = {
   fetchReportDataDaily

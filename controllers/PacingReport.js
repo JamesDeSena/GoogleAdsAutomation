@@ -11,14 +11,14 @@ const { getStoredAccessToken } = require("./BingAuth");
 function getCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+};
 
 function formatDateUTC(date) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}${month}${day}`;
-}
+};
 
 async function getAmountBing(accountId) {
   const token = getStoredAccessToken();
@@ -67,7 +67,7 @@ async function getAmountBing(accountId) {
     );
     throw error;
   }
-}
+};
 
 async function getGoogleAdsCost(customerId) {
   const refreshToken_Google = getStoredRefreshToken();
@@ -93,7 +93,7 @@ async function getGoogleAdsCost(customerId) {
 
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
-
+  console.log(`start ${startDate}, end ${endDate}`);
   const metricsQuery = `
     SELECT
       campaign.name,
@@ -120,7 +120,7 @@ async function getGoogleAdsCost(customerId) {
     console.error("Error fetching Google Ads data:", error);
     throw error;
   }
-}
+};
 
 async function getAmountGoogleLPC() {
   try {
@@ -131,7 +131,7 @@ async function getAmountGoogleLPC() {
   } catch (error) {
     throw new Error("Error fetching Google Ads LPC data");
   }
-}
+};
 
 async function getAmountGoogleVault() {
   try {
@@ -142,7 +142,7 @@ async function getAmountGoogleVault() {
   } catch (error) {
     throw new Error("Error fetching Google Ads Vault data");
   }
-}
+};
 
 async function getAmountGoogleWB() {
   try {
@@ -153,7 +153,7 @@ async function getAmountGoogleWB() {
   } catch (error) {
     throw new Error("Error fetching Google Ads WB data");
   }
-}
+};
 
 async function getAmountGoogleCampaigns() {
   const refreshToken_Google = getStoredRefreshToken();
@@ -224,7 +224,18 @@ async function getAmountGoogleCampaigns() {
   } catch (error) {
     throw new Error("Error fetching Google Ads campaigns data");
   }
-}
+};
+
+async function getAmountGoogleGTAI() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_GTAI
+    );
+    return { GTAI: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads WB data");
+  }
+};
 
 async function getAmountBingTotal() {
   try {
@@ -238,7 +249,7 @@ async function getAmountBingTotal() {
   } catch (error) {
     throw new Error(error.message);
   }
-}
+};
 
 async function getAllMetrics() {
   try {
@@ -247,6 +258,7 @@ async function getAllMetrics() {
     const googleVault = await getAmountGoogleVault();
     const googleWB = await getAmountGoogleWB();
     const googleCampaigns = await getAmountGoogleCampaigns();
+    const googleGTAI = await getAmountGoogleGTAI();
 
     console.log({
       data: {
@@ -255,6 +267,7 @@ async function getAllMetrics() {
         ...googleVault,
         ...googleWB,
         ...googleCampaigns,
+        ...googleGTAI,
       },
     });
 
@@ -265,13 +278,14 @@ async function getAllMetrics() {
         ...googleVault,
         ...googleWB,
         ...googleCampaigns,
+        ...googleGTAI,
       },
     };
   } catch (error) {
     console.error("Error fetching all data:", error.message);
     throw new Error("Error fetching all data");
   }
-}
+};
 
 const fetchAndFormatTimeCreatedCST = async () => {
   try {
@@ -454,6 +468,14 @@ const sendFinalPacingReportToAirtable = async () => {
           "MTD Spend": record.data.RiceVillage,
         },
       },
+      {
+        fields: {
+          Brand: "GreaterThan.AI",
+          Campaign: "Google",
+          "Monthly Budget": 3000.0,
+          "MTD Spend": record.data.GTAI,
+        },
+      },
     ];
 
     const batchSize = 10;
@@ -470,26 +492,6 @@ const sendFinalPacingReportToAirtable = async () => {
     console.error("Error sending pacing report to Airtable:", error);
   }
 };
-
-// const rule1 = new schedule.RecurrenceRule();
-// rule1.hour = 7;
-// rule1.minute = 0;
-// rule1.tz = 'America/Los_Angeles';
-
-// const AM = schedule.scheduleJob(rule1, () => {
-//   fetchAndFormatTimeCreatedCST();
-//   console.log("Scheduled 11 AM sent at 7 AM PST California/Irvine.");
-// });
-
-// const rule2 = new schedule.RecurrenceRule();
-// rule2.hour = 19;
-// rule2.minute = 10;
-// rule2.tz = 'America/Los_Angeles';
-
-// const PM = schedule.scheduleJob(rule2, () => {
-//   fetchAndFormatTimeCreatedCST();
-//   console.log("Scheduled 11 AM sent at 7 PM PST California/Irvine.");
-// });
 
 module.exports = {
   getAllMetrics,

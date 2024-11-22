@@ -357,7 +357,7 @@ const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
 
 const sendFinalWeeklyReportToAirtable = async (req, res) => {
   try {
-    const { date } = req.params;
+    const date = req?.params?.date;
 
     const dateRanges = getOrGenerateDateRanges(date);
 
@@ -514,17 +514,6 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     console.error("Error sending final report to Airtable:", error);
   }
 };
-
-// const rule = new schedule.RecurrenceRule();
-// rule.dayOfWeek = 6;
-// rule.hour = 7;
-// rule.minute = 0;
-// rule.tz = "America/Los_Angeles";
-
-// const AM = schedule.scheduleJob(rule, () => {
-//   sendFinalWeeklyReportToAirtable();
-//   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
-// });
 
 module.exports = {
   fetchReportDataWeekly,
