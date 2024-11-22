@@ -12,16 +12,18 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
   const dateRanges = [];
   let currentStartDate = new Date(startDate);
 
-  while (currentStartDate <= endDate) {
+  const adjustedEndDate = new Date(endDate);
+  const daysToSunday = (7 - adjustedEndDate.getDay()) % 7;
+  adjustedEndDate.setDate(adjustedEndDate.getDate() + daysToSunday);
+
+  while (currentStartDate <= adjustedEndDate) {
     let currentEndDate = new Date(currentStartDate);
     currentEndDate.setDate(currentStartDate.getDate() + 6);
 
-    if (currentEndDate <= endDate) {
-      dateRanges.push({
-        start: currentStartDate.toISOString().split("T")[0],
-        end: currentEndDate.toISOString().split("T")[0],
-      });
-    }
+    dateRanges.push({
+      start: currentStartDate.toISOString().split("T")[0],
+      end: currentEndDate.toISOString().split("T")[0],
+    });
 
     currentStartDate.setDate(currentStartDate.getDate() + 7);
   }

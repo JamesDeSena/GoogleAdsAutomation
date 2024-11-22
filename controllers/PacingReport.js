@@ -93,7 +93,7 @@ async function getGoogleAdsCost(customerId) {
 
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
-  console.log(`start ${startDate}, end ${endDate}`);
+  
   const metricsQuery = `
     SELECT
       campaign.name,
