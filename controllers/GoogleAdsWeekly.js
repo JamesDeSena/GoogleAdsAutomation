@@ -437,16 +437,16 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     addDataToRecords(riceVillageData, "10 - RiceVillage");
 
     if (!date || date.trim() === '') {
-      addWoWVariance(weeklyData.slice(-1)[0], weeklyData.slice(-2)[0], "1 - All Search");
-      addWoWVariance(brandData.slice(-1)[0], brandData.slice(-2)[0], "2 - Brand");
-      addWoWVariance(noBrandData.slice(-1)[0], noBrandData.slice(-2)[0], "3 - NB");
-      addWoWVariance(gilbertData.slice(-1)[0], gilbertData.slice(-2)[0], "4 - Gilbert");
-      addWoWVariance(mktData.slice(-1)[0], mktData.slice(-2)[0], "5 - MKT");
-      addWoWVariance(phoenixData.slice(-1)[0], phoenixData.slice(-2)[0], "6 - Phoenix");
-      addWoWVariance(scottsdaleData.slice(-1)[0], scottsdaleData.slice(-2)[0], "7 - Scottsdale");
-      addWoWVariance(uptownParkData.slice(-1)[0], uptownParkData.slice(-2)[0], "8 - UptownPark");
-      addWoWVariance(montroseData.slice(-1)[0], montroseData.slice(-2)[0], "9 - Montrose");
-      addWoWVariance(riceVillageData.slice(-1)[0], riceVillageData.slice(-2)[0], "10 - RiceVillage");
+      addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "1 - All Search");
+      addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "2 - Brand");
+      addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "3 - NB");
+      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "4 - Gilbert");
+      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "5 - MKT");
+      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "6 - Phoenix");
+      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "7 - Scottsdale");
+      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "8 - UptownPark");
+      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "9 - Montrose");
+      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "10 - RiceVillage");
     }
 
     const table = base("Final Report");
