@@ -56,7 +56,7 @@ async function fetchReportDataDaily(req, res) {
         campaign
       WHERE 
         segments.date BETWEEN '${formattedStartOfMonth}' AND '${formattedYesterday}'
-        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation') 
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed') 
       ORDER BY 
         segments.date DESC`;
 
@@ -77,6 +77,7 @@ async function fetchReportDataDaily(req, res) {
           step1Value: 0,
           step5Value: 0,
           step6Value: 0,
+          bookingConfirmed: 0,
         };
       });
 
@@ -109,7 +110,12 @@ async function fetchReportDataDaily(req, res) {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].step6Value += conversionValue;
         }
+      } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
+        if (formattedMetricsMap[key]) {
+          formattedMetricsMap[key].bookingConfirmed += conversionValue;
+        }
       }
+      
     });
 
     const formattedMetrics = Object.values(formattedMetricsMap);
@@ -137,6 +143,7 @@ async function sendToAirtableDaily(data) {
     "Book Now - Step 6: Booking Confirmation",
     "Day",
     "Campaign",
+    "Booking Confirmed",
   ];
 
   const validateFields = (fields) => {
@@ -176,6 +183,7 @@ async function sendToAirtableDaily(data) {
           "Book Now - Step 1: Locations": record.step1Value,
           "Book Now - Step 5: Confirm Booking": record.step5Value,
           "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          "Booking Confirmed": record.bookingConfirmed,
         };
         validateFields(fieldsToUpdate);
         recordsToUpdate.push({
@@ -192,6 +200,7 @@ async function sendToAirtableDaily(data) {
           "Book Now - Step 1: Locations": record.step1Value,
           "Book Now - Step 5: Confirm Booking": record.step5Value,
           "Book Now - Step 6: Booking Confirmation": record.step6Value,
+          "Booking Confirmed": record.bookingConfirmed,
         };
         validateFields(fieldsToCreate);
         recordsToCreate.push({ fields: fieldsToCreate });
