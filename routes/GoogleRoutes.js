@@ -12,6 +12,10 @@ const {
   sendFinalWeeklyReportToAirtable
 } = require('../controllers/GoogleAdsWeekly');
 
+// const {
+//   sendFinalMonthlyReportToAirtable
+// } = require('../controllers/GoogleAdsMonthly');
+
 // router.get('/report', fetchReportDataDaily);
 
 // router.get('/report-week', fetchReportDataWeekly);
@@ -28,5 +32,15 @@ router.get('/report-final/:date?', async (req, res) => {
     res.status(500).send("Error processing final report.");
   }
 });
+
+// router.get('/report-month/:date?', async (req, res) => {
+//   try {
+//     await sendFinalMonthlyReportToAirtable(req, res);
+//     res.status(200).send("Process completed successfully.");
+//   } catch (error) {
+//     console.error("Error processing final report:", error);
+//     res.status(500).send("Error processing final report.");
+//   }
+// });
 
 module.exports = router;

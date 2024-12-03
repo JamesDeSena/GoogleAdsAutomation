@@ -81,6 +81,7 @@ const sendToAirtable = async (data, tableName, field) => {
         "Book Now - Step 5: Confirm Booking": record.step5Value,
         "Book Now - Step 6: Booking Confirmation": record.step6Value,
         "BookingConfirmed": record.bookingRecord,
+        "Purchase": record.purchase
       };
       if (existingRecords.length > 0) {
         await base(tableName).update(existingRecords[0].id, recordFields);
@@ -122,6 +123,7 @@ const fetchReportDataWeekly = async (dateRanges) => {
         step5Value: 0,
         step6Value: 0,
         bookingConfirmed: 0,
+        purchase: 0,
       };
 
       const metricsQuery = `
@@ -149,7 +151,7 @@ const fetchReportDataWeekly = async (dateRanges) => {
           conversion_action
         WHERE 
           segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND conversion_action.name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed') 
+          AND conversion_action.name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
         ORDER BY 
           segments.date DESC
       `;
@@ -179,6 +181,8 @@ const fetchReportDataWeekly = async (dateRanges) => {
             aggregatedData.step6Value += conversionValue;
           } else if (conversion.conversion_action.name === "BookingConfirmed") {
             aggregatedData.bookingConfirmed += conversionValue;
+          } else if (conversion.conversion_action.name === "Purchase") {
+            aggregatedData.purchase += conversionValue;
           }
         });
         conversionPageToken = conversionBatchResponse.next_page_token;
@@ -218,6 +222,7 @@ const aggregateDataForWeek = async (
     step5Value: 0,
     step6Value: 0,
     bookingConfirmed: 0,
+    purchase: 0,
   };
 
   const metricsQuery = `
@@ -248,7 +253,7 @@ const aggregateDataForWeek = async (
     WHERE 
       segments.date BETWEEN '${startDate}' AND '${endDate}'
       AND campaign.name LIKE '%${campaignNameFilter}%'
-      AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed') 
+      AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase')
     ORDER BY 
       segments.date DESC
   `;
@@ -277,6 +282,8 @@ const aggregateDataForWeek = async (
         aggregatedData.step6Value += conversionValue;
       } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
         aggregatedData.bookingConfirmed += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "Purchase") {
+        aggregatedData.purchase += conversionValue;
       }
     });
     conversionPageToken = conversionBatchResponse.next_page_token;
@@ -396,6 +403,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
           "Step 5 Conv Rate Raw": calculateWoWVariance(lastRecord.step5Value / lastRecord.clicks, secondToLastRecord.step5Value / secondToLastRecord.clicks),
           "Step 6 Conv Rate Raw": calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks),
           "Booking Confirmed Raw": calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed),
+          "Purchase Raw": calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase),
         },
       });
     };
@@ -421,6 +429,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
             "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
             "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
             "Booking Confirmed Raw": record.bookingConfirmed,
+            "Purchase Raw": record.purchase,
           },
         });
       });
@@ -483,7 +492,8 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
         existingRecord.fields["Step 1 Conv Rate Raw"] === newRecordFields["Step 1 Conv Rate Raw"] &&
         existingRecord.fields["Step 5 Conv Rate Raw"] === newRecordFields["Step 5 Conv Rate Raw"] &&
         existingRecord.fields["Step 6 Conv Rate Raw"] === newRecordFields["Step 6 Conv Rate Raw"] &&
-        existingRecord.fields["Booking Confirmed Raw"] === newRecordFields["Booking Confirmed Raw"]
+        existingRecord.fields["Booking Confirmed Raw"] === newRecordFields["Booking Confirmed Raw"] &&
+        existingRecord.fields["Purchase Raw"] === newRecordFields["Purchase Raw"]
       );
     };
 

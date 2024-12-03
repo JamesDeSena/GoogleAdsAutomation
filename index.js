@@ -15,6 +15,7 @@ const { pingRenderApp } = require('./controllers/RenderPing');
 const { sendFinalPacingReportToAirtable } = require('./controllers/PacingReport');
 const { fetchReportDataDaily } = require('./controllers/GoogleAdsDaily');
 const { sendFinalWeeklyReportToAirtable } = require('./controllers/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToAirtable } = require('./controllers/GoogleAdsMonthly');
 
 app.use(express.json());
 
@@ -69,23 +70,18 @@ const PM = schedule.scheduleJob(rule2, () => {
   console.log("Scheduled pacing report sent at 7 PM PST California/Irvine.");
 });
 
-const rule3 = new schedule.RecurrenceRule();
-rule3.hour = 7;
-rule3.minute = 0;
-rule3.tz = 'America/Los_Angeles';
 
-const dailyReportJob = schedule.scheduleJob(rule3, () => {
+const dailyReportJob = schedule.scheduleJob(rule1, () => {
   fetchReportDataDaily();
   console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
 });
 
-const rule4 = new schedule.RecurrenceRule();
-// rule4.dayOfWeek = 6;
-rule4.hour = 7;
-rule4.minute = 0;
-rule4.tz = 'America/Los_Angeles';
+const weeklyReportJob = schedule.scheduleJob(rule1, () => {
+  sendFinalWeeklyReportToAirtable();
+  console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
+});
 
-const weeklyReportJob = schedule.scheduleJob(rule4, () => {
+const monthlyReportJob = schedule.scheduleJob(rule1, () => {
   sendFinalWeeklyReportToAirtable();
   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
 });

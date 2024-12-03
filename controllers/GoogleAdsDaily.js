@@ -56,7 +56,7 @@ async function fetchReportDataDaily(req, res) {
         campaign
       WHERE 
         segments.date BETWEEN '${formattedStartOfMonth}' AND '${formattedYesterday}'
-        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed') 
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
       ORDER BY 
         segments.date DESC`;
 
@@ -78,6 +78,7 @@ async function fetchReportDataDaily(req, res) {
           step5Value: 0,
           step6Value: 0,
           bookingConfirmed: 0,
+          purchase: 0,
         };
       });
 
@@ -114,6 +115,10 @@ async function fetchReportDataDaily(req, res) {
         if (formattedMetricsMap[key]) {
           formattedMetricsMap[key].bookingConfirmed += conversionValue;
         }
+      } else if (conversion.segments.conversion_action_name === "Purchase") {
+        if (formattedMetricsMap[key]) {
+          formattedMetricsMap[key].purchase += conversionValue;
+        }
       }
       
     });
@@ -144,6 +149,7 @@ async function sendToAirtableDaily(data) {
     "Day",
     "Campaign",
     "Booking Confirmed",
+    "Purchase",
   ];
 
   const validateFields = (fields) => {
@@ -184,6 +190,7 @@ async function sendToAirtableDaily(data) {
           "Book Now - Step 5: Confirm Booking": record.step5Value,
           "Book Now - Step 6: Booking Confirmation": record.step6Value,
           "Booking Confirmed": record.bookingConfirmed,
+          "Purchase": record.purchase,
         };
         validateFields(fieldsToUpdate);
         recordsToUpdate.push({
@@ -201,6 +208,7 @@ async function sendToAirtableDaily(data) {
           "Book Now - Step 5: Confirm Booking": record.step5Value,
           "Book Now - Step 6: Booking Confirmation": record.step6Value,
           "Booking Confirmed": record.bookingConfirmed,
+          "Purchase": record.purchase,
         };
         validateFields(fieldsToCreate);
         recordsToCreate.push({ fields: fieldsToCreate });
