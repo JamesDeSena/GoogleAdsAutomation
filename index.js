@@ -70,7 +70,6 @@ const PM = schedule.scheduleJob(rule2, () => {
   console.log("Scheduled pacing report sent at 7 PM PST California/Irvine.");
 });
 
-
 const dailyReportJob = schedule.scheduleJob(rule1, () => {
   fetchReportDataDaily();
   console.log("Scheduled daily report sent at 7 AM PST California/Irvine.");
@@ -82,7 +81,7 @@ const weeklyReportJob = schedule.scheduleJob(rule1, () => {
 });
 
 const monthlyReportJob = schedule.scheduleJob(rule1, () => {
-  sendFinalWeeklyReportToAirtable();
+  sendFinalMonthlyReportToAirtable();
   console.log("Scheduled weekly report sent at 7 AM PST California/Irvine.");
 });
 
