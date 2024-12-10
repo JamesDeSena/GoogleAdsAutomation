@@ -37,7 +37,6 @@ const getOrGenerateDateRanges = () => {
     storedDateRanges = generateMonthlyDateRanges(startDate, endDate);
   }
 
-  console.log(storedDateRanges); 
   return storedDateRanges;
 };
 

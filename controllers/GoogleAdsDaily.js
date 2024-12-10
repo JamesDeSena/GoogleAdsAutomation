@@ -230,9 +230,8 @@ async function sendToAirtableDaily(data) {
         } else if (operation === "create") {
           await base("Daily Report").create(batch);
         }
-        console.log(
-          `${label}: Successfully processed ${batch.length} records in a batch.`
-        );
+
+        // console.log(`${label}: Successfully processed ${batch.length} records in a batch.`);
       } catch (error) {
         console.error(`${label}: Error processing batch`, error);
       }
