@@ -45,6 +45,7 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
   const startDate = '2024-11-11'; //previousFriday 2024-09-13 / 11-11
   // const fixedEndDate = '2024-11-07'; // currentDay
 
+  const endDate = currentDay; //new Date(fixedEndDate); //currentDay;
 
   if (inputStartDate) {
     return generateWeeklyDateRanges(inputStartDate, new Date(new Date(inputStartDate).setDate(new Date(inputStartDate).getDate() + 6)));
