@@ -363,6 +363,14 @@ const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
   return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage", dateRanges);
 };
 
+const fetchReportDataWeeklyMosaic = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "Mosaic", "Mosaic", dateRanges);
+};
+
+const fetchReportDataWeekly14thSt = (req, res, dateRanges) => {
+  return fetchReportDataWeeklyFilter(req, res, "14thSt", "14thSt", dateRanges);
+};
+
 const sendFinalWeeklyReportToAirtable = async (req, res) => {
   try {
     const date = req?.params?.date;
@@ -379,6 +387,8 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
     const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
     const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const fourteenthStData = await fetchReportDataWeekly14thSt(req, res, dateRanges);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -447,6 +457,8 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     addDataToRecords(uptownParkData, "8 - UptownPark");
     addDataToRecords(montroseData, "9 - Montrose");
     addDataToRecords(riceVillageData, "10 - RiceVillage");
+    addDataToRecords(mosaicData, "11 - Mosaic");
+    addDataToRecords(fourteenthStData, "12 - 14thSt");
 
     if (!date || date.trim() === '') {
       addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "1 - All Search");
@@ -459,6 +471,8 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
       addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "8 - UptownPark");
       addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "9 - Montrose");
       addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "10 - RiceVillage");
+      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "11 - Mosaic");
+      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "12 - 14thSt");
     }
 
     const table = base("Final Report");

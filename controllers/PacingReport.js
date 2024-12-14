@@ -188,6 +188,8 @@ async function getAmountGoogleCampaigns() {
     "Montrose",
     "Uptown",
     "RiceVillage",
+    "14thSt",
+    "Mosaic",
   ];
 
   try {
@@ -409,7 +411,9 @@ const sendFinalPacingReportToAirtable = async () => {
             record.data.Phoenix +
             record.data.Montrose +
             record.data.Uptown +
-            record.data.RiceVillage,
+            record.data.RiceVillage +
+            record.data["14thSt"] +
+            record.data.Mosaic,
         },
       },
       {
@@ -466,6 +470,22 @@ const sendFinalPacingReportToAirtable = async () => {
           Campaign: "Rice Village",
           "Monthly Budget": 1500.0,
           "MTD Spend": record.data.RiceVillage,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "DC",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data["14thSt"],
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Mosaic",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Mosaic,
         },
       },
       {

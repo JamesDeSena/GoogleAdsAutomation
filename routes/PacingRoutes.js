@@ -3,8 +3,7 @@ const router = express.Router();
 
 const { 
   getAllMetrics,
-  sendFinalPacingReportToAirtable,
-  fetchAndFormatTimeCreatedCST
+  sendFinalPacingReportToAirtable
 } = require("../controllers/PacingReport");
 
 router.get("/test", async (req, res) => {
@@ -16,6 +15,5 @@ router.get("/test", async (req, res) => {
   }
 });
 router.get("/send", sendFinalPacingReportToAirtable);
-router.get("/test2", fetchAndFormatTimeCreatedCST);
 
 module.exports = router;
