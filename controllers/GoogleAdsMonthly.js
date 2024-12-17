@@ -177,13 +177,13 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
         if (!record.year || !record.month || record.cost == null) {
           return;
         }
-
+    
         const existingRecord = records.find(
           (r) =>
             r.fields["Year"] === record.year &&
             r.fields["Month"] === record.month
         );
-
+    
         if (existingRecord) {
           existingRecord.fields[fieldName] = record.cost;
           existingRecord.fields["Google Spend"] += record.cost;
@@ -204,7 +204,7 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
           });
         }
       });
-    };
+    };    
 
     addDataToRecords(gilbertData, "Gilbert");
     addDataToRecords(phoenixData, "Phoenix");
@@ -233,21 +233,7 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
       );
 
       if (existingRecord) {
-        const updatedFields = {
-          ...existingRecord.fields,
-          [record.fields["Gilbert"] ? "Gilbert" : null]: record.fields["Gilbert"],
-          [record.fields["Phoenix"] ? "Phoenix" : null]: record.fields["Phoenix"],
-          [record.fields["Scottsdale"] ? "Scottsdale" : null]: record.fields["Scottsdale"],
-          [record.fields["MKT Heights"] ? "MKT Heights" : null]: record.fields["MKT Heights"],
-          [record.fields["Uptown Park"] ? "Uptown Park" : null]: record.fields["Uptown Park"],
-          [record.fields["Montrose"] ? "Montrose" : null]: record.fields["Montrose"],
-          [record.fields["Rice Village"] ? "Rice Village" : null]: record.fields["Rice Village"],
-          "Google Spend": existingRecord.fields["Google Spend"] + record.fields["Google Spend"],
-        };
-
-        Object.keys(updatedFields).forEach(key => updatedFields[key] === null && delete updatedFields[key]);
-
-        await updateRecord(existingRecord.id, updatedFields);
+        await updateRecord(existingRecord.id, record.fields);
       } else {
         await createNewRecord(record.fields);
       }
@@ -258,7 +244,6 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
     console.error("Error sending final report to Airtable:", error);
   }
 };
-
 
 module.exports = {
   sendFinalMonthlyReportToAirtable

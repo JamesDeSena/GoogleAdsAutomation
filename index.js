@@ -87,7 +87,7 @@ const PM = schedule.scheduleJob(rule2, () => {
 
 const PMmonthlyReportJob = schedule.scheduleJob(rule2, () => {
   sendFinalMonthlyReportToAirtable();
-  console.log("Scheduled monthly report sent at 7 PM PST California/Irvine.");
+  console.log("Scheduled monthly report sent at 7 AM PST California/Irvine.");
 });
 
 // schedule.scheduleJob('* * * * *', () => {
