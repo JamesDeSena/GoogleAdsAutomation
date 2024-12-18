@@ -42,6 +42,63 @@ const getOrGenerateDateRanges = () => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
+const fetchGoogleSpend = async (req, res, dateRanges) => {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
+  try {
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+      refresh_token: refreshToken_Google,
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
+
+    const allMonthlyDataPromises = dateRanges.map(({ start, end }) => {
+      const metricsQuery = `
+        SELECT
+          metrics.cost_micros,
+          segments.date
+        FROM
+          campaign
+        WHERE
+          segments.date BETWEEN '${start}' AND '${end}'
+      `;
+
+      return customer.search(metricsQuery);
+    });
+
+    const allResponses = await Promise.all(allMonthlyDataPromises);
+
+    const costData = allResponses.map((response, index) => {
+      const totalCostMicros = response.response.reduce((sum, record) => {
+        return sum + (record.metrics?.cost_micros || 0);
+      }, 0);
+
+      const totalCostDollars = totalCostMicros / 1_000_000;
+
+      const startDate = new Date(dateRanges[index].start);
+      const year = startDate.getFullYear();
+      const month = startDate.toLocaleString('default', { month: 'long' });
+
+      return {
+        year: year,
+        month: month,
+        cost: totalCostDollars
+      };
+    });
+
+    return costData; // Return an array of year, month, and cost
+
+  } catch (error) {
+    console.error("Error fetching Google spend:", error);
+    throw new Error("Error fetching Google spend");
+  }
+};
+
 const aggregateDataForMonth = async (customer, startDate, endDate, campaignNameFilter) => {
   const aggregatedData = {
     year: null,
@@ -145,7 +202,7 @@ const fetchReportDataWeeklyScottsdale = (req, res, dateRanges) => {
 };
 
 const fetchReportDataWeeklyUptownPark = (req, res, dateRanges) => {
-  return fetchReportDataMonthlyFilter(req, res, "UptownPark", dateRanges);
+  return fetchReportDataMonthlyFilter(req, res, "Uptown", dateRanges);
 };
 
 const fetchReportDataWeeklyMontrose = (req, res, dateRanges) => {
@@ -156,10 +213,17 @@ const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
   return fetchReportDataMonthlyFilter(req, res, "RiceVillage", dateRanges);
 };
 
+const fetchReportDataWeeklyDC = (req, res, dateRanges) => {
+  return fetchReportDataMonthlyFilter(req, res, "DC", dateRanges);
+};
+
+const fetchReportDataWeeklyMosaic = (req, res, dateRanges) => {
+  return fetchReportDataMonthlyFilter(req, res, "Mosaic", dateRanges);
+};
+
 const sendFinalMonthlyReportToAirtable = async (req, res) => {
   try {
     const date = req?.params?.date;
-
     const dateRanges = getOrGenerateDateRanges(date);
 
     const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
@@ -169,6 +233,9 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
     const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
     const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
     const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const dcData = await fetchReportDataWeeklyDC(req, res, dateRanges);
+    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const googleSpendData = await fetchGoogleSpend(req, res, dateRanges);
 
     const records = [];
 
@@ -177,16 +244,15 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
         if (!record.year || !record.month || record.cost == null) {
           return;
         }
-    
+
         const existingRecord = records.find(
           (r) =>
             r.fields["Year"] === record.year &&
             r.fields["Month"] === record.month
         );
-    
+
         if (existingRecord) {
           existingRecord.fields[fieldName] = record.cost;
-          existingRecord.fields["Google Spend"] += record.cost;
         } else {
           records.push({
             fields: {
@@ -199,12 +265,14 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
               "Uptown Park": fieldName === "Uptown Park" ? record.cost : 0,
               Montrose: fieldName === "Montrose" ? record.cost : 0,
               "Rice Village": fieldName === "Rice Village" ? record.cost : 0,
-              "Google Spend": record.cost,
+              DC: fieldName === "DC" ? record.cost : 0,
+              Mosaic: fieldName === "Mosaic" ? record.cost : 0,
+              "Google Spend": fieldName === "Google Spend" ? record.cost : 0,
             },
           });
         }
       });
-    };    
+    };
 
     addDataToRecords(gilbertData, "Gilbert");
     addDataToRecords(phoenixData, "Phoenix");
@@ -213,6 +281,9 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
     addDataToRecords(uptownParkData, "Uptown Park");
     addDataToRecords(montroseData, "Montrose");
     addDataToRecords(riceVillageData, "Rice Village");
+    addDataToRecords(dcData, "DC");
+    addDataToRecords(mosaicData, "Mosaic");
+    addDataToRecords(googleSpendData, "Google Spend");
 
     const table = base("Monthly Report");
     const existingRecords = await table.select().all();
@@ -246,5 +317,5 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
 };
 
 module.exports = {
-  sendFinalMonthlyReportToAirtable
+  sendFinalMonthlyReportToAirtable,
 };
