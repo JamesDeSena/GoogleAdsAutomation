@@ -414,7 +414,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
           "Step 6 Conv Rate Raw": calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks),
           "Booking Confirmed Raw": calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed),
           "Booking CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.bookingConfirmed, secondToLastRecord.cost / secondToLastRecord.bookingConfirmed),
-          "Booking Conv Rate Raw": calculateWoWVariance(lastRecord.clicks / lastRecord.bookingConfirmed, secondToLastRecord.clicks / secondToLastRecord.bookingConfirmed),
+          "Booking Conv Rate Raw": calculateWoWVariance(lastRecord.bookingConfirmed / lastRecord.clicks, secondToLastRecord.bookingConfirmed / secondToLastRecord.clicks),
           "Purchase Raw": calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase),
         },
       });
@@ -442,7 +442,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
             "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
             "Booking Confirmed Raw": record.bookingConfirmed,
             "Booking CAC Raw": record.cost / record.bookingConfirmed,
-            "Booking Conv Rate Raw": record.clicks / record.bookingConfirmed,
+            "Booking Conv Rate Raw": record.bookingConfirmed / record.clicks,
             "Purchase Raw": record.purchase,
           },
         });
