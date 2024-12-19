@@ -414,6 +414,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
           "Step 6 Conv Rate Raw": calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks),
           "Booking Confirmed Raw": calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed),
           "Booking CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.bookingConfirmed, secondToLastRecord.cost / secondToLastRecord.bookingConfirmed),
+          "Booking Conv Rate Raw": calculateWoWVariance(lastRecord.clicks / lastRecord.bookingConfirmed, secondToLastRecord.clicks / secondToLastRecord.bookingConfirmed),
           "Purchase Raw": calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase),
         },
       });
@@ -441,6 +442,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
             "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
             "Booking Confirmed Raw": record.bookingConfirmed,
             "Booking CAC Raw": record.cost / record.bookingConfirmed,
+            "Booking Conv Rate Raw": record.clicks / record.bookingConfirmed,
             "Purchase Raw": record.purchase,
           },
         });
@@ -510,6 +512,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
         existingRecord.fields["Step 6 Conv Rate Raw"] === newRecordFields["Step 6 Conv Rate Raw"] &&
         existingRecord.fields["Booking Confirmed Raw"] === newRecordFields["Booking Confirmed Raw"] &&
         existingRecord.fields["Booking CAC Raw"] === newRecordFields["Booking CAC Raw"] &&
+        existingRecord.fields["Booking Conv Rate Raw"] === newRecordFields["Booking Conv Rate Raw"] &&
         existingRecord.fields["Purchase Raw"] === newRecordFields["Purchase Raw"]
       );
     };
