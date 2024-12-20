@@ -10,11 +10,15 @@ let storedDateRanges = null;
 
 const generateMonthlyDateRanges = (startDate, endDate) => {
   const dateRanges = [];
-  let currentMonthStart = new Date(startDate);
+  let currentMonthStart = new Date(`${startDate}-01T00:00:00Z`); // Normalize to UTC
 
   while (currentMonthStart <= endDate) {
-    const currentMonthEnd = new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 1);
-    
+    const currentMonthEnd = new Date(Date.UTC(
+      currentMonthStart.getUTCFullYear(),
+      currentMonthStart.getUTCMonth() + 1, // Move to next month
+      0 // Last day of the current month
+    ));
+
     const adjustedEndDate = currentMonthEnd > endDate ? endDate : currentMonthEnd;
 
     dateRanges.push({
@@ -22,9 +26,14 @@ const generateMonthlyDateRanges = (startDate, endDate) => {
       end: adjustedEndDate.toISOString().split('T')[0],
     });
 
-    currentMonthStart = new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 2);
+    // Move to the 1st of the next month
+    currentMonthStart = new Date(Date.UTC(
+      currentMonthStart.getUTCFullYear(),
+      currentMonthStart.getUTCMonth() + 1,
+      1
+    ));
   }
-  console.log(dateRanges)
+  console.log(dateRanges);
   return dateRanges;
 };
 
