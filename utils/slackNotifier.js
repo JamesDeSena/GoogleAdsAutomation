@@ -3,7 +3,7 @@ const { getStoredRefreshToken } = require("../controllers/GoogleAuth");
 const { getStoredAccessToken } = require("../controllers/BingAuth");
 
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
-const slackChannel = 'C07VBABS9RT'; 
+const slackChannel = 'C07VBABS9RT';
 
 const sendSlackMessage = async (channel, text) => {
   try {
@@ -18,7 +18,7 @@ const sendSlackMessage = async (channel, text) => {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `${text}\n\n${text.includes('Bing') || text.includes('Google') ? 'Please authenticate using the following links:' : ''} \nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google`
+                text: `${text}`
               }
             }
           ]
@@ -36,16 +36,28 @@ const checkTokensAndNotify = () => {
   const refreshToken_Google = getStoredRefreshToken();
 
   let message = '';
+  let bingLinkAdded = false;
+  let googleLinkAdded = false;
 
-  if (!token.accessToken_Bing && !refreshToken_Google) {
-    message = "⚠️ Both Bing access token and Google refresh token are missing. Please authenticate.";
+  if (!token || !token.accessToken_Bing) {
+    message += "⚠️ Bing access token is missing. Please authenticate. \n";
+    bingLinkAdded = true;
+  }
+
+  if (!refreshToken_Google) {
+    message += "⚠️ Google refresh token is missing. Please authenticate. \n";
+    googleLinkAdded = true;
+  }
+
+  if (bingLinkAdded && googleLinkAdded) {
+    message += "\nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google";
   } else {
-    if (!token.accessToken_Bing) {
-      message += "⚠️ Bing access token is missing. Please authenticate. \n";
+    if (bingLinkAdded) {
+      message += "\nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing";
     }
 
-    if (!refreshToken_Google) {
-      message += "⚠️ Google refresh token is missing. Please authenticate. \n";
+    if (googleLinkAdded) {
+      message += "\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google";
     }
   }
 
@@ -55,11 +67,33 @@ const checkTokensAndNotify = () => {
   }
 };
 
+let googleTokenLastChecked = null;
+
+const remindGoogleTokenRefresh = () => {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (refreshToken_Google && !googleTokenLastChecked) {
+    googleTokenLastChecked = new Date();
+  }
+
+  if (googleTokenLastChecked) {
+    const currentDate = new Date();
+    const diffDays = Math.floor((currentDate - googleTokenLastChecked) / (1000 * 60 * 60 * 24));
+
+    if (diffDays >= 5) {
+      sendSlackMessage(slackChannel, "⚠️ It's been 5 days since the Google token was last refreshed. Please refresh the Google token.");
+      googleTokenLastChecked = currentDate;
+    }
+  }
+};
+
 checkTokensAndNotify();
 
 // setInterval(checkTokensAndNotify, 2400000);  // 40 minutes in milliseconds
-setInterval(checkTokensAndNotify, 60000);  // 1 minute in milliseconds
+setInterval(checkTokensAndNotify, 60000);
+setInterval(remindGoogleTokenRefresh, 86400000);
 
 module.exports = { 
-  checkTokensAndNotify
+  checkTokensAndNotify,
+  remindGoogleTokenRefresh
 };
