@@ -24,7 +24,7 @@ const generateMonthlyDateRanges = (startDate, endDate) => {
 
     currentMonthStart = new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 2);
   }
-
+  console.log(dateRanges)
   return dateRanges;
 };
 
@@ -120,7 +120,7 @@ const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, dateRa
     });
 
     const allMonthlyData = await Promise.all(allMonthlyDataPromises);
-
+    console.log(allMonthlyData)
     return allMonthlyData;
   } catch (error) {
     console.error("Error fetching report data:", error);
@@ -247,6 +247,10 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
     console.error("Error sending final report to Airtable:", error);
   }
 };
+
+schedule.scheduleJob('* * * * *', () => {
+  sendFinalMonthlyReportToAirtable();
+});
 
 module.exports = {
   sendFinalMonthlyReportToAirtable,
