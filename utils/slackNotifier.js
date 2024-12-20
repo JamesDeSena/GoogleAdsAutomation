@@ -18,7 +18,7 @@ const sendSlackMessage = async (channel, text) => {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `${text}\n\n${text.includes('Bing') ? 'Bing' : 'Google'} authentication link: https://googleadsautomation.onrender.com/api/auth/${text.includes('Bing') ? 'bing' : 'google'}`
+                text: `${text}\n\n${text.includes('Bing') || text.includes('Google') ? 'Please authenticate using the following links:' : ''} \nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google`
               }
             }
           ]
@@ -35,24 +35,23 @@ const checkTokensAndNotify = () => {
   const token = getStoredAccessToken();
   const refreshToken_Google = getStoredRefreshToken();
 
-  if (!token || !token.accessToken_Bing) {
-    console.warn("Bing access token is missing. It will be available after the app has successfully started.");
-    return;
+  let message = '';
+
+  if (!token.accessToken_Bing && !refreshToken_Google) {
+    message = "⚠️ Both Bing access token and Google refresh token are missing. Please authenticate.";
+  } else {
+    if (!token.accessToken_Bing) {
+      message += "⚠️ Bing access token is missing. Please authenticate. \n";
+    }
+
+    if (!refreshToken_Google) {
+      message += "⚠️ Google refresh token is missing. Please authenticate. \n";
+    }
   }
 
-  if (!refreshToken_Google) {
-    console.warn("Google refresh token is missing. It will be available after the app has successfully started.");
-    return;
-  }
-
-  if (!token.accessToken_Bing) {
-    console.error("Bing access token is missing. Please authenticate.");
-    sendSlackMessage(slackChannel, "⚠️ Bing access token is missing. Please authenticate.");
-  }
-
-  if (!refreshToken_Google) {
-    console.error("Google refresh token is missing. Please authenticate.");
-    sendSlackMessage(slackChannel, "⚠️ Google refresh token is missing. Please authenticate.");
+  if (message) {
+    console.warn(message);
+    sendSlackMessage(slackChannel, message);
   }
 };
 
