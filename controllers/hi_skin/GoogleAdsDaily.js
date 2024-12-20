@@ -3,8 +3,8 @@ const Airtable = require("airtable");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
 );
-const { client } = require("../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("./GoogleAuth");
+const { client } = require("../../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("../GoogleAuth");
 
 async function fetchReportDataDaily(req, res) {
   const refreshToken_Google = getStoredRefreshToken();

@@ -3,8 +3,8 @@ const Airtable = require("airtable");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
 );
-const { client } = require("../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("./GoogleAuth");
+const { client } = require("../../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("../GoogleAuth");
 
 let storedDateRanges = null;
 
@@ -352,7 +352,7 @@ const fetchReportDataWeeklyScottsdale = (req, res, dateRanges) => {
 };
 
 const fetchReportDataWeeklyUptownPark = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "UptownPark", "UptownPark", dateRanges);
+  return fetchReportDataWeeklyFilter(req, res, "Uptown", "Uptown", dateRanges);
 };
 
 const fetchReportDataWeeklyMontrose = (req, res, dateRanges) => {
@@ -442,7 +442,7 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
             "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
             "Booking Confirmed Raw": record.bookingConfirmed,
             "Booking CAC Raw": record.cost / record.bookingConfirmed,
-            "Booking Conv Rate Raw": record.bookingConfirmed / record.clicks,
+            "Booking Conv Rate Raw": (record.bookingConfirmed / record.clicks) * 100,
             "Purchase Raw": record.purchase,
           },
         });

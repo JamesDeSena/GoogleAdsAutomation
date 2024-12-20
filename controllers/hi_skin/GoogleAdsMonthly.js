@@ -3,8 +3,8 @@ const Airtable = require("airtable");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
 );
-const { client } = require("../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("./GoogleAuth");
+const { client } = require("../../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("../GoogleAuth");
 
 let storedDateRanges = null;
 
@@ -233,28 +233,13 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
     addDataToRecords(googleSpendData, "Google Spend");
 
     const table = base("Monthly Report");
-    const existingRecords = await table.select().all();
-
-    const updateRecord = async (id, fields) => {
-      await table.update(id, fields);
-    };
-
+    
     const createNewRecord = async (fields) => {
       await table.create([{ fields }]);
     };
 
     for (const record of records) {
-      const existingRecord = existingRecords.find(
-        (r) =>
-          r.fields["Year"] === record.fields["Year"] &&
-          r.fields["Month"] === record.fields["Month"]
-      );
-
-      if (existingRecord) {
-        await updateRecord(existingRecord.id, record.fields);
-      } else {
-        await createNewRecord(record.fields);
-      }
+      await createNewRecord(record.fields);
     }
 
     console.log("Final monthly report sent to Airtable successfully!");

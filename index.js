@@ -8,14 +8,16 @@ const app = express();
 
 // ConnectDB();
 
+require("./utils/slackNotifier")
+
 const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
-const { pingRenderApp } = require('./controllers/RenderPing');
+const { pingRenderApp } = require('./utils/renderPing');
 const { sendFinalPacingReportToAirtable } = require('./controllers/PacingReport');
-const { fetchReportDataDaily } = require('./controllers/GoogleAdsDaily');
-const { sendFinalWeeklyReportToAirtable } = require('./controllers/GoogleAdsWeekly');
-const { sendFinalMonthlyReportToAirtable } = require('./controllers/GoogleAdsMonthly');
+const { fetchReportDataDaily } = require('./controllers/hi_skin/GoogleAdsDaily');
+const { sendFinalWeeklyReportToAirtable } = require('./controllers/hi_skin/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToAirtable } = require('./controllers/hi_skin/GoogleAdsMonthly');
 
 app.use(express.json());
 
