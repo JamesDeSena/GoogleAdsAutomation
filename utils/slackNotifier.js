@@ -35,6 +35,16 @@ const checkTokensAndNotify = () => {
   const token = getStoredAccessToken();
   const refreshToken_Google = getStoredRefreshToken();
 
+  if (!token || !token.accessToken_Bing) {
+    console.warn("Bing access token is missing. It will be available after the app has successfully started.");
+    return;
+  }
+
+  if (!refreshToken_Google) {
+    console.warn("Google refresh token is missing. It will be available after the app has successfully started.");
+    return;
+  }
+
   if (!token.accessToken_Bing) {
     console.error("Bing access token is missing. Please authenticate.");
     sendSlackMessage(slackChannel, "⚠️ Bing access token is missing. Please authenticate.");
