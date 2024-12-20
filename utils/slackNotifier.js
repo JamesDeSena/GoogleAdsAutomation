@@ -58,8 +58,8 @@ const checkTokensAndNotify = () => {
 
 checkTokensAndNotify();
 
-setInterval(checkTokensAndNotify, 2400000);  // 40 minutes in milliseconds
-// setInterval(checkTokensAndNotify, 60000);  // 1 minute in milliseconds
+// setInterval(checkTokensAndNotify, 2400000);  // 40 minutes in milliseconds
+setInterval(checkTokensAndNotify, 60000);  // 1 minute in milliseconds
 
 module.exports = { 
   checkTokensAndNotify
