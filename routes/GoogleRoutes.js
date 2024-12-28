@@ -5,13 +5,13 @@ const router = express.Router();
 //   fetchReportDataDaily
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
-const {
-  fetchReportDataDaily
-} = require('../controllers/wall_blush/GoogleAdsDaily');
+// const {
+//   fetchReportDataDaily
+// } = require('../controllers/wall_blush/GoogleAdsDaily');
 
-const {
-  fetchReportDataBatch
-} = require('../controllers/wall_blush/GoogleAdsBatch');
+// const {
+//   fetchReportDataBatch
+// } = require('../controllers/wall_blush/GoogleAdsBatch');
 
 const {
   // fetchReportDataWeekly,
@@ -26,7 +26,7 @@ const {
   sendFinalMonthlyReportToGoogleSheets
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
-router.get('/report', fetchReportDataDaily);
+// router.get('/report', fetchReportDataDaily);
 
 // router.get('/report-week', fetchReportDataWeekly);
 // router.get('/report-brand', fetchReportDataWeeklyBrand);
