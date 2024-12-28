@@ -113,7 +113,7 @@ const aggregateDataForMonth = async (customer, startDate, endDate, campaignNameF
 const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, dateRanges) => {
   const token = getStoredRefreshToken();
 
-  if (!token.accessToken_Google) {
+  if (!token.refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -121,7 +121,7 @@ const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, dateRa
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: token.accessToken_Google,
+      refresh_token: token.refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 

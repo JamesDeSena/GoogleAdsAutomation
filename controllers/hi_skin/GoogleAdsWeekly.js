@@ -100,7 +100,7 @@ const sendToAirtable = async (data, tableName, field) => {
 const fetchReportDataWeekly = async (dateRanges) => {
   const token = getStoredRefreshToken();
 
-  if (!token.accessToken_Google) {
+  if (!token.refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -108,7 +108,7 @@ const fetchReportDataWeekly = async (dateRanges) => {
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: token.accessToken_Google,
+      refresh_token: token.refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
@@ -296,7 +296,7 @@ const aggregateDataForWeek = async (
 const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
   const token = getStoredRefreshToken();
 
-  if (!token.accessToken_Google) {
+  if (!token.refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -304,7 +304,7 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: token.accessToken_Google,
+      refresh_token: token.refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
     

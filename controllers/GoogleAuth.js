@@ -5,16 +5,16 @@ const path = require("path");
 
 const tokenFilePath = path.join(__dirname, "token.json");
 
-const saveRefreshToken = (accessToken_Google, refreshToken_Google, expiresIn_Google) => {
+const saveRefreshToken = (refreshToken_Google) => {
   try {
     let currentData = {};
     if (fs.existsSync(tokenFilePath)) {
       currentData = JSON.parse(fs.readFileSync(tokenFilePath, "utf8"));
     }
 
-    currentData.accessToken_Google = accessToken_Google;
+    // currentData.accessToken_Google = accessToken_Google;
     currentData.refreshToken_Google = refreshToken_Google;
-    currentData.expiresIn_Google = expiresIn_Google;
+    // currentData.expiresIn_Google = expiresIn_Google;
 
     fs.writeFileSync(tokenFilePath, JSON.stringify(currentData, null, 2));
     
@@ -67,46 +67,45 @@ const handleOAuthCallbackGoogle = async (req, res) => {
   }
 };
 
-const refreshAccessToken = async () => {
-  try {
-    const storedData = getStoredRefreshToken();
+// const refreshAccessToken = async () => {
+//   try {
+//     const storedData = getStoredRefreshToken();
 
-    if (storedData) {
-      const { refreshToken_Google } = storedData;
+//     if (storedData) {
+//       const { refreshToken_Google } = storedData;
 
-      const tokenRequestData = new URLSearchParams({
-        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-        refresh_token: refreshToken_Google,
-        grant_type: "refresh_token",
-      });
+//       const tokenRequestData = new URLSearchParams({
+//         client_id: process.env.GOOGLE_ADS_CLIENT_ID,
+//         client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
+//         refresh_token: refreshToken_Google,
+//         grant_type: "refresh_token",
+//       });
 
-      const response = await axios.post(
-        `https://oauth2.googleapis.com/token`,
-        tokenRequestData.toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
+//       const response = await axios.post(
+//         `https://oauth2.googleapis.com/token`,
+//         tokenRequestData.toString(),
+//         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+//       );
 
-      const tokenResponse = response.data;
-      saveRefreshToken(
-        tokenResponse.access_token,
-        tokenResponse.refresh_token,
-        tokenResponse.expiry_in
-      );
+//       const tokenResponse = response.data;
+//       console.log(tokenResponse)
+//       saveRefreshToken(
+//         tokenResponse.access_token
+//       );
 
-      console.log("Google access token has been refreshed.");
-    } else {
-      console.log("Google access token is not valid, no stored token found.");
-    }
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-  }
-};
+//       console.log("Google access token has been refreshed.");
+//     } else {
+//       console.log("Google access token is not valid, no stored token found.");
+//     }
+//   } catch (error) {
+//     console.error("Error refreshing access token:", error);
+//   }
+// };
 
-setInterval(async () => {
-  console.log("Attempting to refresh google access token...");
-  await refreshAccessToken();
-}, 40 * 60 * 1000);
+// setInterval(async () => {
+//   console.log("Attempting to refresh google access token...");
+//   await refreshAccessToken();
+// }, 1 * 60 * 1000);
 
 module.exports = {
   redirectToGoogle,
