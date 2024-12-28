@@ -1,5 +1,6 @@
 const schedule = require("node-schedule");
 const Airtable = require("airtable");
+const { google } = require('googleapis');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
 );
@@ -97,9 +98,9 @@ const sendToAirtable = async (data, tableName, field) => {
 };
 
 const fetchReportDataWeekly = async (dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const token = getStoredRefreshToken();
 
-  if (!refreshToken_Google) {
+  if (!token.accessToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -107,7 +108,7 @@ const fetchReportDataWeekly = async (dateRanges) => {
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: refreshToken_Google,
+      refresh_token: token.accessToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
@@ -293,9 +294,9 @@ const aggregateDataForWeek = async (
 };
 
 const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const token = getStoredRefreshToken();
 
-  if (!refreshToken_Google) {
+  if (!token.accessToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -303,7 +304,7 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: refreshToken_Google,
+      refresh_token: token.accessToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
     
@@ -549,9 +550,222 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
   }
 };
 
+const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const headerRange = 'Live!A1:U1';
+  const dataRange = 'Live!A2:U';
+  const dataRangeRaw = 'Raw!A2:U'; 
+
+  try {
+    const date = req?.params?.date;
+    const dateRanges = getOrGenerateDateRanges(date);
+
+    const weeklyData = await fetchReportDataWeekly(dateRanges);
+    const brandData = await fetchReportDataWeeklyBrand(req, res, dateRanges);
+    const noBrandData = await fetchReportDataWeeklyNB(req, res, dateRanges);
+    const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
+    const mktData = await fetchReportDataWeeklyMKT(req, res, dateRanges);
+    const phoenixData = await fetchReportDataWeeklyPhoenix(req, res, dateRanges);
+    const scottsdaleData = await fetchReportDataWeeklyScottsdale(req, res, dateRanges);
+    const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
+    const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
+    const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const fourteenthStData = await fetchReportDataWeekly14thSt(req, res, dateRanges);
+
+    const records = [];
+    const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
+
+    const formatCurrency = (value) => `$${value.toFixed(2)}`;
+    const formatPercentage = (value) => `${value.toFixed(2)}%`;
+    const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2); // 2 decimals if not a whole number
+
+    const addWoWVariance = (lastRecord, secondToLastRecord, filter, filter2) => {
+      records.push({
+        Week: "WoW Variance %",
+        Filter: filter,
+        Filter2: filter2,
+        "Impr.": formatPercentage(calculateWoWVariance(lastRecord.impressions, secondToLastRecord.impressions)),
+        'Clicks': formatPercentage(calculateWoWVariance(lastRecord.clicks, secondToLastRecord.clicks)),
+        'Cost': formatPercentage(calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost)),
+        "Book Now - Step 1: Locations": formatPercentage(calculateWoWVariance(lastRecord.step1Value, secondToLastRecord.step1Value)),
+        "Book Now - Step 5: Confirm Booking": formatPercentage(calculateWoWVariance(lastRecord.step5Value, secondToLastRecord.step5Value)),
+        "Book Now - Step 6: Booking Confirmation": formatPercentage(calculateWoWVariance(lastRecord.step6Value, secondToLastRecord.step6Value)),
+        "CPC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
+        "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
+        "Step 1 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step1Value, secondToLastRecord.cost / secondToLastRecord.step1Value)),
+        "Step 5 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step5Value, secondToLastRecord.cost / secondToLastRecord.step5Value)),
+        "Step 6 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step6Value, secondToLastRecord.cost / secondToLastRecord.step6Value)),
+        "Step 1 Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.step1Value / lastRecord.clicks, secondToLastRecord.step1Value / secondToLastRecord.clicks)),
+        "Step 5 Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.step5Value / lastRecord.clicks, secondToLastRecord.step5Value / secondToLastRecord.clicks)),
+        "Step 6 Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks)),
+        "Booking Confirmed": formatPercentage(calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed)),
+        "Booking CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.bookingConfirmed, secondToLastRecord.cost / secondToLastRecord.bookingConfirmed)),
+        "Booking Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.bookingConfirmed / lastRecord.clicks, secondToLastRecord.bookingConfirmed / secondToLastRecord.clicks)),
+        "Purchase": formatPercentage(calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase)),
+      });
+    };
+
+    const addDataToRecords = (data, filter, filter2) => {
+      data.forEach((record) => {
+        records.push({
+          Week: record.date,
+          Filter: filter,
+          Filter2: filter2,
+          "Impr.": formatNumber(record.impressions),
+          'Clicks': formatNumber(record.clicks),
+          'Cost': formatCurrency(record.cost),
+          "Book Now - Step 1: Locations": formatNumber(record.step1Value),
+          "Book Now - Step 5: Confirm Booking": formatNumber(record.step5Value),
+          "Book Now - Step 6: Booking Confirmation": formatNumber(record.step6Value),
+          "CPC": formatCurrency(record.cost / record.clicks),
+          "CTR": formatPercentage((record.clicks / record.impressions) * 100),
+          "Step 1 CAC": formatCurrency(record.cost / record.step1Value),
+          "Step 5 CAC": formatCurrency(record.cost / record.step5Value),
+          "Step 6 CAC": formatCurrency(record.cost / record.step6Value),
+          "Step 1 Conv Rate": formatPercentage((record.step1Value / record.clicks) * 100),
+          "Step 5 Conv Rate": formatPercentage((record.step5Value / record.clicks) * 100),
+          "Step 6 Conv Rate": formatPercentage((record.step6Value / record.clicks) * 100),
+          "Booking Confirmed": formatNumber(record.bookingConfirmed),
+          "Booking CAC": formatCurrency(record.cost / record.bookingConfirmed),
+          "Booking Conv Rate": formatPercentage((record.bookingConfirmed / record.clicks) * 100),
+          "Purchase": formatNumber(record.purchase),
+        });
+      });
+    };
+
+    addDataToRecords(weeklyData, "All Search", 1);
+    addDataToRecords(brandData, "Brand", 2);
+    addDataToRecords(noBrandData, "NB", 3);
+    addDataToRecords(gilbertData, "Gilbert", 4);
+    addDataToRecords(mktData, "MKT", 5);
+    addDataToRecords(phoenixData, "Phoenix", 6);
+    addDataToRecords(scottsdaleData, "Scottsdale", 7);
+    addDataToRecords(uptownParkData, "UptownPark", 8);
+    addDataToRecords(montroseData, "Montrose", 9);
+    addDataToRecords(riceVillageData, "RiceVillage", 10);
+    addDataToRecords(mosaicData, "Mosaic", 11);
+    addDataToRecords(fourteenthStData, "14thSt", 12);
+
+    if (!date || date.trim() === '') {
+      addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "All Search", 1);
+      addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "Brand", 2);
+      addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "NB", 3);
+      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 4);
+      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 5);
+      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 6);
+      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 7);
+      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 8);
+      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 9);
+      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 10);
+      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 11);
+      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 12);
+    }
+
+    records.sort((a, b) => a.Filter2 - b.Filter2);
+
+    const finalRecords = [];
+    records.forEach((record, index) => {
+      finalRecords.push(record);
+      if (record.Week === "WoW Variance %") {
+        finalRecords.push({ Week: "", Filter: "", Filter2: "" }); 
+      }
+    });
+
+    const sheetData = finalRecords.map(record => [
+      record.Week,
+      record.Filter,
+      record.Filter2,
+      record["Impr."], 
+      record["Clicks"],
+      record["Cost"],
+      record["Book Now - Step 1: Locations"],
+      record["Book Now - Step 5: Confirm Booking"],
+      record["Book Now - Step 6: Booking Confirmation"],
+      record["CPC"],
+      record["CTR"],
+      record["Step 1 CAC"],
+      record["Step 5 CAC"],
+      record["Step 6 CAC"],
+      record["Step 1 Conv Rate"],
+      record["Step 5 Conv Rate"],
+      record["Step 6 Conv Rate"],
+      record["Booking Confirmed"],
+      record["Booking CAC"],
+      record["Booking Conv Rate"],
+      record["Purchase"],
+    ]);
+
+    const resource = {
+      values: sheetData,
+    };
+    
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: dataRange,
+    });
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: dataRangeRaw,
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: dataRange,
+      valueInputOption: "RAW",
+      resource,
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: dataRangeRaw,
+      valueInputOption: "RAW",
+      resource,
+    });
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: 0,
+                startRowIndex: 1,
+                endRowIndex: sheetData.length + 1,
+                startColumnIndex: 0,
+                endColumnIndex: 21,
+              },
+              cell: {
+                userEnteredFormat: {
+                  horizontalAlignment: 'RIGHT',
+                },
+              },
+              fields: 'userEnteredFormat.horizontalAlignment',
+            },
+          },
+        ],
+      },
+    });
+
+    console.log("Final weekly report sent to Google Sheets successfully!");
+  } catch (error) {
+    console.error("Error sending final report to Google Sheets:", error);
+  }
+};
+
 module.exports = {
   fetchReportDataWeekly,
   fetchReportDataWeeklyBrand,
   fetchReportDataWeeklyNB,
-  sendFinalWeeklyReportToAirtable
+  sendFinalWeeklyReportToAirtable,
+  sendFinalWeeklyReportToGoogleSheets
 };

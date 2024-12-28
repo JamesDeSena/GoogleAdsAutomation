@@ -1,5 +1,6 @@
 const schedule = require("node-schedule");
 const Airtable = require("airtable");
+const { google } = require("googleapis");
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_HISKIN
 );
@@ -110,9 +111,9 @@ const aggregateDataForMonth = async (customer, startDate, endDate, campaignNameF
 };
 
 const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const token = getStoredRefreshToken();
 
-  if (!refreshToken_Google) {
+  if (!token.accessToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -120,7 +121,7 @@ const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, dateRa
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: refreshToken_Google,
+      refresh_token: token.accessToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
@@ -257,6 +258,115 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
   }
 };
 
+const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const dataRange = 'Monthly!A2:M'; // Optional, just used for reference
+
+  try {
+    const date = req?.params?.date;
+    const dateRanges = getOrGenerateDateRanges(date);
+
+    const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
+    const phoenixData = await fetchReportDataWeeklyPhoenix(req, res, dateRanges);
+    const scottsdaleData = await fetchReportDataWeeklyScottsdale(req, res, dateRanges);
+    const mktData = await fetchReportDataWeeklyMKT(req, res, dateRanges);
+    const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
+    const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
+    const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const dcData = await fetchReportDataWeeklyDC(req, res, dateRanges);
+    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const googleSpendData = await fetchReportDataWeeklyTotal(req, res, dateRanges);
+
+    const records = [];
+
+    // Helper function to aggregate data by month
+    const aggregateDataByMonth = (data, fieldName) => {
+      data.forEach((record) => {
+        if (!record.year || !record.month || record.cost == null) {
+          return;
+        }
+
+        // Find the existing record for this month or create a new one
+        let existingRecord = records.find(r => r.Year === record.year && r.Month === record.month);
+        
+        if (!existingRecord) {
+          existingRecord = {
+            Year: record.year,
+            Month: record.month,
+            Created: new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }),
+            Gilbert: 0,
+            Phoenix: 0,
+            Scottsdale: 0,
+            "MKT Heights": 0,
+            "Uptown Park": 0,
+            Montrose: 0,
+            "Rice Village": 0,
+            DC: 0,
+            Mosaic: 0,
+            "Google Spend": 0,
+          };
+          records.push(existingRecord);
+        }
+
+        // Aggregate the costs for the specific field
+        existingRecord[fieldName] += record.cost;
+      });
+    };
+
+    // Aggregate data for all fields
+    aggregateDataByMonth(gilbertData, "Gilbert");
+    aggregateDataByMonth(phoenixData, "Phoenix");
+    aggregateDataByMonth(scottsdaleData, "Scottsdale");
+    aggregateDataByMonth(mktData, "MKT Heights");
+    aggregateDataByMonth(uptownParkData, "Uptown Park");
+    aggregateDataByMonth(montroseData, "Montrose");
+    aggregateDataByMonth(riceVillageData, "Rice Village");
+    aggregateDataByMonth(dcData, "DC");
+    aggregateDataByMonth(mosaicData, "Mosaic");
+    aggregateDataByMonth(googleSpendData, "Google Spend");
+
+    // Map the records to a format suitable for Google Sheets
+    const sheetData = records.map(record => [
+      record.Year,
+      record.Month,
+      record.Created,
+      record.Gilbert,
+      record.Phoenix,
+      record.Scottsdale,
+      record["MKT Heights"],
+      record["Uptown Park"],
+      record.Montrose,
+      record["Rice Village"],
+      record.DC,
+      record.Mosaic,
+      record["Google Spend"],
+    ]);
+
+    const resource = {
+      values: sheetData,
+    };
+
+    // Append the data to the sheet (instead of clearing and updating a range)
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Monthly!A2', // Starting from row 2 in the Monthly sheet
+      valueInputOption: 'RAW',
+      resource,
+    });
+
+    console.log("Final monthly report appended to Google Sheets successfully!");
+  } catch (error) {
+    console.error("Error sending final report to Google Sheets:", error);
+  }
+};
+
 module.exports = {
   sendFinalMonthlyReportToAirtable,
+  sendFinalMonthlyReportToGoogleSheets
 };

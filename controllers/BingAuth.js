@@ -5,7 +5,7 @@ const path = require("path");
 
 const tokenFilePath = path.join(__dirname, "token.json");
 
-const saveAccessToken = (accessToken_Bing, refreshToken, expiresIn) => {
+const saveAccessToken = (accessToken_Bing, refreshToken_Bing, expiresIn_Bing) => {
   try {
     let currentData = {};
 
@@ -14,8 +14,8 @@ const saveAccessToken = (accessToken_Bing, refreshToken, expiresIn) => {
     }
 
     currentData.accessToken_Bing = accessToken_Bing;
-    currentData.refreshToken = refreshToken;
-    currentData.expiresIn = expiresIn;
+    currentData.refreshToken_Bing = refreshToken_Bing;
+    currentData.expiresIn_Bing = expiresIn_Bing;
 
     fs.writeFileSync(tokenFilePath, JSON.stringify(currentData, null, 2));
   } catch (error) {
@@ -38,49 +38,6 @@ const getStoredAccessToken = () => {
     return null;
   }
 };
-
-const refreshAccessToken = async () => {
-  try {
-    const storedData = getStoredAccessToken();
-
-    if (storedData) {
-      const { refreshToken } = storedData;
-
-      const tokenRequestData = new URLSearchParams({
-        client_id: process.env.BING_ADS_CLIENT_ID,
-        scope: "https://ads.microsoft.com/.default",
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-        client_secret: process.env.BING_ADS_CLIENT_SECRET,
-      });
-
-      const response = await axios.post(
-        `https://login.microsoftonline.com/${process.env.BING_ADS_TENANT_ID}/oauth2/v2.0/token`,
-        tokenRequestData.toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
-
-      const tokenResponse = response.data;
-
-      saveAccessToken(
-        tokenResponse.access_token,
-        tokenResponse.refresh_token,
-        tokenResponse.expires_in
-      );
-
-      console.log("Access token has been refreshed.");
-    } else {
-      console.log("Access token is not valid, no stored token found.");
-    }
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-  }
-};
-
-setInterval(async () => {
-  console.log("Attempting to refresh access token...");
-  await refreshAccessToken();
-}, 40 * 60 * 1000);
 
 const redirectToBing = async (req, res) => {
   try {
@@ -130,6 +87,49 @@ const handleOAuthCallbackBing = async (req, res) => {
     res.status(500).send("Error during OAuth2 callback.");
   }
 };
+
+const refreshAccessToken = async () => {
+  try {
+    const storedData = getStoredAccessToken();
+
+    if (storedData) {
+      const { refreshToken_Bing } = storedData;
+
+      const tokenRequestData = new URLSearchParams({
+        client_id: process.env.BING_ADS_CLIENT_ID,
+        scope: "https://ads.microsoft.com/.default",
+        refresh_token: refreshToken_Bing,
+        grant_type: "refresh_token",
+        client_secret: process.env.BING_ADS_CLIENT_SECRET,
+      });
+
+      const response = await axios.post(
+        `https://login.microsoftonline.com/${process.env.BING_ADS_TENANT_ID}/oauth2/v2.0/token`,
+        tokenRequestData.toString(),
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      const tokenResponse = response.data;
+
+      saveAccessToken(
+        tokenResponse.access_token,
+        tokenResponse.refresh_token,
+        tokenResponse.expires_in
+      );
+
+      console.log("Bing access token has been refreshed.");
+    } else {
+      console.log("Bing access token is not valid, no stored token found.");
+    }
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+  }
+};
+
+setInterval(async () => {
+  console.log("Attempting to refresh Bing access token...");
+  await refreshAccessToken();
+}, 40 * 60 * 1000);
 
 module.exports = {
   redirectToBing,

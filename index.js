@@ -16,8 +16,8 @@ const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendFinalPacingReportToAirtable } = require('./controllers/PacingReport');
 const { fetchReportDataDaily } = require('./controllers/hi_skin/GoogleAdsDaily');
-const { sendFinalWeeklyReportToAirtable } = require('./controllers/hi_skin/GoogleAdsWeekly');
-const { sendFinalMonthlyReportToAirtable } = require('./controllers/hi_skin/GoogleAdsMonthly');
+const { sendFinalWeeklyReportToAirtable, sendFinalWeeklyReportToGoogleSheets } = require('./controllers/hi_skin/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToAirtable, sendFinalMonthlyReportToGoogleSheets } = require('./controllers/hi_skin/GoogleAdsMonthly');
 
 app.use(express.json());
 
@@ -76,12 +76,15 @@ const morningJobs = [
   sendFinalPacingReportToAirtable,
   fetchReportDataDaily,
   sendFinalWeeklyReportToAirtable,
-  sendFinalMonthlyReportToAirtable
+  sendFinalWeeklyReportToGoogleSheets,
+  sendFinalMonthlyReportToAirtable,
+  sendFinalMonthlyReportToGoogleSheets,
 ];
 
 const eveningJobs = [
   sendFinalPacingReportToAirtable,
-  sendFinalMonthlyReportToAirtable
+  sendFinalMonthlyReportToAirtable,
+  sendFinalMonthlyReportToGoogleSheets,
 ];
 
 schedule.scheduleJob(rule1, () => {

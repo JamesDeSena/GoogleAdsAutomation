@@ -3,20 +3,30 @@ const router = express.Router();
 
 // const {
 //   fetchReportDataDaily
-// } = require('../controllers/GoogleAdsDaily');
+// } = require('../controllers/hi_skin/GoogleAdsDaily');
+
+const {
+  fetchReportDataDaily
+} = require('../controllers/wall_blush/GoogleAdsDaily');
+
+const {
+  fetchReportDataBatch
+} = require('../controllers/wall_blush/GoogleAdsBatch');
 
 const {
   // fetchReportDataWeekly,
   // fetchReportDataWeeklyBrand,
   // fetchReportDataWeeklyNB,
-  sendFinalWeeklyReportToAirtable
+  sendFinalWeeklyReportToAirtable,
+  sendFinalWeeklyReportToGoogleSheets
 } = require('../controllers/hi_skin/GoogleAdsWeekly');
 
 const {
-  sendFinalMonthlyReportToAirtable
+  sendFinalMonthlyReportToAirtable,
+  sendFinalMonthlyReportToGoogleSheets
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
-// router.get('/report', fetchReportDataDaily);
+router.get('/report', fetchReportDataDaily);
 
 // router.get('/report-week', fetchReportDataWeekly);
 // router.get('/report-brand', fetchReportDataWeeklyBrand);
@@ -25,7 +35,7 @@ const {
 
 router.get('/report-final/:date?', async (req, res) => {
   try {
-    await sendFinalWeeklyReportToAirtable(req, res);
+    await sendFinalWeeklyReportToGoogleSheets(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
@@ -35,7 +45,7 @@ router.get('/report-final/:date?', async (req, res) => {
 
 router.get('/report-month/:date?', async (req, res) => {
   try {
-    await sendFinalMonthlyReportToAirtable(req, res);
+    await sendFinalMonthlyReportToGoogleSheets(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
