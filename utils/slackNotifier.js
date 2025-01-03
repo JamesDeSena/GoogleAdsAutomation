@@ -67,23 +67,11 @@ const checkTokensAndNotify = () => {
   }
 };
 
-let googleTokenLastChecked = null;
-
 const remindGoogleTokenRefresh = () => {
   const refreshToken_Google = getStoredRefreshToken();
 
-  if (refreshToken_Google && !googleTokenLastChecked) {
-    googleTokenLastChecked = new Date();
-  }
-
-  if (googleTokenLastChecked) {
-    const currentDate = new Date();
-    const diffDays = Math.floor((currentDate - googleTokenLastChecked) / (1000 * 60 * 60 * 24));
-
-    if (diffDays >= 5) {
-      sendSlackMessage(slackChannel, "⚠️ It's been 5 days since the Google token was last refreshed. Please refresh the Google token.");
-      googleTokenLastChecked = currentDate;
-    }
+  if (refreshToken_Google) {
+    sendSlackMessage(slackChannel, "⚠️ It's time to refresh the Google token. Please refresh the token.");
   }
 };
 
@@ -91,7 +79,7 @@ checkTokensAndNotify();
 
 setInterval(checkTokensAndNotify, 2400000);  // 40 minutes in milliseconds
 // setInterval(checkTokensAndNotify, 60000);
-setInterval(remindGoogleTokenRefresh, 86400000);
+setInterval(remindGoogleTokenRefresh, 345600000);
 
 module.exports = { 
   checkTokensAndNotify,

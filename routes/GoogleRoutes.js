@@ -35,7 +35,7 @@ const {
 
 router.get('/report-final/:date?', async (req, res) => {
   try {
-    await sendFinalWeeklyReportToGoogleSheets(req, res);
+    await sendFinalWeeklyReportToAirtable(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
@@ -45,7 +45,7 @@ router.get('/report-final/:date?', async (req, res) => {
 
 router.get('/report-month/:date?', async (req, res) => {
   try {
-    await sendFinalMonthlyReportToGoogleSheets(req, res);
+    await sendFinalMonthlyReportToAirtable(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
