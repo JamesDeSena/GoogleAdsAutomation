@@ -73,14 +73,14 @@ rule2.minute = 0;
 rule2.tz = 'America/Los_Angeles';
 
 const rule3 = new schedule.RecurrenceRule();
-rule2.hour = 7;
-rule2.minute = 10;
-rule2.tz = 'America/Los_Angeles';
+rule3.hour = 7;
+rule3.minute = 10;
+rule3.tz = 'America/Los_Angeles';
 
 const rule4 = new schedule.RecurrenceRule();
-rule2.hour = 19;
-rule2.minute = 10;
-rule2.tz = 'America/Los_Angeles';
+rule4.hour = 19;
+rule4.minute = 10;
+rule4.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendFinalPacingReportToAirtable,
@@ -112,11 +112,11 @@ schedule.scheduleJob(rule2, () => {
 });
 
 schedule.scheduleJob(rule3, () => {
-  executeConcurrentJobs(morningJobs2, "Morning");
+  executeConcurrentJobs(morningJobs2, "Morning2");
 });
 
 schedule.scheduleJob(rule4, () => {
-  executeConcurrentJobs(eveningJobs2, "Evening");
+  executeConcurrentJobs(eveningJobs2, "Evening2");
 });
 
 // schedule.scheduleJob('* * * * *', () => {
