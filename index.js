@@ -72,18 +72,34 @@ rule2.hour = 19;
 rule2.minute = 0;
 rule2.tz = 'America/Los_Angeles';
 
+const rule3 = new schedule.RecurrenceRule();
+rule2.hour = 7;
+rule2.minute = 10;
+rule2.tz = 'America/Los_Angeles';
+
+const rule4 = new schedule.RecurrenceRule();
+rule2.hour = 19;
+rule2.minute = 10;
+rule2.tz = 'America/Los_Angeles';
+
 const morningJobs = [
   sendFinalPacingReportToAirtable,
   fetchReportDataDaily,
   sendFinalWeeklyReportToAirtable,
-  sendFinalWeeklyReportToGoogleSheets,
   sendFinalMonthlyReportToAirtable,
-  sendFinalMonthlyReportToGoogleSheets,
 ];
 
 const eveningJobs = [
   sendFinalPacingReportToAirtable,
   sendFinalMonthlyReportToAirtable,
+];
+
+const morningJobs2 = [
+  sendFinalWeeklyReportToGoogleSheets,
+  sendFinalMonthlyReportToGoogleSheets,
+];
+
+const eveningJobs2 = [
   sendFinalMonthlyReportToGoogleSheets,
 ];
 
@@ -93,6 +109,14 @@ schedule.scheduleJob(rule1, () => {
 
 schedule.scheduleJob(rule2, () => {
   executeConcurrentJobs(eveningJobs, "Evening");
+});
+
+schedule.scheduleJob(rule3, () => {
+  executeConcurrentJobs(morningJobs2, "Morning");
+});
+
+schedule.scheduleJob(rule4, () => {
+  executeConcurrentJobs(eveningJobs2, "Evening");
 });
 
 // schedule.scheduleJob('* * * * *', () => {

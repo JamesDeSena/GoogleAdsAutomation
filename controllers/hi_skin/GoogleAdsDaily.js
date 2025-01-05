@@ -7,9 +7,9 @@ const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
 
 async function fetchReportDataDaily(req, res) {
-  const token = getStoredRefreshToken();
+  const refreshToken_Google = getStoredRefreshToken();
 
-  if (!token.refreshToken_Google) {
+  if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
   }
@@ -17,7 +17,7 @@ async function fetchReportDataDaily(req, res) {
   try {
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: token.refreshToken_Google,
+      refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 

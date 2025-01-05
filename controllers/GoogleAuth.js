@@ -12,11 +12,10 @@ const saveRefreshToken = (refreshToken_Google) => {
       currentData = JSON.parse(fs.readFileSync(tokenFilePath, "utf8"));
     }
 
-    // currentData.accessToken_Google = accessToken_Google;
-    currentData.refreshToken_Google = refreshToken_Google;
-    // currentData.expiresIn_Google = expiresIn_Google;
-
-    fs.writeFileSync(tokenFilePath, JSON.stringify(currentData, null, 2));
+    if (currentData.refreshToken_Google !== refreshToken_Google) {
+      currentData.refreshToken_Google = refreshToken_Google;
+      fs.writeFileSync(tokenFilePath, JSON.stringify(currentData, null, 2));
+    }
     
   } catch (error) {
     console.error("Error saving refresh token:", error);
@@ -25,14 +24,9 @@ const saveRefreshToken = (refreshToken_Google) => {
 
 const getStoredRefreshToken = () => {
   try {
-    if (fs.existsSync(tokenFilePath)) {
-      const data = fs.readFileSync(tokenFilePath, "utf8");
-      const parsedData = JSON.parse(data);
-
-      return parsedData;
-    } else {
-      return null;
-    }
+    const data = fs.readFileSync(tokenFilePath, "utf8");
+    const parsedData = JSON.parse(data);
+    return parsedData.refreshToken_Google;
   } catch (err) {
     console.error("Error reading token:", err);
     return null;
@@ -55,10 +49,8 @@ const handleOAuthCallbackGoogle = async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    saveRefreshToken(
-      // tokens.access_token,
-      tokens.refresh_token,
-    );
+    saveRefreshToken(tokens.refresh_token);
+    
     res.send("OAuth2 authentication successful.");
   } catch (error) {
     console.error("Error getting OAuth tokens:", error);

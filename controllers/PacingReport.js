@@ -70,16 +70,16 @@ async function getAmountBing(accountId) {
 };
 
 async function getGoogleAdsCost(customerId) {
-  const token = getStoredRefreshToken();
+  const refreshToken_Google = getStoredRefreshToken();
 
-  if (!token.refreshToken_Google) {
+  if (!refreshToken_Google) {
     console.error("Refresh token is missing. Please authenticate.");
     return;
   }
 
   const customer = client.Customer({
     customer_id: customerId,
-    refresh_token: token.refreshToken_Google,
+    refresh_token: refreshToken_Google,
     login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
   });
 
@@ -156,16 +156,16 @@ async function getAmountGoogleWB() {
 };
 
 async function getAmountGoogleCampaigns() {
-  const token = getStoredRefreshToken();
+  const refreshToken_Google = getStoredRefreshToken();
 
-  if (!token.refreshToken_Google) {
+  if (!refreshToken_Google) {
     console.error("Refresh token is missing. Please authenticate.");
     return;
   }
 
   const customer = client.Customer({
     customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-    refresh_token: token.refreshToken_Google,
+    refresh_token: refreshToken_Google,
     login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
   });
 
