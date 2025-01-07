@@ -559,8 +559,6 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
 
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  console.log(spreadsheetId)
-  console.log(process.env.HI_SKIN_SPREADSHEET)
   const headerRange = 'Live!A1:U1';
   const dataRange = 'Live!A2:U';
   const dataRangeRaw = 'Raw!A2:U'; 
