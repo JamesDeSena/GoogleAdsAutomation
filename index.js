@@ -119,9 +119,10 @@ schedule.scheduleJob(rule4, () => {
   executeConcurrentJobs(eveningJobs2, "Evening2");
 });
 
-// schedule.scheduleJob('* * * * *', () => {
-//   console.log("Testing Node Schedule");
-// });
+schedule.scheduleJob('* * * * *', () => {
+  sendFinalWeeklyReportToGoogleSheets();
+  console.log("Testing Node Schedule");
+});
 
 app.listen(process.env.PORT, () =>
   console.log(`Server started on port ${process.env.PORT}`)
