@@ -559,6 +559,8 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
 
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  console.log(spreadsheetId)
+  console.log(process.env.HI_SKIN_SPREADSHEET)
   const headerRange = 'Live!A1:U1';
   const dataRange = 'Live!A2:U';
   const dataRangeRaw = 'Raw!A2:U'; 
@@ -677,11 +679,9 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
       let currentGroup = '';
     
       records.forEach((record, index) => {
-        // Only process new groups
         if (record.Filter !== currentGroup) {
-          // Add the custom header row for this group
           finalRecords.push({
-            Week: `${record.Filter}`, // Dynamically use record.Filter as the group name
+            Week: `${record.Filter}`, 
             Filter: "Filter",
             Filter2: "Filter2",
             "Impr.": "Impr.",
@@ -705,17 +705,14 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
             isBold: true,
           });
     
-          // Update current group
           currentGroup = record.Filter;
         }
     
-        // Add the current record for this group
         finalRecords.push({
           ...record,
           isBold: false,
         });
     
-        // Add WoW Variance % row after each group's records
         if (record.Week === "WoW Variance %") {
           finalRecords.push({ Week: "", Filter: "", Filter2: "" , isBold: false});
         }
