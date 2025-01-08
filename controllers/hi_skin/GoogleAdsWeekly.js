@@ -559,9 +559,19 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
 
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  const headerRange = 'Live!A1:U1';
-  const dataRange = 'Live!A2:U';
-  const dataRangeRaw = 'Raw!A2:U'; 
+  const dataRanges = {
+    Live: 'Live!A2:U',
+    AllBNB: 'Reporting View Update - Overview!A2:U',
+    Gilbert: 'Gilbert!A2:U',
+    MKT: 'MKT!A2:U',
+    Phoenix: 'Phoenix!A2:U',
+    Scottsdale: 'Scottsdale!A2:U',
+    UptownPark: 'UptownPark!A2:U',
+    Montrose: 'Montrose!A2:U',
+    RiceVillage: 'RiceVillage!A2:U',
+    Mosaic: 'Mosaic!A2:U',
+    FourteenthSt: '14thSt!A2:U',
+  };
 
   try {
     const date = req?.params?.date;
@@ -675,11 +685,10 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
 
     function processGroup(records) {
       let currentGroup = '';
-    
-      records.forEach((record, index) => {
+      records.forEach(record => {
         if (record.Filter !== currentGroup) {
           finalRecords.push({
-            Week: `${record.Filter}`, 
+            Week: record.Filter,
             Filter: "Filter",
             Filter2: "Filter2",
             "Impr.": "Impr.",
@@ -702,30 +711,26 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
             "Purchase": "Purchase",
             isBold: true,
           });
-    
           currentGroup = record.Filter;
         }
-    
-        finalRecords.push({
-          ...record,
-          isBold: false,
-        });
-    
+        finalRecords.push({ ...record, isBold: false });
         if (record.Week === "WoW Variance %") {
-          finalRecords.push({ Week: "", Filter: "", Filter2: "" , isBold: false});
+          finalRecords.push({ Week: "", Filter: "", Filter2: "", isBold: false });
         }
       });
     }
-    
+
     processGroup(records);
 
     const sheetData = finalRecords.map(record => [
       record.Week,
       record.Filter,
       record.Filter2,
-      record["Impr."], 
+      record["Impr."],
       record["Clicks"],
       record["Cost"],
+      record["Booking Confirmed"],
+      record["Booking CAC"],
       record["Book Now - Step 1: Locations"],
       record["Book Now - Step 5: Confirm Booking"],
       record["Book Now - Step 6: Booking Confirmation"],
@@ -737,39 +742,21 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
       record["Step 1 Conv Rate"],
       record["Step 5 Conv Rate"],
       record["Step 6 Conv Rate"],
-      record["Booking Confirmed"],
-      record["Booking CAC"],
       record["Booking Conv Rate"],
       record["Purchase"],
     ]);
 
-    const resource = {
-      values: sheetData,
-    };
-    
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: dataRange,
-    });
+    const resource = { values: sheetData };
 
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: dataRangeRaw,
-    });
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: dataRange,
-      valueInputOption: "RAW",
-      resource,
-    });
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: dataRangeRaw,
-      valueInputOption: "RAW",
-      resource,
-    });
+    for (const range of Object.values(dataRanges)) {
+      await sheets.spreadsheets.values.clear({ spreadsheetId, range });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "RAW",
+        resource,
+      });
+    }
 
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -785,9 +772,7 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
                 endColumnIndex: 21,
               },
               cell: {
-                userEnteredFormat: {
-                  horizontalAlignment: 'RIGHT',
-                },
+                userEnteredFormat: { horizontalAlignment: 'RIGHT' },
               },
               fields: 'userEnteredFormat.horizontalAlignment',
             },
