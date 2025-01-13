@@ -561,7 +561,7 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
   const dataRanges = {
     Live: 'Live!A2:U',
-    AllBNB: 'Reporting View Update - Overview!A2:U',
+    AllBNB: 'Overview!A2:U',
     Gilbert: 'Gilbert!A2:U',
     MKT: 'MKT!A2:U',
     Phoenix: 'Phoenix!A2:U',
@@ -731,6 +731,7 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
       record["Cost"],
       record["Booking Confirmed"],
       record["Booking CAC"],
+      record["Booking Conv Rate"],
       record["Book Now - Step 1: Locations"],
       record["Book Now - Step 5: Confirm Booking"],
       record["Book Now - Step 6: Booking Confirmation"],
@@ -742,7 +743,6 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
       record["Step 1 Conv Rate"],
       record["Step 5 Conv Rate"],
       record["Step 6 Conv Rate"],
-      record["Booking Conv Rate"],
       record["Purchase"],
     ]);
 
