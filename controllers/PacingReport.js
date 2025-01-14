@@ -239,6 +239,39 @@ async function getAmountGoogleGTAI() {
   }
 };
 
+async function getAmountGoogleAZ() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ
+    );
+    return { AZ: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads WB data");
+  }
+};
+
+async function getAmountGoogleLV() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV
+    );
+    return { LV: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads WB data");
+  }
+};
+
+async function getAmountGoogleNYC() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC
+    );
+    return { NYC: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads WB data");
+  }
+};
+
 async function getAmountBingTotal() {
   try {
     const BingLPC = await getAmountBing(
@@ -261,6 +294,10 @@ async function getAllMetrics() {
     const googleWB = await getAmountGoogleWB();
     const googleCampaigns = await getAmountGoogleCampaigns();
     const googleGTAI = await getAmountGoogleGTAI();
+    const googleDripAZ = await getAmountGoogleAZ();
+    const googleDripLV = await getAmountGoogleLV();
+    const googleDripNYC = await getAmountGoogleNYC();
+    
 
     console.log({
       data: {
@@ -270,6 +307,9 @@ async function getAllMetrics() {
         ...googleWB,
         ...googleCampaigns,
         ...googleGTAI,
+        ...googleDripAZ,
+        ...googleDripLV,
+        ...googleDripNYC,
       },
     });
 
@@ -281,6 +321,9 @@ async function getAllMetrics() {
         ...googleWB,
         ...googleCampaigns,
         ...googleGTAI,
+        ...googleDripAZ,
+        ...googleDripLV,
+        ...googleDripNYC,
       },
     };
   } catch (error) {
@@ -494,6 +537,30 @@ const sendFinalPacingReportToAirtable = async () => {
           Campaign: "Google",
           "Monthly Budget": 3000.0,
           "MTD Spend": record.data.GTAI,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip AZ",
+          Campaign: "Arizona",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.AZ,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip LV",
+          Campaign: "Las Vegas",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.LV,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip NYC",
+          Campaign: "New York",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.NYC,
         },
       },
     ];
