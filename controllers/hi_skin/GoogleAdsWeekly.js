@@ -212,7 +212,8 @@ const aggregateDataForWeek = async (
   customer,
   startDate,
   endDate,
-  campaignNameFilter
+  campaignNameFilter,
+  brandNBFilter
 ) => {
   const aggregatedData = {
     date: `${startDate} - ${endDate}`,
@@ -238,7 +239,7 @@ const aggregateDataForWeek = async (
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}%'
+      AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
     ORDER BY
       segments.date DESC
   `;
@@ -253,7 +254,7 @@ const aggregateDataForWeek = async (
       campaign
     WHERE 
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}%'
+      AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
       AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase')
     ORDER BY 
       segments.date DESC
@@ -293,7 +294,7 @@ const aggregateDataForWeek = async (
   return aggregatedData;
 };
 
-const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
+const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, brandNBFilter, dateRanges) => {
   const refreshToken_Google = getStoredRefreshToken();
 
   if (!refreshToken_Google) {
@@ -311,7 +312,7 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
     // const dateRanges = getOrGenerateDateRanges();
 
     const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
-      return aggregateDataForWeek(customer, start, end, campaignNameFilter);
+      return aggregateDataForWeek(customer, start, end, campaignNameFilter, brandNBFilter);
     });
 
     const allWeeklyData = await Promise.all(allWeeklyDataPromises);
@@ -321,55 +322,57 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
     // }
 
     return allWeeklyData;
-
   } catch (error) {
     console.error("Error fetching report data:", error);
     // res.status(500).send("Error fetching report data");
   }
 };
 
-const fetchReportDataWeeklyBrand = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Brand", "Brand", dateRanges);
+const createFetchFunction = (campaignNameFilter, reportName, brandNBFilter = "") => {
+  return (req, res, dateRanges) => fetchReportDataWeeklyFilter(req, res, campaignNameFilter, reportName, brandNBFilter, dateRanges);
 };
 
-const fetchReportDataWeeklyNB = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "NB", "NB", dateRanges);
+const fetchFunctions = {
+  fetchReportDataWeeklyBrand: createFetchFunction("Brand", "Brand"),
+  fetchReportDataWeeklyNB: createFetchFunction("NB", "NB"),
+  fetchReportDataWeeklyGilbert: createFetchFunction("Gilbert", "Gilbert"),
+  fetchReportDataWeeklyGilbertBrand: createFetchFunction("Gilbert", "Gilbert", "Brand"),
+  fetchReportDataWeeklyGilbertNB: createFetchFunction("Gilbert", "Gilbert", "NB"),
+  fetchReportDataWeeklyMKT: createFetchFunction("MKT", "MKT"),
+  fetchReportDataWeeklyMKTBrand: createFetchFunction("MKT", "MKT", "Brand"),
+  fetchReportDataWeeklyMKTNB: createFetchFunction("MKT", "MKT", "NB"),
+  fetchReportDataWeeklyPhoenix: createFetchFunction("Phoenix", "Phoenix"),
+  fetchReportDataWeeklyPhoenixBrand: createFetchFunction("Phoenix", "Phoenix", "Brand"),
+  fetchReportDataWeeklyPhoenixNB: createFetchFunction("Phoenix", "Phoenix", "NB"),
+  fetchReportDataWeeklyScottsdale: createFetchFunction("Scottsdale", "Scottsdale"),
+  fetchReportDataWeeklyScottsdaleBrand: createFetchFunction("Scottsdale", "Scottsdale", "Brand"),
+  fetchReportDataWeeklyScottsdaleNB: createFetchFunction("Scottsdale", "Scottsdale", "NB"),
+  fetchReportDataWeeklyUptownPark: createFetchFunction("Uptown", "Uptown"),
+  fetchReportDataWeeklyUptownParkBrand: createFetchFunction("Uptown", "Uptown", "Brand"),
+  fetchReportDataWeeklyUptownParkNB: createFetchFunction("Uptown", "Uptown", "NB"),
+  fetchReportDataWeeklyMontrose: createFetchFunction("Montrose", "Montrose"),
+  fetchReportDataWeeklyMontroseBrand: createFetchFunction("Montrose", "Montrose", "Brand"),
+  fetchReportDataWeeklyMontroseNB: createFetchFunction("Montrose", "Montrose", "NB"),
+  fetchReportDataWeeklyRiceVillage: createFetchFunction("RiceVillage", "RiceVillage"),
+  fetchReportDataWeeklyRiceVillageBrand: createFetchFunction("RiceVillage", "RiceVillage", "Brand"),
+  fetchReportDataWeeklyRiceVillageNB: createFetchFunction("RiceVillage", "RiceVillage", "NB"),
+  fetchReportDataWeeklyMosaic: createFetchFunction("Mosaic", "Mosaic"),
+  fetchReportDataWeeklyMosaicBrand: createFetchFunction("Mosaic", "Mosaic", "Brand"),
+  fetchReportDataWeeklyMosaicNB: createFetchFunction("Mosaic", "Mosaic", "NB"),
+  fetchReportDataWeekly14thSt: createFetchFunction("14thSt", "14thSt"),
+  fetchReportDataWeekly14thStBrand: createFetchFunction("14thSt", "14thSt", "Brand"),
+  fetchReportDataWeekly14thStNB: createFetchFunction("14thSt", "14thSt", "NB"),
 };
 
-const fetchReportDataWeeklyGilbert = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Gilbert", "Gilbert", dateRanges);
-};
-
-const fetchReportDataWeeklyMKT = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "MKT", "MKT", dateRanges);
-};
-
-const fetchReportDataWeeklyPhoenix = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Phoenix", "Phoenix", dateRanges);
-};
-
-const fetchReportDataWeeklyScottsdale = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Scottsdale", "Scottsdale", dateRanges);
-};
-
-const fetchReportDataWeeklyUptownPark = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Uptown", "Uptown", dateRanges);
-};
-
-const fetchReportDataWeeklyMontrose = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Montrose", "Montrose", dateRanges);
-};
-
-const fetchReportDataWeeklyRiceVillage = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "RiceVillage", "RiceVillage", dateRanges);
-};
-
-const fetchReportDataWeeklyMosaic = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "Mosaic", "Mosaic", dateRanges);
-};
-
-const fetchReportDataWeekly14thSt = (req, res, dateRanges) => {
-  return fetchReportDataWeeklyFilter(req, res, "14thSt", "14thSt", dateRanges);
+const executeSpecificFetchFunction = async (req, res, dateRanges) => {
+  const functionName = "fetchReportDataWeeklyGilbertNB";
+  if (fetchFunctions[functionName]) {
+    const data = await fetchFunctions[functionName](dateRanges);
+    res.json(data);
+  } else {
+    console.error(`Function ${functionName} does not exist.`);
+    res.status(404).send("Function not found");
+  }
 };
 
 const sendFinalWeeklyReportToAirtable = async (req, res) => {
@@ -379,17 +382,35 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     const dateRanges = getOrGenerateDateRanges(date);
 
     const weeklyData = await fetchReportDataWeekly(dateRanges);
-    const brandData = await fetchReportDataWeeklyBrand(req, res, dateRanges);
-    const noBrandData = await fetchReportDataWeeklyNB(req, res, dateRanges);
-    const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
-    const mktData = await fetchReportDataWeeklyMKT(req, res, dateRanges);
-    const phoenixData = await fetchReportDataWeeklyPhoenix(req, res, dateRanges);
-    const scottsdaleData = await fetchReportDataWeeklyScottsdale(req, res, dateRanges);
-    const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
-    const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
-    const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
-    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
-    const fourteenthStData = await fetchReportDataWeekly14thSt(req, res, dateRanges);
+    const brandData = await fetchFunctions.fetchReportDataWeeklyBrand(req, res, dateRanges);
+    const noBrandData = await fetchFunctions.fetchReportDataWeeklyNB(req, res, dateRanges);
+    const gilbertData = await fetchFunctions.fetchReportDataWeeklyGilbert(req, res, dateRanges);
+    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyGilbertBrand(req, res, dateRanges);
+    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyGilbertNB(req, res, dateRanges);
+    const mktData = await fetchFunctions.fetchReportDataWeeklyMKT(req, res, dateRanges);
+    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyMKTBrand(req, res, dateRanges);
+    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyMKTNB(req, res, dateRanges);
+    const phoenixData = await fetchFunctions.fetchReportDataWeeklyPhoenix(req, res, dateRanges);
+    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyPhoenixBrand(req, res, dateRanges);
+    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyPhoenixNB(req, res, dateRanges);
+    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyScottsdale(req, res, dateRanges);
+    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyScottsdaleBrand(req, res, dateRanges);
+    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyScottsdaleNB(req, res, dateRanges);
+    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyUptownPark(req, res, dateRanges);
+    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyUptownParkBrand(req, res, dateRanges);
+    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyUptownParkNB(req, res, dateRanges);
+    const montroseData = await fetchFunctions.fetchReportDataWeeklyMontrose(req, res, dateRanges);
+    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyMontroseBrand(req, res, dateRanges);
+    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyMontroseNB(req, res, dateRanges);
+    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyRiceVillageBrand(req, res, dateRanges);
+    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyRiceVillageNB(req, res, dateRanges);
+    const mosaicData = await fetchFunctions.fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyMosaicBrand(req, res, dateRanges);
+    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyMosaicNB(req, res, dateRanges);
+    const fourteenthStData = await fetchFunctions.fetchReportDataWeekly14thSt(req, res, dateRanges);
+    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeekly14thStBrand(req, res, dateRanges);
+    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeekly14thStNB(req, res, dateRanges);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -454,28 +475,65 @@ const sendFinalWeeklyReportToAirtable = async (req, res) => {
     addDataToRecords(brandData, "2 - Brand");
     addDataToRecords(noBrandData, "3 - NB");
     addDataToRecords(gilbertData, "4 - Gilbert");
-    addDataToRecords(mktData, "5 - MKT");
+    addDataToRecords(gilbertDataBrand, "4 - Gilbert Brand");
+    addDataToRecords(gilbertDataNB, "4 - Gilbert NB");
+    addDataToRecords(gilbertData, "5 - MKT");
+    addDataToRecords(gilbertDataBrand, "5 - MKT Brand");
+    addDataToRecords(gilbertDataNB, "5 - MKT NB");
     addDataToRecords(phoenixData, "6 - Phoenix");
+    addDataToRecords(phoenixDataBrand, "6 - Phoenix Brand");
+    addDataToRecords(phoenixDataNB, "6 - Phoenix NB");
     addDataToRecords(scottsdaleData, "7 - Scottsdale");
+    addDataToRecords(scottsdaleDataBrand, "7 - Scottsdale Brand");
+    addDataToRecords(scottsdaleDataNB, "7 - Scottsdale NB");
     addDataToRecords(uptownParkData, "8 - UptownPark");
+    addDataToRecords(uptownParkDataBrand, "8 - UptownPark Brand");
+    addDataToRecords(uptownParkDataNB, "8 - UptownPark NB");
     addDataToRecords(montroseData, "9 - Montrose");
+    addDataToRecords(montroseDataBrand, "9 - Montrose Brand");
+    addDataToRecords(montroseDataNB, "9 - Montrose NB");
     addDataToRecords(riceVillageData, "10 - RiceVillage");
+    addDataToRecords(riceVillageDataBrand, "10 - RiceVillage Brand");
+    addDataToRecords(riceVillageDataNB, "10 - RiceVillage NB");
     addDataToRecords(mosaicData, "11 - Mosaic");
+    addDataToRecords(mosaicDataBrand, "11 - Mosaic Brand");
+    addDataToRecords(mosaicDataNB, "11 - Mosaic NB");
     addDataToRecords(fourteenthStData, "12 - 14thSt");
+    addDataToRecords(fourteenthStDataBrand, "12 - 14thSt Brand");
+    addDataToRecords(fourteenthStDataNB, "12 - 14thSt NB");
+
 
     if (!date || date.trim() === '') {
       addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "1 - All Search");
       addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "2 - Brand");
       addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "3 - NB");
       addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "4 - Gilbert");
+      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "4 - Gilbert Brand");
+      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "4 - Gilbert NB");
       addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "5 - MKT");
+      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "5 - MKT Brand");
+      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "5 - MKT NB");
       addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "6 - Phoenix");
+      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "6 - Phoenix Brand");
+      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "6 - Phoenix NB");
       addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "7 - Scottsdale");
+      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "7 - Scottsdale Brand");
+      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "7 - Scottsdale NB");
       addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "8 - UptownPark");
+      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "8 - UptownPark Brand");
+      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "8 - UptownPark NB");
       addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "9 - Montrose");
+      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "9 - Montrose Brand");
+      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "9 - Montrose NB");
       addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "10 - RiceVillage");
+      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "10 - RiceVillage Brand");
+      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "10 - RiceVillage NB");
       addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "11 - Mosaic");
+      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "11 - Mosaic Brand");
+      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "11 - Mosaic NB");
       addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "12 - 14thSt");
+      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "12 - 14thSt Brand");
+      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "12 - 14thSt NB");
     }
 
     const table = base("Final Report");
@@ -578,17 +636,35 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
     const dateRanges = getOrGenerateDateRanges(date);
 
     const weeklyData = await fetchReportDataWeekly(dateRanges);
-    const brandData = await fetchReportDataWeeklyBrand(req, res, dateRanges);
-    const noBrandData = await fetchReportDataWeeklyNB(req, res, dateRanges);
-    const gilbertData = await fetchReportDataWeeklyGilbert(req, res, dateRanges);
-    const mktData = await fetchReportDataWeeklyMKT(req, res, dateRanges);
-    const phoenixData = await fetchReportDataWeeklyPhoenix(req, res, dateRanges);
-    const scottsdaleData = await fetchReportDataWeeklyScottsdale(req, res, dateRanges);
-    const uptownParkData = await fetchReportDataWeeklyUptownPark(req, res, dateRanges);
-    const montroseData = await fetchReportDataWeeklyMontrose(req, res, dateRanges);
-    const riceVillageData = await fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
-    const mosaicData = await fetchReportDataWeeklyMosaic(req, res, dateRanges);
-    const fourteenthStData = await fetchReportDataWeekly14thSt(req, res, dateRanges);
+    const brandData = await fetchFunctions.fetchReportDataWeeklyBrand(req, res, dateRanges);
+    const noBrandData = await fetchFunctions.fetchReportDataWeeklyNB(req, res, dateRanges);
+    const gilbertData = await fetchFunctions.fetchReportDataWeeklyGilbert(req, res, dateRanges);
+    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyGilbertBrand(req, res, dateRanges);
+    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyGilbertNB(req, res, dateRanges);
+    const mktData = await fetchFunctions.fetchReportDataWeeklyMKT(req, res, dateRanges);
+    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyMKTBrand(req, res, dateRanges);
+    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyMKTNB(req, res, dateRanges);
+    const phoenixData = await fetchFunctions.fetchReportDataWeeklyPhoenix(req, res, dateRanges);
+    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyPhoenixBrand(req, res, dateRanges);
+    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyPhoenixNB(req, res, dateRanges);
+    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyScottsdale(req, res, dateRanges);
+    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyScottsdaleBrand(req, res, dateRanges);
+    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyScottsdaleNB(req, res, dateRanges);
+    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyUptownPark(req, res, dateRanges);
+    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyUptownParkBrand(req, res, dateRanges);
+    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyUptownParkNB(req, res, dateRanges);
+    const montroseData = await fetchFunctions.fetchReportDataWeeklyMontrose(req, res, dateRanges);
+    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyMontroseBrand(req, res, dateRanges);
+    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyMontroseNB(req, res, dateRanges);
+    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyRiceVillage(req, res, dateRanges);
+    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyRiceVillageBrand(req, res, dateRanges);
+    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyRiceVillageNB(req, res, dateRanges);
+    const mosaicData = await fetchFunctions.fetchReportDataWeeklyMosaic(req, res, dateRanges);
+    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyMosaicBrand(req, res, dateRanges);
+    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyMosaicNB(req, res, dateRanges);
+    const fourteenthStData = await fetchFunctions.fetchReportDataWeekly14thSt(req, res, dateRanges);
+    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeekly14thStBrand(req, res, dateRanges);
+    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeekly14thStNB(req, res, dateRanges);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -655,28 +731,64 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
     addDataToRecords(brandData, "Brand", 2);
     addDataToRecords(noBrandData, "NB", 3);
     addDataToRecords(gilbertData, "Gilbert", 4);
-    addDataToRecords(mktData, "MKT", 5);
-    addDataToRecords(phoenixData, "Phoenix", 6);
-    addDataToRecords(scottsdaleData, "Scottsdale", 7);
-    addDataToRecords(uptownParkData, "UptownPark", 8);
-    addDataToRecords(montroseData, "Montrose", 9);
-    addDataToRecords(riceVillageData, "RiceVillage", 10);
-    addDataToRecords(mosaicData, "Mosaic", 11);
-    addDataToRecords(fourteenthStData, "14thSt", 12);
+    addDataToRecords(gilbertDataBrand, "Gilbert Brand", 5);
+    addDataToRecords(gilbertDataNB, "Gilbert NB", 6);
+    addDataToRecords(mktData, "MKT", 7);
+    addDataToRecords(mktDataBrand, "MKT Brand", 8);
+    addDataToRecords(mktDataNB, "MKT NB", 9);
+    addDataToRecords(phoenixData, "Phoenix", 10);
+    addDataToRecords(phoenixDataBrand, "Phoenix Brand", 11);
+    addDataToRecords(phoenixDataNB, "Phoenix NB", 12);
+    addDataToRecords(scottsdaleData, "Scottsdale", 13);
+    addDataToRecords(scottsdaleDataBrand, "Scottsdale Brand", 14);
+    addDataToRecords(scottsdaleDataNB, "Scottsdale NB", 15);
+    addDataToRecords(uptownParkData, "UptownPark", 16);
+    addDataToRecords(uptownParkDataBrand, "UptownPark Brand", 17);
+    addDataToRecords(uptownParkDataNB, "UptownPark NB", 18);
+    addDataToRecords(montroseData, "Montrose", 19);
+    addDataToRecords(montroseDataBrand, "Montrose Brand", 20);
+    addDataToRecords(montroseDataNB, "Montrose NB", 21);
+    addDataToRecords(riceVillageData, "RiceVillage", 22);
+    addDataToRecords(riceVillageDataBrand, "RiceVillage Brand", 23);
+    addDataToRecords(riceVillageDataNB, "RiceVillage NB", 24);
+    addDataToRecords(mosaicData, "Mosaic", 25);
+    addDataToRecords(mosaicDataBrand, "Mosaic Brand", 26);
+    addDataToRecords(mosaicDataNB, "Mosaic NB", 27);
+    addDataToRecords(fourteenthStData, "14thSt", 28);
+    addDataToRecords(fourteenthStDataBrand, "14thSt Brand", 29);
+    addDataToRecords(fourteenthStDataNB, "14thSt NB", 30);
 
     if (!date || date.trim() === '') {
       addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "All Search", 1);
       addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "Brand", 2);
       addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "NB", 3);
       addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 4);
-      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 5);
-      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 6);
-      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 7);
-      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 8);
-      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 9);
-      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 10);
-      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 11);
-      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 12);
+      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "Gilbert Brand", 5);
+      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "Gilbert NB", 6);
+      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 7);
+      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "MKT Brand", 8);
+      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "MKT NB", 9);
+      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 10);
+      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "Phoenix Brand", 11);
+      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "Phoenix NB", 12);
+      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 13);
+      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "Scottsdale Brand", 14);
+      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "Scottsdale NB", 15);
+      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 16);
+      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "UptownPark Brand", 17);
+      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "UptownPark NB", 18);
+      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 19);
+      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "Montrose Brand", 20);
+      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "Montrose NB", 21);
+      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 22);
+      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "RiceVillage Brand", 23);
+      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "RiceVillage NB", 24);
+      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 25);
+      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "Mosaic Brand", 26);
+      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "Mosaic NB", 27);
+      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 28);
+      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "14thSt Brand", 29);
+      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "14thSt NB", 30);
     }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
@@ -789,8 +901,7 @@ const sendFinalWeeklyReportToGoogleSheets = async (req, res) => {
 
 module.exports = {
   fetchReportDataWeekly,
-  fetchReportDataWeeklyBrand,
-  fetchReportDataWeeklyNB,
+  executeSpecificFetchFunction,
   sendFinalWeeklyReportToAirtable,
   sendFinalWeeklyReportToGoogleSheets
 };
