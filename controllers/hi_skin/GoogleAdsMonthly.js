@@ -266,7 +266,7 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  const dataRange = 'Monthly!A2:M'; // Optional, just used for reference
+  const dataRange = 'Monthly!A2:M';
 
   try {
     const date = req?.params?.date;
@@ -285,14 +285,12 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
 
     const records = [];
 
-    // Helper function to aggregate data by month
     const aggregateDataByMonth = (data, fieldName) => {
       data.forEach((record) => {
         if (!record.year || !record.month || record.cost == null) {
           return;
         }
 
-        // Find the existing record for this month or create a new one
         let existingRecord = records.find(r => r.Year === record.year && r.Month === record.month);
         
         if (!existingRecord) {
@@ -314,12 +312,10 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
           records.push(existingRecord);
         }
 
-        // Aggregate the costs for the specific field
         existingRecord[fieldName] += record.cost;
       });
     };
 
-    // Aggregate data for all fields
     aggregateDataByMonth(gilbertData, "Gilbert");
     aggregateDataByMonth(phoenixData, "Phoenix");
     aggregateDataByMonth(scottsdaleData, "Scottsdale");
@@ -331,7 +327,6 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
     aggregateDataByMonth(mosaicData, "Mosaic");
     aggregateDataByMonth(googleSpendData, "Google Spend");
 
-    // Map the records to a format suitable for Google Sheets
     const sheetData = records.map(record => [
       record.Year,
       record.Month,
@@ -352,10 +347,9 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
       values: sheetData,
     };
 
-    // Append the data to the sheet (instead of clearing and updating a range)
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Monthly!A2', // Starting from row 2 in the Monthly sheet
+      range: 'Monthly!A2',
       valueInputOption: 'RAW',
       resource,
     });

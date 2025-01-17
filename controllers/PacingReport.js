@@ -1,6 +1,7 @@
 const axios = require("axios");
 const schedule = require("node-schedule");
 const Airtable = require("airtable");
+const { google } = require('googleapis');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_PACING
 );
@@ -580,8 +581,69 @@ const sendFinalPacingReportToAirtable = async () => {
   }
 };
 
+const sendLPCBudgettoGoogleSheets = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.LPC_SPREADSHEET;
+  const range = 'Google & Bing Monthly Ad Spend!A2:C';
+
+  try {
+    const record = await getAllMetrics();
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
+    const currentYear = currentDate.getFullYear() % 100; // Get last two digits of the year
+    const currentMonthYear = `${currentMonth}-${currentYear}`;
+    console.log(`1 ${currentMonthYear}`)
+
+    const getSheetData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+
+    const rows = getSheetData.data.values || [];
+    let rowIndexToUpdate = -1;
+
+    rows.forEach((row, index) => {
+      if (row[0] === currentMonthYear) {
+        rowIndexToUpdate = index + 2;
+      }
+    });
+
+    if (rowIndexToUpdate === -1) {
+      rowIndexToUpdate = rows.length + 2;
+    }
+    console.log(`2 ${rowIndexToUpdate}`)
+
+    const updateRange = `Google & Bing Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
+    const resource = {
+      values: [
+        [currentMonthYear, record.data.GoogleLPC, record.data.BingLPC],
+      ],
+    };
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: updateRange,
+      valueInputOption: 'RAW',
+      resource,
+    });
+
+    console.log("Data updated successfully in Google Sheets.");
+    res.status(200).send("Data updated successfully in Google Sheets.");
+  } catch (error) {
+    console.error("Error updating data in Google Sheets:", error);
+    res.status(500).send("Error updating data in Google Sheets.");
+  }
+};
+
 module.exports = {
   getAllMetrics,
   sendFinalPacingReportToAirtable,
-  fetchAndFormatTimeCreatedCST
+  fetchAndFormatTimeCreatedCST,
+  sendLPCBudgettoGoogleSheets,
 };
