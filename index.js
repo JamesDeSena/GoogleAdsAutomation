@@ -15,9 +15,10 @@ const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendFinalPacingReportToAirtable, sendLPCBudgettoGoogleSheets } = require('./controllers/PacingReport');
-const { fetchReportDataDaily } = require('./controllers/hi_skin/GoogleAdsDaily');
-const { sendFinalWeeklyReportToAirtable, sendFinalWeeklyReportToGoogleSheets } = require('./controllers/hi_skin/GoogleAdsWeekly');
-const { sendFinalMonthlyReportToAirtable, sendFinalMonthlyReportToGoogleSheets } = require('./controllers/hi_skin/GoogleAdsMonthly');
+const { fetchReportDataDailyHS } = require('./controllers/hi_skin/GoogleAdsDaily');
+const { sendFinalWeeklyReportToAirtableHS, sendFinalWeeklyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToAirtableHS, sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
+const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 
 app.use(express.json());
 
@@ -84,24 +85,26 @@ rule4.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendFinalPacingReportToAirtable,
-  fetchReportDataDaily,
-  sendFinalWeeklyReportToAirtable,
-  sendFinalMonthlyReportToAirtable,
+  fetchReportDataDailyHS,
+  sendFinalWeeklyReportToAirtableHS,
+  sendFinalMonthlyReportToAirtableHS,
 ];
 
 const eveningJobs = [
   sendFinalPacingReportToAirtable,
-  sendFinalMonthlyReportToAirtable,
+  sendFinalMonthlyReportToAirtableHS,
 ];
 
 const morningJobs2 = [
-  sendFinalWeeklyReportToGoogleSheets,
+  sendFinalWeeklyReportToGoogleSheetsHS,
+  sendFinalWeeklyReportToGoogleSheetsMIV,
   sendLPCBudgettoGoogleSheets,
-  sendFinalMonthlyReportToGoogleSheets,
+  sendFinalMonthlyReportToGoogleSheetsHS,
 ];
 
 const eveningJobs2 = [
-  sendFinalMonthlyReportToGoogleSheets,
+  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendFinalMonthlyReportToGoogleSheetsHS,
 ];
 
 schedule.scheduleJob(rule1, () => {

@@ -178,7 +178,7 @@ const fetchReportDataWeeklyTotal = (req, res, dateRanges) => {
   return fetchReportDataMonthlyFilter(req, res, "", dateRanges);
 };
 
-const sendFinalMonthlyReportToAirtable = async (req, res) => {
+const sendFinalMonthlyReportToAirtableHS = async (req, res) => {
   try {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
@@ -258,7 +258,7 @@ const sendFinalMonthlyReportToAirtable = async (req, res) => {
   }
 };
 
-const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
+const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -361,6 +361,6 @@ const sendFinalMonthlyReportToGoogleSheets = async (req, res) => {
 };
 
 module.exports = {
-  sendFinalMonthlyReportToAirtable,
-  sendFinalMonthlyReportToGoogleSheets
+  sendFinalMonthlyReportToAirtableHS,
+  sendFinalMonthlyReportToGoogleSheetsHS
 };

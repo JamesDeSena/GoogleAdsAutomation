@@ -6,7 +6,7 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
 
-async function fetchReportDataDaily(req, res) {
+async function fetchReportDataDailyHS(req, res) {
   const refreshToken_Google = getStoredRefreshToken();
 
   if (!refreshToken_Google) {
@@ -250,5 +250,5 @@ async function sendToAirtableDaily(data) {
 };
 
 module.exports = {
-  fetchReportDataDaily
+  fetchReportDataDailyHS
 };
