@@ -252,7 +252,7 @@ const sendFinalMonthlyReportToAirtableHS = async (req, res) => {
       await createNewRecord(record.fields);
     }
 
-    console.log("Final monthly report sent to Airtable successfully!");
+    console.log("Final Hi, Skin monthly report sent to Airtable successfully!");
   } catch (error) {
     console.error("Error sending final report to Airtable:", error);
   }
@@ -266,7 +266,7 @@ const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  const dataRange = 'Monthly!A2:M';
+  const dataRange = 'Monthly Spend!A2:M';
 
   try {
     const date = req?.params?.date;
@@ -354,7 +354,7 @@ const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
       resource,
     });
 
-    console.log("Final monthly report appended to Google Sheets successfully!");
+    console.log("Final Hi, Skin monthly report appended to Google Sheets successfully!");
   } catch (error) {
     console.error("Error sending final report to Google Sheets:", error);
   }

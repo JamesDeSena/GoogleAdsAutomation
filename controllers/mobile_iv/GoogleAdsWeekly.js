@@ -336,7 +336,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       await formatSheets(sheetName, data);
     }
 
-    console.log("Final weekly report sent to Google Sheets successfully!");
+    console.log("Final Mobile IV Drip weekly report sent to Google Sheets successfully!");
   } catch (error) {
     console.error("Error sending final report to Google Sheets:", error);
   }

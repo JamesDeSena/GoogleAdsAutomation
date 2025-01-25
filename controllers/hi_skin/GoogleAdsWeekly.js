@@ -602,7 +602,7 @@ const sendFinalWeeklyReportToAirtableHS = async (req, res) => {
     //   console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
     // }
 
-    console.log("Final weekly report sent to Airtable successfully!");
+    console.log("Final Hi, Skin weekly report sent to Airtable successfully!");
   } catch (error) {
     console.error("Error sending final report to Airtable:", error);
   }
@@ -618,8 +618,8 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
 
   const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
   const dataRanges = {
-    Live: 'Live!A2:U',
-    AllBNB: 'Overview!A2:U',
+    Live: 'Live View!A2:U',
+    AllBNB: 'Reporting Overview!A2:U',
     Gilbert: 'Gilbert!A2:U',
     MKT: 'MKT!A2:U',
     Phoenix: 'Phoenix!A2:U',
@@ -909,7 +909,54 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       await formatSheets(sheetName, data);
     }
 
-    console.log("Final weekly report sent to Google Sheets successfully!");
+    console.log("Final Hi, Skin weekly report sent to Google Sheets successfully!");
+  } catch (error) {
+    console.error("Error sending final report to Google Sheets:", error);
+  }
+};
+
+const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const sourceSpreadsheetId = process.env.BLENDED_SPREADSHEET;
+  const sourceDataRange = 'MAA - Daily!A2:W';
+  const targetSpreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const targetDataRange = 'MAA - Daily!A2:C';
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sourceSpreadsheetId,
+      range: sourceDataRange,
+    });
+
+    const rows = response.data.values;
+
+    if (!rows || rows.length === 0) {
+      console.log("No data found in the sheet.");
+      return;
+    }
+
+    const filteredData = rows.map(row => [
+      row[1] || null,
+      row[21] || null,
+      row[22] || null
+    ]);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: targetSpreadsheetId,
+      range: targetDataRange,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: filteredData,
+      },
+    });
+
+    console.log("Data successfully written to target sheet.");
   } catch (error) {
     console.error("Error sending final report to Google Sheets:", error);
   }
@@ -919,5 +966,6 @@ module.exports = {
   fetchReportDataWeeklyHS,
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToAirtableHS,
-  sendFinalWeeklyReportToGoogleSheetsHS
+  sendFinalWeeklyReportToGoogleSheetsHS,
+  sendBlendedCACToGoogleSheetsHS
 };

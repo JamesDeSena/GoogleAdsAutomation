@@ -8,7 +8,8 @@ const router = express.Router();
 const {
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToAirtableHS,
-  sendFinalWeeklyReportToGoogleSheetsHS
+  sendFinalWeeklyReportToGoogleSheetsHS,
+  sendBlendedCACToGoogleSheetsHS
 } = require('../controllers/hi_skin/GoogleAdsWeekly');
 
 const {
@@ -38,7 +39,7 @@ const {
 
 router.get('/hi_skin/report-final/:date?', async (req, res) => {
   try {
-    await sendFinalWeeklyReportToAirtableHS(req, res);
+    await sendFinalWeeklyReportToGoogleSheetsHS(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
@@ -48,7 +49,7 @@ router.get('/hi_skin/report-final/:date?', async (req, res) => {
 
 router.get('/hi_skin/report-month/:date?', async (req, res) => {
   try {
-    await sendFinalMonthlyReportToAirtableHS(req, res);
+    await sendFinalMonthlyReportToGoogleSheetsHS(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

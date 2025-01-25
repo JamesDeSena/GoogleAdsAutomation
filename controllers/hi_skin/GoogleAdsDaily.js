@@ -246,7 +246,7 @@ async function sendToAirtableDaily(data) {
     await batchProcess(recordsToCreate, "create", "Create");
   }
 
-  console.log("Daily Airtable sync process completed.");
+  console.log("Hi, Skin daily Airtable sync process completed.");
 };
 
 module.exports = {
