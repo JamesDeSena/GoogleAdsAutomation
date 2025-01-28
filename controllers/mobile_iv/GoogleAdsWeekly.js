@@ -58,11 +58,7 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
-const aggregateDataForWeek = async (
-  customer,
-  startDate,
-  endDate,
-) => {
+const aggregateDataForWeek = async (customer, startDate, endDate ) => {
   const aggregatedData = {
     date: `${startDate} - ${endDate}`,
     impressions: 0,
@@ -70,7 +66,10 @@ const aggregateDataForWeek = async (
     cost: 0,
     conversions: 0,
     interactions: 0,
-    conv_date: 0,
+    calls: 0,
+    books: 0,
+    phone: 0,
+    // conv_date: 0,
   };
 
   const metricsQuery = `
@@ -92,6 +91,21 @@ const aggregateDataForWeek = async (
       segments.date DESC
   `;
 
+  const conversionQuery = `
+    SELECT 
+      campaign.id,
+      metrics.all_conversions,
+      segments.conversion_action_name,
+      segments.date 
+    FROM 
+      campaign
+    WHERE 
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND segments.conversion_action_name IN ('Calls from Ads - Local SEO', 'Book Now Form Local SEO', 'Phone No. Click Local SEO')
+    ORDER BY 
+      segments.date DESC
+  `;
+
   let metricsPageToken = null;
   do {
     const metricsResponse = await customer.query(metricsQuery);
@@ -101,10 +115,26 @@ const aggregateDataForWeek = async (
       aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
       aggregatedData.conversions += campaign.metrics.conversions || 0;
       aggregatedData.interactions += campaign.metrics.interactions || 0;
-      aggregatedData.conv_date += campaign.metrics.conversions_value_by_conversion_date || 0;
+      // aggregatedData.conv_date += campaign.metrics.conversions_value_by_conversion_date || 0;
     });
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
+
+  let conversionPageToken = null;
+  do {
+    const conversionBatchResponse = await customer.query(conversionQuery);
+    conversionBatchResponse.forEach((conversion) => {
+      const conversionValue = conversion.metrics.all_conversions || 0;
+      if (conversion.segments.conversion_action_name === "Calls from Ads - Local SEO") {
+        aggregatedData.calls += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "Book Now Form Local SEO") {
+        aggregatedData.books += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "Phone No. Click Local SEO") {
+        aggregatedData.phone += conversionValue;
+      }
+    });
+    conversionPageToken = conversionBatchResponse.next_page_token;
+  } while (conversionPageToken);
 
   return aggregatedData;
 };
@@ -149,10 +179,11 @@ const fetchFunctions = {
   fetchReportDataWeeklyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC, "Mobile IV Drip NYC"),
 };
 
-const executeSpecificFetchFunctionMIV = async (req, res, dateRanges) => {
+const executeSpecificFetchFunctionMIV = async (req, res) => {
   const functionName = "fetchReportDataWeeklyAZ";
+  const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
-    const data = await fetchFunctions[functionName](dateRanges);
+    const data = await fetchFunctions[functionName](req, res, dateRanges);
     res.json(data);
   } else {
     console.error(`Function ${functionName} does not exist.`);
@@ -170,13 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    Overview: 'Overview!A2:L',
-    AZ: 'Mobile Drip IV AZ!A2:L',
-    LV: 'Mobile Drip IV LV!A2:L',
-    NYC: 'Mobile Drip IV NYC!A2:L',
-    AZLive: 'Mobile Drip IV AZ Live!A2:L',
-    LVLive: 'Mobile Drip IV LV Live!A2:L',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:L',
+    AZ: 'Mobile Drip IV AZ!A2:N',
+    LV: 'Mobile Drip IV LV!A2:N',
+    NYC: 'Mobile Drip IV NYC!A2:N',
+    AZLive: 'Mobile Drip IV AZ Live!A2:N',
+    LVLive: 'Mobile Drip IV LV Live!A2:N',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:N',
   };
 
   try {
@@ -206,8 +236,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
-        "Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "Conv Value per Time": formatPercentage(calculateWoWVariance(lastRecord.conv_date, secondToLastRecord.conv_date)),
+        "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
+        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
+        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
+        // "Conv Value per Time": formatPercentage(calculateWoWVariance(lastRecord.conv_date, secondToLastRecord.conv_date)),
       });
     };
 
@@ -224,8 +257,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "CTR": formatPercentage((record.clicks / record.impressions) * 100),
           "Conversion": record.conversions,
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
-          "Conv Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "Conv Value per Time": record.conv_date,
+          "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "Calls from Ads - Local SEO": formatNumber(record.calls),
+          "Book Now Form Local SEO": formatNumber(record.books),
+          "Phone No. Click Local SEO": formatNumber(record.phone),
+          // "Conv Value per Time": record.conv_date,
         });
       });
     };
@@ -259,8 +295,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "CTR": "CTR",
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
-            "Conv Rate": "Conv Rate",
-            "Conv Value per Time": "Conv Value per Time",
+            "Conv. Rate": "Conv. Rate",
+            "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
+            "Book Now Form Local SEO": "Book Now Form Local SEO",
+            "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            // "Conv Value per Time": "Conv Value per Time",
             isBold: true,
           });
           currentGroup = record.Filter;
@@ -285,12 +324,14 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["CTR"],
       record["Conversion"],
       record["Cost Per Conv"],
-      record["Conv Rate"],
-      record["Conv Value per Time"],
+      record["Conv. Rate"],
+      record["Calls from Ads - Local SEO"],
+      record["Book Now Form Local SEO"],
+      record["Phone No. Click Local SEO"],
+      // record["Conv Value per Time"],
     ]);
 
     const dataToSend = {
-      Overview: sheetData,
       AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
       LV: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
       NYC: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
@@ -300,14 +341,18 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     };    
 
     const formatSheets = async (sheetName, data) => {
-      await sheets.spreadsheets.values.clear({ spreadsheetId, range: dataRanges[sheetName] });
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: dataRanges[sheetName],
+      });
+    
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: dataRanges[sheetName],
         valueInputOption: "RAW",
         resource: { values: data },
       });
-
+    
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         resource: {
@@ -322,19 +367,21 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
                   endColumnIndex: 6,
                 },
                 cell: {
-                  userEnteredFormat: { horizontalAlignment: 'RIGHT' },
+                  userEnteredFormat: {
+                    horizontalAlignment: "RIGHT",
+                  },
                 },
-                fields: 'userEnteredFormat.horizontalAlignment',
+                fields: "userEnteredFormat.horizontalAlignment",
               },
             },
           ],
         },
       });
     };
-
+    
     for (const [sheetName, data] of Object.entries(dataToSend)) {
       await formatSheets(sheetName, data);
-    }
+    }    
 
     console.log("Final Mobile IV Drip weekly report sent to Google Sheets successfully!");
   } catch (error) {

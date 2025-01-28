@@ -208,13 +208,7 @@ const fetchReportDataWeeklyHS = async (dateRanges) => {
   }
 };
 
-const aggregateDataForWeek = async (
-  customer,
-  startDate,
-  endDate,
-  campaignNameFilter,
-  brandNBFilter
-) => {
+const aggregateDataForWeek = async (customer, startDate, endDate, campaignNameFilter, brandNBFilter) => {
   const aggregatedData = {
     date: `${startDate} - ${endDate}`,
     impressions: 0,

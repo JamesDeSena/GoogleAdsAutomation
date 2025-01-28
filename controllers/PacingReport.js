@@ -598,7 +598,6 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
     const currentYear = currentDate.getFullYear() % 100; // Get last two digits of the year
     const currentMonthYear = `${currentMonth}-${currentYear}`;
-    console.log(`1 ${currentMonthYear}`)
 
     const getSheetData = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -617,7 +616,6 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     if (rowIndexToUpdate === -1) {
       rowIndexToUpdate = rows.length + 2;
     }
-    console.log(`2 ${rowIndexToUpdate}`)
 
     const updateRange = `Google & Bing Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
     const resource = {
@@ -633,11 +631,9 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
       resource,
     });
 
-    console.log("Data updated successfully in Google Sheets.");
-    res.status(200).send("Data updated successfully in Google Sheets.");
+    console.log("Data updated successfully in LPC Google Sheets.");
   } catch (error) {
-    console.error("Error updating data in Google Sheets:", error);
-    res.status(500).send("Error updating data in Google Sheets.");
+    console.error("Error updating data in LPC Google Sheets:", error);
   }
 };
 
