@@ -439,7 +439,7 @@ const sendFinalPacingReportToAirtable = async () => {
         fields: {
           Brand: "Wall Blush",
           Campaign: "Google",
-          "Monthly Budget": 40000.0,
+          "Monthly Budget": 70000.0,
           "MTD Spend": record.data.WB,
         },
       },
@@ -538,6 +538,14 @@ const sendFinalPacingReportToAirtable = async () => {
           Campaign: "Google",
           "Monthly Budget": 3000.0,
           "MTD Spend": record.data.GTAI,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip",
+          Campaign: "Total",
+          "Monthly Budget": 15000.0,
+          "MTD Spend": record.data.AZ + record.data.LV + record.data.NYC,
         },
       },
       {
