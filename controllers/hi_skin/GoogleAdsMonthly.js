@@ -349,7 +349,7 @@ const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      dataRange,
+      range: dataRange,
       valueInputOption: 'RAW',
       resource,
     });
