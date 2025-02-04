@@ -201,12 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    AZ: 'Mobile Drip IV AZ!A2:N',
-    LV: 'Mobile Drip IV LV!A2:N',
-    NYC: 'Mobile Drip IV NYC!A2:N',
-    AZLive: 'Mobile Drip IV AZ Live!A2:N',
-    LVLive: 'Mobile Drip IV LV Live!A2:N',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:N',
+    AZ: 'Mobile Drip IV AZ!A2:R',
+    LV: 'Mobile Drip IV LV!A2:R',
+    NYC: 'Mobile Drip IV NYC!A2:R',
+    AZLive: 'Mobile Drip IV AZ Live!A2:R',
+    LVLive: 'Mobile Drip IV LV Live!A2:R',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:R',
   };
 
   try {
@@ -217,14 +217,23 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const dripLV = await fetchFunctions.fetchReportDataWeeklyLV(req, res, dateRanges);
     const dripNYC = await fetchFunctions.fetchReportDataWeeklyNYC(req, res, dateRanges);
 
+    const janeData = await sendJaneToGoogleSheetsMIV(req, res);
+
+    const janeAZ = janeData.Arizona || [];
+    const janeLV = janeData.LasVegas || [];
+    const janeNYC = janeData.NewYork || [];
+
     const records = [];
+    console.log(records)
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
     const formatCurrency = (value) => `$${value.toFixed(2)}`;
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
 
-    const addWoWVariance = (lastRecord, secondToLastRecord, filter, filter2) => {
+    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, filter, filter2) => {
+      const janeLastRecord = janeRecords.find(j => j.week === lastRecord.date) || {};
+      const janeSecondToLastRecord = janeRecords.find(j => j.week === secondToLastRecord.date) || {};
       records.push({
         Week: "WoW Variance %",
         Filter: filter,
@@ -240,12 +249,17 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
         "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
+        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked, janeSecondToLastRecord.booked)),
+        "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
+        "No Show": formatPercentage(calculateWoWVariance(janeLastRecord.no_show, janeSecondToLastRecord.no_show)),
+        "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
         // "Conv Value per Time": formatPercentage(calculateWoWVariance(lastRecord.conv_date, secondToLastRecord.conv_date)),
       });
     };
 
-    const addDataToRecords = (data, filter, filter2) => {
+    const addDataToRecords = (data, janeData, filter, filter2) => {
       data.forEach((record) => {
+        const janeRecord = janeData.find(j => j.week === record.date) || {};
         records.push({
           Week: record.date,
           Filter: filter,
@@ -261,19 +275,23 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),
+          "Booked": formatNumber(janeRecord.booked || 0),
+          "Cancelled": formatNumber(janeRecord.cancelled || 0),
+          "No Show": formatNumber(janeRecord.no_Show || 0),
+          "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
           // "Conv Value per Time": record.conv_date,
         });
       });
     };
 
-    addDataToRecords(dripAZ, "AZ", 1);
-    addDataToRecords(dripLV, "LV", 2);
-    addDataToRecords(dripNYC, "NYC", 3);
+    addDataToRecords(dripAZ, janeAZ, "AZ", 1);
+    addDataToRecords(dripLV, janeLV, "LV", 2);
+    addDataToRecords(dripNYC, janeNYC, "NYC", 3);
 
     if (!date || date.trim() === '') {
-      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], "AZ", 1);
-      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], "LV", 2);
-      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], "NYC", 3);
+      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, "AZ", 1);
+      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, "LV", 2);
+      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, "NYC", 3);
     }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
@@ -299,6 +317,10 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            "Booked": "Booked",
+            "Cancelled": "Cancelled",
+            "No Show": "No Show",
+            "Rescheduled": "Rescheduled",
             // "Conv Value per Time": "Conv Value per Time",
             isBold: true,
           });
@@ -328,6 +350,10 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["Calls from Ads - Local SEO"],
       record["Book Now Form Local SEO"],
       record["Phone No. Click Local SEO"],
+      record["Booked"],
+      record["Cancelled"],
+      record["No Show"],
+      record["Rescheduled"],
       // record["Conv Value per Time"],
     ]);
 
@@ -389,7 +415,98 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   }
 };
 
+const sendJaneToGoogleSheetsMIV = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const sourceSpreadsheetId = process.env.JANE_SPREADSHEET;
+  const sourceDataRange = 'Copy of Export!A2:Y';
+
+  const sheetNames = {
+    "Mobile IV Drip - Las Vegas": "LasVegas",
+    "Mobile IV Drip - Arizona": "Arizona",
+    "Mobile IV Drip - New York": "NewYork",
+  };
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sourceSpreadsheetId,
+      range: sourceDataRange,
+    });
+
+    const rows = response.data.values;
+
+    if (!rows || rows.length === 0) {
+      console.log("No data found in the sheet.");
+      return res.json({ message: "No data found" });
+    }
+
+    const validStatuses = new Set(["booked", "cancelled", "no_show", "rescheduled"]);
+    const startDate = new Date('2024-11-11');
+    const weeksByLocation = {};
+
+    rows.forEach(row => {
+      const name = row[1]; // Location Name
+      const date = row[2] ? row[2].split(" ")[0] : null;
+      const status = row[14];
+
+      if (!date || !validStatuses.has(status) || new Date(date) < startDate) return;
+
+      const currentRowDate = new Date(date);
+      
+      // Get the correct week (Monday-Sunday)
+      const dayOfWeek = currentRowDate.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+
+      const weekStart = new Date(currentRowDate);
+      weekStart.setDate(currentRowDate.getDate() - diffToMonday); // Set to Monday
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6); // Set to Sunday
+
+      const weekLabel = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')} - ${weekEnd.getFullYear()}-${(weekEnd.getMonth() + 1).toString().padStart(2, '0')}-${weekEnd.getDate().toString().padStart(2, '0')}`;
+
+      if (!weeksByLocation[name]) {
+        weeksByLocation[name] = {};
+      }
+
+      if (!weeksByLocation[name][weekLabel]) {
+        weeksByLocation[name][weekLabel] = { booked: 0, cancelled: 0, no_show: 0, rescheduled: 0 };
+      }
+
+      weeksByLocation[name][weekLabel][status]++;
+    });
+
+    // Create arrays for each location
+    const result = {};
+    for (const name in weeksByLocation) {
+      const sheetKey = sheetNames[name] || "Other";
+      result[sheetKey] = Object.keys(weeksByLocation[name]).map(weekLabel => {
+        const weekData = weeksByLocation[name][weekLabel];
+        return {
+          week: weekLabel,
+          booked: weekData.booked || 0,
+          cancelled: weekData.cancelled || 0,
+          no_show: weekData.no_show || 0,
+          rescheduled: weekData.rescheduled || 0,
+        };
+      });
+    }
+
+    // Return the result for testing
+    return result;
+  } catch (error) {
+    console.error("Error generating test data:", error);
+  }
+};
+
+
 module.exports = {
   executeSpecificFetchFunctionMIV,
-  sendFinalWeeklyReportToGoogleSheetsMIV
+  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendJaneToGoogleSheetsMIV
 };

@@ -7,19 +7,18 @@ const router = express.Router();
 
 const {
   executeSpecificFetchFunctionHS,
-  sendFinalWeeklyReportToAirtableHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS
 } = require('../controllers/hi_skin/GoogleAdsWeekly');
 
 const {
-  sendFinalMonthlyReportToAirtableHS,
   sendFinalMonthlyReportToGoogleSheetsHS
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
 const {
   executeSpecificFetchFunctionMIV,
-  sendFinalWeeklyReportToGoogleSheetsMIV
+  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendJaneToGoogleSheetsMIV
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
 
 // const {

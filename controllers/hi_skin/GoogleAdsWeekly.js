@@ -1,9 +1,4 @@
-const schedule = require("node-schedule");
-const Airtable = require("airtable");
 const { google } = require('googleapis');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
-  process.env.AIRTABLE_BASE_ID_HISKIN
-);
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
 
@@ -62,40 +57,6 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 };
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
-
-const sendToAirtable = async (data, tableName, field) => {
-  for (const record of data) {
-    const dateField = record.date;
-    const recordDate = dateField.split(" - ")[0];
-    try {
-      const existingRecords = await base(tableName)
-        .select({
-          filterByFormula: `{${field}} = '${dateField}'`,
-        })
-        .firstPage();
-      const recordFields = {
-        [field]: dateField,
-        "Impr.": record.impressions,
-        Clicks: record.clicks,
-        Spend: record.cost,
-        "Book Now - Step 1: Locations": record.step1Value,
-        "Book Now - Step 5: Confirm Booking": record.step5Value,
-        "Book Now - Step 6: Booking Confirmation": record.step6Value,
-        "BookingConfirmed": record.bookingRecord,
-        "Purchase": record.purchase
-      };
-      if (existingRecords.length > 0) {
-        await base(tableName).update(existingRecords[0].id, recordFields);
-      } else {
-        await base(tableName).create(recordFields);
-      }
-
-      console.log(`${tableName} sent to Airtable successfully!`);
-    } catch (error) {
-      console.error(`Error processing record for Date: ${recordDate}`, error);
-    }
-  }
-};
 
 const fetchReportDataWeeklyHS = async (dateRanges) => {
   const refreshToken_Google = getStoredRefreshToken();
@@ -366,239 +327,6 @@ const executeSpecificFetchFunctionHS = async (req, res, dateRanges) => {
   } else {
     console.error(`Function ${functionName} does not exist.`);
     res.status(404).send("Function not found");
-  }
-};
-
-const sendFinalWeeklyReportToAirtableHS = async (req, res) => {
-  try {
-    const date = req?.params?.date;
-
-    const dateRanges = getOrGenerateDateRanges(date);
-
-    const weeklyData = await fetchReportDataWeeklyHS(dateRanges);
-    const brandData = await fetchFunctions.fetchReportDataWeeklyHSBrand(req, res, dateRanges);
-    const noBrandData = await fetchFunctions.fetchReportDataWeeklyHSNB(req, res, dateRanges);
-    const gilbertData = await fetchFunctions.fetchReportDataWeeklyHSGilbert(req, res, dateRanges);
-    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyHSGilbertBrand(req, res, dateRanges);
-    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyHSGilbertNB(req, res, dateRanges);
-    const mktData = await fetchFunctions.fetchReportDataWeeklyHSMKT(req, res, dateRanges);
-    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMKTBrand(req, res, dateRanges);
-    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyHSMKTNB(req, res, dateRanges);
-    const phoenixData = await fetchFunctions.fetchReportDataWeeklyHSPhoenix(req, res, dateRanges);
-    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPhoenixBrand(req, res, dateRanges);
-    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyHSPhoenixNB(req, res, dateRanges);
-    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyHSScottsdale(req, res, dateRanges);
-    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleBrand(req, res, dateRanges);
-    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleNB(req, res, dateRanges);
-    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyHSUptownPark(req, res, dateRanges);
-    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyHSUptownParkBrand(req, res, dateRanges);
-    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyHSUptownParkNB(req, res, dateRanges);
-    const montroseData = await fetchFunctions.fetchReportDataWeeklyHSMontrose(req, res, dateRanges);
-    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMontroseBrand(req, res, dateRanges);
-    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyHSMontroseNB(req, res, dateRanges);
-    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyHSRiceVillage(req, res, dateRanges);
-    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageBrand(req, res, dateRanges);
-    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageNB(req, res, dateRanges);
-    const mosaicData = await fetchFunctions.fetchReportDataWeeklyHSMosaic(req, res, dateRanges);
-    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMosaicBrand(req, res, dateRanges);
-    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyHSMosaicNB(req, res, dateRanges);
-    const fourteenthStData = await fetchFunctions.fetchReportDataWeeklyHS14thSt(req, res, dateRanges);
-    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeeklyHS14thStBrand(req, res, dateRanges);
-    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeeklyHS14thStNB(req, res, dateRanges);
-
-    const records = [];
-    const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
-
-    const addWoWVariance = (lastRecord, secondToLastRecord, filter) => {
-      records.push({
-        fields: {
-          Week: "Wow Variance %",
-          Filter: filter,
-          "Impr. Raw": calculateWoWVariance(lastRecord.impressions, secondToLastRecord.impressions),
-          'Clicks Raw': calculateWoWVariance(lastRecord.clicks, secondToLastRecord.clicks),
-          'Cost Raw': calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost),
-          "Book Now - Step 1: Locations Raw": calculateWoWVariance(lastRecord.step1Value, secondToLastRecord.step1Value),
-          "Book Now - Step 5: Confirm Booking Raw": calculateWoWVariance(lastRecord.step5Value, secondToLastRecord.step5Value),
-          "Book Now - Step 6: Booking Confirmation Raw": calculateWoWVariance(lastRecord.step6Value, secondToLastRecord.step6Value),
-          "CPC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks),
-          "CTR Raw": calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions),
-          "Step 1 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step1Value, secondToLastRecord.cost / secondToLastRecord.step1Value),
-          "Step 5 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step5Value, secondToLastRecord.cost / secondToLastRecord.step5Value),
-          "Step 6 CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.step6Value, secondToLastRecord.cost / secondToLastRecord.step6Value),
-          "Step 1 Conv Rate Raw": calculateWoWVariance(lastRecord.step1Value / lastRecord.clicks, secondToLastRecord.step1Value / secondToLastRecord.clicks),
-          "Step 5 Conv Rate Raw": calculateWoWVariance(lastRecord.step5Value / lastRecord.clicks, secondToLastRecord.step5Value / secondToLastRecord.clicks),
-          "Step 6 Conv Rate Raw": calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks),
-          "Booking Confirmed Raw": calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed),
-          "Booking CAC Raw": calculateWoWVariance(lastRecord.cost / lastRecord.bookingConfirmed, secondToLastRecord.cost / secondToLastRecord.bookingConfirmed),
-          "Booking Conv Rate Raw": calculateWoWVariance(lastRecord.bookingConfirmed / lastRecord.clicks, secondToLastRecord.bookingConfirmed / secondToLastRecord.clicks),
-          "Purchase Raw": calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase),
-        },
-      });
-    };
-
-    const addDataToRecords = (data, filter) => {
-      data.forEach((record) => {
-        records.push({
-          fields: {
-            Week: record.date,
-            Filter: filter,
-            "Impr. Raw": record.impressions,
-            'Clicks Raw': record.clicks,
-            'Cost Raw': record.cost,
-            "Book Now - Step 1: Locations Raw": record.step1Value,
-            "Book Now - Step 5: Confirm Booking Raw": record.step5Value,
-            "Book Now - Step 6: Booking Confirmation Raw": record.step6Value,
-            "CPC Raw": record.cost / record.clicks,
-            "CTR Raw": (record.clicks / record.impressions) * 100,
-            "Step 1 CAC Raw": record.cost / record.step1Value,
-            "Step 5 CAC Raw": record.cost / record.step5Value,
-            "Step 6 CAC Raw": record.cost / record.step6Value,
-            "Step 1 Conv Rate Raw": (record.step1Value / record.clicks) * 100,
-            "Step 5 Conv Rate Raw": (record.step5Value / record.clicks) * 100,
-            "Step 6 Conv Rate Raw": (record.step6Value / record.clicks) * 100,
-            "Booking Confirmed Raw": record.bookingConfirmed,
-            "Booking CAC Raw": record.cost / record.bookingConfirmed,
-            "Booking Conv Rate Raw": (record.bookingConfirmed / record.clicks) * 100,
-            "Purchase Raw": record.purchase,
-          },
-        });
-      });
-    };
-
-    addDataToRecords(weeklyData, "1 - All Search");
-    addDataToRecords(brandData, "2 - Brand");
-    addDataToRecords(noBrandData, "3 - NB");
-    addDataToRecords(gilbertData, "4 - Gilbert");
-    addDataToRecords(gilbertDataBrand, "4 - Gilbert Brand");
-    addDataToRecords(gilbertDataNB, "4 - Gilbert NB");
-    addDataToRecords(gilbertData, "5 - MKT");
-    addDataToRecords(gilbertDataBrand, "5 - MKT Brand");
-    addDataToRecords(gilbertDataNB, "5 - MKT NB");
-    addDataToRecords(phoenixData, "6 - Phoenix");
-    addDataToRecords(phoenixDataBrand, "6 - Phoenix Brand");
-    addDataToRecords(phoenixDataNB, "6 - Phoenix NB");
-    addDataToRecords(scottsdaleData, "7 - Scottsdale");
-    addDataToRecords(scottsdaleDataBrand, "7 - Scottsdale Brand");
-    addDataToRecords(scottsdaleDataNB, "7 - Scottsdale NB");
-    addDataToRecords(uptownParkData, "8 - UptownPark");
-    addDataToRecords(uptownParkDataBrand, "8 - UptownPark Brand");
-    addDataToRecords(uptownParkDataNB, "8 - UptownPark NB");
-    addDataToRecords(montroseData, "9 - Montrose");
-    addDataToRecords(montroseDataBrand, "9 - Montrose Brand");
-    addDataToRecords(montroseDataNB, "9 - Montrose NB");
-    addDataToRecords(riceVillageData, "10 - RiceVillage");
-    addDataToRecords(riceVillageDataBrand, "10 - RiceVillage Brand");
-    addDataToRecords(riceVillageDataNB, "10 - RiceVillage NB");
-    addDataToRecords(mosaicData, "11 - Mosaic");
-    addDataToRecords(mosaicDataBrand, "11 - Mosaic Brand");
-    addDataToRecords(mosaicDataNB, "11 - Mosaic NB");
-    addDataToRecords(fourteenthStData, "12 - 14thSt");
-    addDataToRecords(fourteenthStDataBrand, "12 - 14thSt Brand");
-    addDataToRecords(fourteenthStDataNB, "12 - 14thSt NB");
-
-
-    if (!date || date.trim() === '') {
-      addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "1 - All Search");
-      addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "2 - Brand");
-      addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "3 - NB");
-      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "4 - Gilbert");
-      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "4 - Gilbert Brand");
-      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "4 - Gilbert NB");
-      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "5 - MKT");
-      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "5 - MKT Brand");
-      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "5 - MKT NB");
-      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "6 - Phoenix");
-      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "6 - Phoenix Brand");
-      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "6 - Phoenix NB");
-      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "7 - Scottsdale");
-      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "7 - Scottsdale Brand");
-      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "7 - Scottsdale NB");
-      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "8 - UptownPark");
-      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "8 - UptownPark Brand");
-      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "8 - UptownPark NB");
-      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "9 - Montrose");
-      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "9 - Montrose Brand");
-      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "9 - Montrose NB");
-      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "10 - RiceVillage");
-      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "10 - RiceVillage Brand");
-      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "10 - RiceVillage NB");
-      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "11 - Mosaic");
-      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "11 - Mosaic Brand");
-      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "11 - Mosaic NB");
-      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "12 - 14thSt");
-      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "12 - 14thSt Brand");
-      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "12 - 14thSt NB");
-    }
-
-    const table = base("Final Report");
-    const existingRecords = await table.select().all();
-
-    const recordExists = (week, filter) => {
-      return existingRecords.some(record =>
-        record.fields.Week === week && record.fields.Filter === filter
-      );
-    };
-
-    const updateRecord = async (id, fields) => {
-      await table.update(id, fields);
-    };
-
-    const createNewRecord = async (fields) => {
-      await table.create([{ fields }]);
-    };
-
-    const isDataEqual = (existingRecord, newRecordFields) => {
-      return (
-        existingRecord.fields["Impr. Raw"] === newRecordFields["Impr. Raw"] &&
-        existingRecord.fields["Clicks Raw"] === newRecordFields["Clicks Raw"] &&
-        existingRecord.fields["Cost Raw"] === newRecordFields["Cost Raw"] &&
-        existingRecord.fields["Book Now - Step 1: Locations Raw"] === newRecordFields["Book Now - Step 1: Locations Raw"] &&
-        existingRecord.fields["Book Now - Step 5: Confirm Booking Raw"] === newRecordFields["Book Now - Step 5: Confirm Booking Raw"] &&
-        existingRecord.fields["Book Now - Step 6: Booking Confirmation Raw"] === newRecordFields["Book Now - Step 6: Booking Confirmation Raw"] &&
-        existingRecord.fields["CPC Raw"] === newRecordFields["CPC Raw"] &&
-        existingRecord.fields["CTR Raw"] === newRecordFields["CTR Raw"] &&
-        existingRecord.fields["Step 1 CAC Raw"] === newRecordFields["Step 1 CAC Raw"] &&
-        existingRecord.fields["Step 5 CAC Raw"] === newRecordFields["Step 5 CAC Raw"] &&
-        existingRecord.fields["Step 6 CAC Raw"] === newRecordFields["Step 6 CAC Raw"] &&
-        existingRecord.fields["Step 1 Conv Rate Raw"] === newRecordFields["Step 1 Conv Rate Raw"] &&
-        existingRecord.fields["Step 5 Conv Rate Raw"] === newRecordFields["Step 5 Conv Rate Raw"] &&
-        existingRecord.fields["Step 6 Conv Rate Raw"] === newRecordFields["Step 6 Conv Rate Raw"] &&
-        existingRecord.fields["Booking Confirmed Raw"] === newRecordFields["Booking Confirmed Raw"] &&
-        existingRecord.fields["Booking CAC Raw"] === newRecordFields["Booking CAC Raw"] &&
-        existingRecord.fields["Booking Conv Rate Raw"] === newRecordFields["Booking Conv Rate Raw"] &&
-        existingRecord.fields["Purchase Raw"] === newRecordFields["Purchase Raw"]
-      );
-    };
-
-    for (const record of records) {
-      const exists = recordExists(record.fields.Week, record.fields.Filter);
-
-      if (exists) {
-        const existingRecord = existingRecords.find(r => r.fields.Week === record.fields.Week && r.fields.Filter === record.fields.Filter);
-
-        if (!isDataEqual(existingRecord, record.fields)) {
-          await updateRecord(existingRecord.id, record.fields);
-        }
-      } else {
-        await createNewRecord(record.fields);
-      }
-    }
-
-    console.log("Process completed successfully. Records updated and/or created.");
-
-    // const deletePromises = existingRecords.map(record => table.destroy(record.id));
-    // await Promise.all(deletePromises);
-
-    // const batchSize = 10;
-    // for (let i = 0; i < records.length; i += batchSize) {
-    //   const batch = records.slice(i, i + batchSize);
-    //   await table.create(batch);
-    //   console.log(`Batch of ${batch.length} records sent to Airtable successfully!`);
-    // }
-
-    console.log("Final Hi, Skin weekly report sent to Airtable successfully!");
-  } catch (error) {
-    console.error("Error sending final report to Airtable:", error);
   }
 };
 
@@ -923,23 +651,35 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
   const targetDataRange = 'MAA - Daily!A2:C';
 
   try {
-    const response = await sheets.spreadsheets.values.get({
+    const sourceResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: sourceSpreadsheetId,
       range: sourceDataRange,
     });
 
-    const rows = response.data.values;
+    const sourceRows = sourceResponse.data.values;
 
-    if (!rows || rows.length === 0) {
-      console.log("No data found in the sheet.");
+    if (!sourceRows || sourceRows.length === 0) {
+      console.log("No data found in the source sheet.");
       return;
     }
 
-    const filteredData = rows.map(row => [
+    const filteredData = sourceRows.map(row => [
       row[1] || null,
       row[21] || null,
       row[22] || null
     ]);
+
+    const targetResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: targetSpreadsheetId,
+      range: targetDataRange,
+    });
+
+    const targetRows = targetResponse.data.values || [];
+
+    if (JSON.stringify(filteredData) === JSON.stringify(targetRows)) {
+      console.log("Data is already up to date. Skipping update.");
+      return;
+    }
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: targetSpreadsheetId,
@@ -959,7 +699,6 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 module.exports = {
   fetchReportDataWeeklyHS,
   executeSpecificFetchFunctionHS,
-  sendFinalWeeklyReportToAirtableHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS
 };

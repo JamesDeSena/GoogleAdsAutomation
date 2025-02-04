@@ -15,9 +15,8 @@ const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendFinalPacingReportToAirtable, sendLPCBudgettoGoogleSheets } = require('./controllers/PacingReport');
-const { fetchReportDataDailyHS } = require('./controllers/hi_skin/GoogleAdsDaily');
-const { sendFinalWeeklyReportToAirtableHS, sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
-const { sendFinalMonthlyReportToAirtableHS, sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
+const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 
 app.use(express.json());
@@ -84,15 +83,11 @@ rule4.minute = 10;
 rule4.tz = 'America/Los_Angeles';
 
 const morningJobs = [
-  sendFinalPacingReportToAirtable,
-  fetchReportDataDailyHS,
-  // sendFinalWeeklyReportToAirtableHS,
-  sendFinalMonthlyReportToAirtableHS,
+  sendFinalPacingReportToAirtable
 ];
 
 const eveningJobs = [
-  sendFinalPacingReportToAirtable,
-  sendFinalMonthlyReportToAirtableHS,
+  sendFinalPacingReportToAirtable
 ];
 
 const morningJobs2 = [

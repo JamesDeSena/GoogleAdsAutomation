@@ -1,4 +1,9 @@
+const schedule = require("node-schedule");
+const Airtable = require("airtable");
 const { google } = require("googleapis");
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+  process.env.AIRTABLE_BASE_ID_HISKIN
+);
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
 
@@ -173,16 +178,7 @@ const fetchReportDataWeeklyTotal = (req, res, dateRanges) => {
   return fetchReportDataMonthlyFilter(req, res, "", dateRanges);
 };
 
-const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  const dataRange = 'Monthly Spend!A2:M';
-
+const sendFinalMonthlyReportToAirtableHS = async (req, res) => {
   try {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
@@ -200,81 +196,68 @@ const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
 
     const records = [];
 
-    const aggregateDataByMonth = (data, fieldName) => {
+    const addDataToRecords = (data, fieldName) => {
       data.forEach((record) => {
         if (!record.year || !record.month || record.cost == null) {
           return;
         }
 
-        let existingRecord = records.find(r => r.Year === record.year && r.Month === record.month);
-        
-        if (!existingRecord) {
-          existingRecord = {
-            Year: record.year,
-            Month: record.month,
-            Created: new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }),
-            Gilbert: 0,
-            Phoenix: 0,
-            Scottsdale: 0,
-            "MKT Heights": 0,
-            "Uptown Park": 0,
-            Montrose: 0,
-            "Rice Village": 0,
-            DC: 0,
-            Mosaic: 0,
-            "Google Spend": 0,
-          };
-          records.push(existingRecord);
-        }
+        const existingRecord = records.find(
+          (r) =>
+            r.fields["Year"] === record.year &&
+            r.fields["Month"] === record.month
+        );
 
-        existingRecord[fieldName] += record.cost;
+        if (existingRecord) {
+          existingRecord.fields[fieldName] = record.cost;
+        } else {
+          records.push({
+            fields: {
+              Year: record.year,
+              Month: record.month,
+              Gilbert: fieldName === "Gilbert" ? record.cost : 0,
+              Phoenix: fieldName === "Phoenix" ? record.cost : 0,
+              Scottsdale: fieldName === "Scottsdale" ? record.cost : 0,
+              "MKT Heights": fieldName === "MKT Heights" ? record.cost : 0,
+              "Uptown Park": fieldName === "Uptown Park" ? record.cost : 0,
+              Montrose: fieldName === "Montrose" ? record.cost : 0,
+              "Rice Village": fieldName === "Rice Village" ? record.cost : 0,
+              DC: fieldName === "DC" ? record.cost : 0,
+              Mosaic: fieldName === "Mosaic" ? record.cost : 0,
+              "Google Spend": fieldName === "Google Spend" ? record.cost : 0,
+            },
+          });
+        }
       });
     };
 
-    aggregateDataByMonth(gilbertData, "Gilbert");
-    aggregateDataByMonth(phoenixData, "Phoenix");
-    aggregateDataByMonth(scottsdaleData, "Scottsdale");
-    aggregateDataByMonth(mktData, "MKT Heights");
-    aggregateDataByMonth(uptownParkData, "Uptown Park");
-    aggregateDataByMonth(montroseData, "Montrose");
-    aggregateDataByMonth(riceVillageData, "Rice Village");
-    aggregateDataByMonth(dcData, "DC");
-    aggregateDataByMonth(mosaicData, "Mosaic");
-    aggregateDataByMonth(googleSpendData, "Google Spend");
+    addDataToRecords(gilbertData, "Gilbert");
+    addDataToRecords(phoenixData, "Phoenix");
+    addDataToRecords(scottsdaleData, "Scottsdale");
+    addDataToRecords(mktData, "MKT Heights");
+    addDataToRecords(uptownParkData, "Uptown Park");
+    addDataToRecords(montroseData, "Montrose");
+    addDataToRecords(riceVillageData, "Rice Village");
+    addDataToRecords(dcData, "DC");
+    addDataToRecords(mosaicData, "Mosaic");
+    addDataToRecords(googleSpendData, "Google Spend");
 
-    const sheetData = records.map(record => [
-      record.Year,
-      record.Month,
-      record.Created,
-      record.Gilbert,
-      record.Phoenix,
-      record.Scottsdale,
-      record["MKT Heights"],
-      record["Uptown Park"],
-      record.Montrose,
-      record["Rice Village"],
-      record.DC,
-      record.Mosaic,
-      record["Google Spend"],
-    ]);
-
-    const resource = {
-      values: sheetData,
+    const table = base("Monthly Report");
+    
+    const createNewRecord = async (fields) => {
+      await table.create([{ fields }]);
     };
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: dataRange,
-      valueInputOption: 'RAW',
-      resource,
-    });
+    for (const record of records) {
+      await createNewRecord(record.fields);
+    }
 
-    console.log("Final Hi, Skin monthly report appended to Google Sheets successfully!");
+    console.log("Final Hi, Skin monthly report sent to Airtable successfully!");
   } catch (error) {
-    console.error("Error sending final report to Google Sheets:", error);
+    console.error("Error sending final report to Airtable:", error);
   }
 };
 
 module.exports = {
-  sendFinalMonthlyReportToGoogleSheetsHS
+  sendFinalMonthlyReportToAirtableHS,
 };
