@@ -201,12 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    AZ: 'Mobile Drip IV AZ!A2:R',
-    LV: 'Mobile Drip IV LV!A2:R',
-    NYC: 'Mobile Drip IV NYC!A2:R',
-    AZLive: 'Mobile Drip IV AZ Live!A2:R',
-    LVLive: 'Mobile Drip IV LV Live!A2:R',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:R',
+    AZ: 'Mobile Drip IV AZ!A2:S',
+    LV: 'Mobile Drip IV LV!A2:S',
+    NYC: 'Mobile Drip IV NYC!A2:S',
+    AZLive: 'Mobile Drip IV AZ Live!A2:S',
+    LVLive: 'Mobile Drip IV LV Live!A2:S',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:S',
   };
 
   try {
@@ -224,7 +224,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const janeNYC = janeData.NewYork || [];
 
     const records = [];
-    console.log(records)
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
     const formatCurrency = (value) => `$${value.toFixed(2)}`;
@@ -246,10 +245,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked , janeSecondToLastRecord.booked)),
+        "CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
         "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
-        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked, janeSecondToLastRecord.booked)),
         "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
         "No Show": formatPercentage(calculateWoWVariance(janeLastRecord.no_show, janeSecondToLastRecord.no_show)),
         "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
@@ -272,6 +272,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": record.conversions,
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "Booked": formatNumber(janeRecord.booked || 0),
+          "CAC": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),
@@ -314,10 +316,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
+            "Booked": "Booked",
+            "CAC": "CAC",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
-            "Booked": "Booked",
             "Cancelled": "Cancelled",
             "No Show": "No Show",
             "Rescheduled": "Rescheduled",
@@ -347,10 +350,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["Conversion"],
       record["Cost Per Conv"],
       record["Conv. Rate"],
+      record["Booked"],
+      record["CAC"],
       record["Calls from Ads - Local SEO"],
       record["Book Now Form Local SEO"],
       record["Phone No. Click Local SEO"],
-      record["Booked"],
       record["Cancelled"],
       record["No Show"],
       record["Rescheduled"],
