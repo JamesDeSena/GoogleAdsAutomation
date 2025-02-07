@@ -428,7 +428,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
 
   const sourceSpreadsheetId = process.env.JANE_SPREADSHEET;
-  const sourceDataRange = 'Copy of Export!A2:Y';
+  const sourceDataRange = 'Data Record!A2:Y';
 
   const sheetNames = {
     "Mobile IV Drip - Las Vegas": "LasVegas",
