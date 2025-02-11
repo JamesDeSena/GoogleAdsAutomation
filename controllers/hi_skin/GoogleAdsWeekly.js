@@ -58,7 +58,7 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
-const fetchReportDataWeeklyHS = async (dateRanges) => {
+const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
   const refreshToken_Google = getStoredRefreshToken();
 
   if (!refreshToken_Google) {
@@ -106,14 +106,15 @@ const fetchReportDataWeeklyHS = async (dateRanges) => {
 
       const conversionQuery = `
         SELECT 
+          campaign.id,
           metrics.all_conversions,
-          conversion_action.name,
+          segments.conversion_action_name,
           segments.date 
         FROM 
-          conversion_action
+          campaign
         WHERE 
           segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND conversion_action.name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
+          AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
         ORDER BY 
           segments.date DESC
       `;
@@ -135,15 +136,15 @@ const fetchReportDataWeeklyHS = async (dateRanges) => {
         const conversionBatchResponse = await customer.query(conversionQuery);
         conversionBatchResponse.forEach((conversion) => {
           const conversionValue = conversion.metrics.all_conversions || 0;
-          if (conversion.conversion_action.name === "Book Now - Step 1: Locations") {
+          if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
             aggregatedData.step1Value += conversionValue;
-          } else if (conversion.conversion_action.name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
+          } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
             aggregatedData.step5Value += conversionValue;
-          } else if (conversion.conversion_action.name === "Book Now - Step 6: Booking Confirmation") {
+          } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
             aggregatedData.step6Value += conversionValue;
-          } else if (conversion.conversion_action.name === "BookingConfirmed") {
+          } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
             aggregatedData.bookingConfirmed += conversionValue;
-          } else if (conversion.conversion_action.name === "Purchase") {
+          } else if (conversion.segments.conversion_action_name === "Purchase") {
             aggregatedData.purchase += conversionValue;
           }
         });
@@ -163,6 +164,119 @@ const fetchReportDataWeeklyHS = async (dateRanges) => {
     return allWeeklyData;
 
     // res.json(allWeeklyData);
+  } catch (error) {
+    console.error("Error fetching report data:", error);
+    // res.status(500).send("Error fetching report data");
+  }
+};
+
+const fetchReportDataWeeklySearchHS = async (dateRanges) => {
+  const refreshToken_Google = getStoredRefreshToken();
+
+  if (!refreshToken_Google) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
+  try {
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+      refresh_token: refreshToken_Google,
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
+
+    // const dateRanges = getOrGenerateDateRanges();
+
+    const aggregateDataForWeek = async (startDate, endDate) => {
+      const aggregatedData = {
+        date: `${startDate} - ${endDate}`,
+        impressions: 0,
+        clicks: 0,
+        cost: 0,
+        step1Value: 0,
+        step5Value: 0,
+        step6Value: 0,
+        bookingConfirmed: 0,
+        purchase: 0,
+      };
+
+      const metricsQuery = `
+        SELECT
+          campaign.id,
+          campaign.name,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          segments.date
+        FROM
+          campaign
+        WHERE
+          segments.date BETWEEN '${startDate}' AND '${endDate}'
+          AND campaign.name LIKE '%Search%'
+        ORDER BY
+          segments.date DESC
+      `;
+
+      const conversionQuery = `
+        SELECT 
+          campaign.id,
+          metrics.all_conversions,
+          segments.conversion_action_name,
+          segments.date 
+        FROM 
+          campaign
+        WHERE 
+          segments.date BETWEEN '${startDate}' AND '${endDate}'
+          AND campaign.name LIKE '%Search%'
+          AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
+        ORDER BY 
+          segments.date DESC
+      `;
+
+      let metricsPageToken = null;
+      do {
+        const metricsResponse = await customer.query(metricsQuery);
+        metricsResponse.forEach((campaign) => {
+          aggregatedData.impressions += campaign.metrics.impressions || 0;
+          aggregatedData.clicks += campaign.metrics.clicks || 0;
+          aggregatedData.cost +=
+            (campaign.metrics.cost_micros || 0) / 1_000_000;
+        });
+        metricsPageToken = metricsResponse.next_page_token;
+      } while (metricsPageToken);
+
+      let conversionPageToken = null;
+      do {
+        const conversionBatchResponse = await customer.query(conversionQuery);
+        conversionBatchResponse.forEach((conversion) => {
+          const conversionValue = conversion.metrics.all_conversions || 0;
+          if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
+            aggregatedData.step1Value += conversionValue;
+          } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
+            aggregatedData.step5Value += conversionValue;
+          } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
+            aggregatedData.step6Value += conversionValue;
+          } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
+            aggregatedData.bookingConfirmed += conversionValue;
+          } else if (conversion.segments.conversion_action_name === "Purchase") {
+            aggregatedData.purchase += conversionValue;
+          }
+        });
+        conversionPageToken = conversionBatchResponse.next_page_token;
+      } while (conversionPageToken);
+
+      return aggregatedData;
+    };
+
+    const allSearchWeeklyData = [];
+    for (const { start, end } of dateRanges) {
+      const weeklySearchData = await aggregateDataForWeek(start, end);
+      allSearchWeeklyData.push(weeklySearchData);
+    }
+
+    return allSearchWeeklyData;
+
+    // res.json(allSearchWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
     // res.status(500).send("Error fetching report data");
@@ -290,6 +404,7 @@ const createFetchFunction = (campaignNameFilter, reportName, brandNBFilter = "")
 const fetchFunctions = {
   fetchReportDataWeeklyHSBrand: createFetchFunction("Brand", "Brand"),
   fetchReportDataWeeklyHSNB: createFetchFunction("NB", "NB"),
+  fetchReportDataWeeklyHSPmax: createFetchFunction("Pmax", "Pmax"),
   fetchReportDataWeeklyHSGilbert: createFetchFunction("Gilbert", "Gilbert"),
   fetchReportDataWeeklyHSGilbertBrand: createFetchFunction("Gilbert", "Gilbert", "Brand"),
   fetchReportDataWeeklyHSGilbertNB: createFetchFunction("Gilbert", "Gilbert", "NB"),
@@ -357,9 +472,11 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const weeklyData = await fetchReportDataWeeklyHS(dateRanges);
+    const weeklyCampaignData = await fetchReportDataWeeklyCampaignHS(dateRanges);
+    const weeklySearchData = await fetchReportDataWeeklySearchHS(dateRanges);
     const brandData = await fetchFunctions.fetchReportDataWeeklyHSBrand(req, res, dateRanges);
     const noBrandData = await fetchFunctions.fetchReportDataWeeklyHSNB(req, res, dateRanges);
+    const pmaxData = await fetchFunctions.fetchReportDataWeeklyHSPmax(req, res, dateRanges);
     const gilbertData = await fetchFunctions.fetchReportDataWeeklyHSGilbert(req, res, dateRanges);
     const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyHSGilbertBrand(req, res, dateRanges);
     const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyHSGilbertNB(req, res, dateRanges);
@@ -449,70 +566,74 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       });
     };
 
-    addDataToRecords(weeklyData, "All Search", 1);
-    addDataToRecords(brandData, "Brand", 2);
-    addDataToRecords(noBrandData, "NB", 3);
-    addDataToRecords(gilbertData, "Gilbert", 4);
-    addDataToRecords(gilbertDataBrand, "Gilbert Brand", 5);
-    addDataToRecords(gilbertDataNB, "Gilbert NB", 6);
-    addDataToRecords(mktData, "MKT", 7);
-    addDataToRecords(mktDataBrand, "MKT Brand", 8);
-    addDataToRecords(mktDataNB, "MKT NB", 9);
-    addDataToRecords(phoenixData, "Phoenix", 10);
-    addDataToRecords(phoenixDataBrand, "Phoenix Brand", 11);
-    addDataToRecords(phoenixDataNB, "Phoenix NB", 12);
-    addDataToRecords(scottsdaleData, "Scottsdale", 13);
-    addDataToRecords(scottsdaleDataBrand, "Scottsdale Brand", 14);
-    addDataToRecords(scottsdaleDataNB, "Scottsdale NB", 15);
-    addDataToRecords(uptownParkData, "UptownPark", 16);
-    addDataToRecords(uptownParkDataBrand, "UptownPark Brand", 17);
-    addDataToRecords(uptownParkDataNB, "UptownPark NB", 18);
-    addDataToRecords(montroseData, "Montrose", 19);
-    addDataToRecords(montroseDataBrand, "Montrose Brand", 20);
-    addDataToRecords(montroseDataNB, "Montrose NB", 21);
-    addDataToRecords(riceVillageData, "RiceVillage", 22);
-    addDataToRecords(riceVillageDataBrand, "RiceVillage Brand", 23);
-    addDataToRecords(riceVillageDataNB, "RiceVillage NB", 24);
-    addDataToRecords(mosaicData, "Mosaic", 25);
-    addDataToRecords(mosaicDataBrand, "Mosaic Brand", 26);
-    addDataToRecords(mosaicDataNB, "Mosaic NB", 27);
-    addDataToRecords(fourteenthStData, "14thSt", 28);
-    addDataToRecords(fourteenthStDataBrand, "14thSt Brand", 29);
-    addDataToRecords(fourteenthStDataNB, "14thSt NB", 30);
+    addDataToRecords(weeklyCampaignData, "All Campaign", 1);
+    addDataToRecords(weeklySearchData, "All Search", 2);
+    addDataToRecords(brandData, "Brand Search", 3);
+    addDataToRecords(noBrandData, "NB Search", 4);
+    addDataToRecords(pmaxData, "Pmax", 5);
+    addDataToRecords(gilbertData, "Gilbert", 6);
+    addDataToRecords(gilbertDataBrand, "Gilbert Brand", 7);
+    addDataToRecords(gilbertDataNB, "Gilbert NB", 8);
+    addDataToRecords(mktData, "MKT", 9);
+    addDataToRecords(mktDataBrand, "MKT Brand", 10);
+    addDataToRecords(mktDataNB, "MKT NB", 11);
+    addDataToRecords(phoenixData, "Phoenix", 12);
+    addDataToRecords(phoenixDataBrand, "Phoenix Brand", 13);
+    addDataToRecords(phoenixDataNB, "Phoenix NB", 14);
+    addDataToRecords(scottsdaleData, "Scottsdale", 15);
+    addDataToRecords(scottsdaleDataBrand, "Scottsdale Brand", 16);
+    addDataToRecords(scottsdaleDataNB, "Scottsdale NB", 17);
+    addDataToRecords(uptownParkData, "UptownPark", 18);
+    addDataToRecords(uptownParkDataBrand, "UptownPark Brand", 19);
+    addDataToRecords(uptownParkDataNB, "UptownPark NB", 20);
+    addDataToRecords(montroseData, "Montrose", 21);
+    addDataToRecords(montroseDataBrand, "Montrose Brand", 22);
+    addDataToRecords(montroseDataNB, "Montrose NB", 23);
+    addDataToRecords(riceVillageData, "RiceVillage", 24);
+    addDataToRecords(riceVillageDataBrand, "RiceVillage Brand", 25);
+    addDataToRecords(riceVillageDataNB, "RiceVillage NB", 26);
+    addDataToRecords(mosaicData, "Mosaic", 27);
+    addDataToRecords(mosaicDataBrand, "Mosaic Brand", 28);
+    addDataToRecords(mosaicDataNB, "Mosaic NB", 29);
+    addDataToRecords(fourteenthStData, "14thSt", 30);
+    addDataToRecords(fourteenthStDataBrand, "14thSt Brand", 31);
+    addDataToRecords(fourteenthStDataNB, "14thSt NB", 32);
+
 
     if (!date || date.trim() === '') {
-      addWoWVariance(weeklyData.slice(-2)[0], weeklyData.slice(-3)[0], "All Search", 1);
-      addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "Brand", 2);
-      addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "NB", 3);
-      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 4);
-      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "Gilbert Brand", 5);
-      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "Gilbert NB", 6);
-      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 7);
-      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "MKT Brand", 8);
-      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "MKT NB", 9);
-      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 10);
-      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "Phoenix Brand", 11);
-      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "Phoenix NB", 12);
-      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 13);
-      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "Scottsdale Brand", 14);
-      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "Scottsdale NB", 15);
-      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 16);
-      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "UptownPark Brand", 17);
-      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "UptownPark NB", 18);
-      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 19);
-      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "Montrose Brand", 20);
-      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "Montrose NB", 21);
-      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 22);
-      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "RiceVillage Brand", 23);
-      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "RiceVillage NB", 24);
-      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 25);
-      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "Mosaic Brand", 26);
-      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "Mosaic NB", 27);
-      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 28);
-      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "14thSt Brand", 29);
-      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "14thSt NB", 30);
+      addWoWVariance(weeklyCampaignData.slice(-2)[0], weeklyCampaignData.slice(-3)[0], "All Campaign", 1);
+      addWoWVariance(weeklySearchData.slice(-2)[0], weeklySearchData.slice(-3)[0], "All Search", 2);
+      addWoWVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], "Brand Search", 3);
+      addWoWVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], "NB Search", 4);
+      addWoWVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], "Pmax", 5);
+      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 6);
+      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "Gilbert Brand", 7);
+      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "Gilbert NB", 8);
+      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 9);
+      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "MKT Brand", 10);
+      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "MKT NB", 11);
+      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 12);
+      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "Phoenix Brand", 13);
+      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "Phoenix NB", 14);
+      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 15);
+      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "Scottsdale Brand", 16);
+      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "Scottsdale NB", 17);
+      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 18);
+      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "UptownPark Brand", 19);
+      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "UptownPark NB", 20);
+      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 21);
+      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "Montrose Brand", 22);
+      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "Montrose NB", 23);
+      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 24);
+      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "RiceVillage Brand", 25);
+      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "RiceVillage NB", 26);
+      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 27);
+      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "Mosaic Brand", 28);
+      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "Mosaic NB", 29);
+      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 30);
+      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "14thSt Brand", 31);
+      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "14thSt NB", 32);
     }
-
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
     const finalRecords = [];
@@ -582,7 +703,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
 
     const dataToSend = {
       Live: sheetData,
-      AllBNB: sheetData.filter(row => ["All Search", "Brand", "NB"].includes(row[0]) || ["All Search", "Brand", "NB"].includes(row[1])),
+      AllBNB: sheetData.filter(row => ["All Search", "Brand Search", "NB Search"].includes(row[0]) || ["All Search", "Brand Search", "NB Search"].includes(row[1])),
       Gilbert: sheetData.filter(row => ["Gilbert", "Gilbert Brand", "Gilbert NB"].includes(row[0]) || ["Gilbert", "Gilbert Brand", "Gilbert NB"].includes(row[1])),
       MKT: sheetData.filter(row => ["MKT", "MKT Brand", "MKT NB"].includes(row[0]) || ["MKT", "MKT Brand", "MKT NB"].includes(row[1])),
       Phoenix: sheetData.filter(row => ["Phoenix", "Phoenix Brand", "Phoenix NB"].includes(row[0]) || ["Phoenix", "Phoenix Brand", "Phoenix NB"].includes(row[1])),
@@ -697,7 +818,8 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 };
 
 module.exports = {
-  fetchReportDataWeeklyHS,
+  fetchReportDataWeeklyCampaignHS,
+  fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS

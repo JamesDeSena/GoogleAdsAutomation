@@ -6,6 +6,8 @@ const router = express.Router();
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
 const {
+  fetchReportDataWeeklyCampaignHS,
+  fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS
