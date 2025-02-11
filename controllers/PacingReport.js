@@ -191,6 +191,7 @@ async function getAmountGoogleCampaigns() {
     "RiceVillage",
     "14thSt",
     "Mosaic",
+    "Pmax",
   ];
 
   try {
@@ -299,7 +300,6 @@ async function getAllMetrics() {
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
     
-
     console.log({
       data: {
         ...bingTotal,
@@ -457,7 +457,8 @@ const sendFinalPacingReportToAirtable = async () => {
             record.data.Uptown +
             record.data.RiceVillage +
             record.data["14thSt"] +
-            record.data.Mosaic,
+            record.data.Mosaic +
+            record.data.Pmax
         },
       },
       {
@@ -530,6 +531,14 @@ const sendFinalPacingReportToAirtable = async () => {
           Campaign: "Mosaic",
           "Monthly Budget": 1500.0,
           "MTD Spend": record.data.Mosaic,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Pmax",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.Pmax,
         },
       },
       {
