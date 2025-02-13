@@ -201,12 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    AZ: 'Mobile Drip IV AZ!A2:S',
-    LV: 'Mobile Drip IV LV!A2:S',
-    NYC: 'Mobile Drip IV NYC!A2:S',
-    AZLive: 'Mobile Drip IV AZ Live!A2:S',
-    LVLive: 'Mobile Drip IV LV Live!A2:S',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:S',
+    AZ: 'Mobile Drip IV AZ!A2:U',
+    LV: 'Mobile Drip IV LV!A2:U',
+    NYC: 'Mobile Drip IV NYC!A2:U',
+    AZLive: 'Mobile Drip IV AZ Live!A2:U',
+    LVLive: 'Mobile Drip IV LV Live!A2:U',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:U',
   };
 
   try {
@@ -250,6 +250,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
         "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
+        "Arrived": formatPercentage(calculateWoWVariance(janeLastRecord.arrived, janeSecondToLastRecord.arrived)),
+        "Archived": formatPercentage(calculateWoWVariance(janeLastRecord.archived, janeSecondToLastRecord.archived)),
         "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
         "No Show": formatPercentage(calculateWoWVariance(janeLastRecord.no_show, janeSecondToLastRecord.no_show)),
         "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
@@ -277,7 +279,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),
-          "Booked": formatNumber(janeRecord.booked || 0),
+          "Arrived": formatNumber(janeRecord.arrived || 0),
+          "Archived": formatNumber(janeRecord.archived || 0),
           "Cancelled": formatNumber(janeRecord.cancelled || 0),
           "No Show": formatNumber(janeRecord.no_Show || 0),
           "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
@@ -321,6 +324,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            "Arrived": "Arrived",
+            "Archived": "Archived",
             "Cancelled": "Cancelled",
             "No Show": "No Show",
             "Rescheduled": "Rescheduled",
@@ -355,6 +360,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["Calls from Ads - Local SEO"],
       record["Book Now Form Local SEO"],
       record["Phone No. Click Local SEO"],
+      record["Arrived"],
+      record["Archived"],
       record["Cancelled"],
       record["No Show"],
       record["Rescheduled"],
@@ -449,7 +456,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       return res.json({ message: "No data found" });
     }
 
-    const validStatuses = new Set(["booked", "cancelled", "no_show", "rescheduled"]);
+    const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "rescheduled"]);
     const startDate = new Date('2024-11-11');
     const weeksByLocation = {};
 
@@ -479,7 +486,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       }
 
       if (!weeksByLocation[name][weekLabel]) {
-        weeksByLocation[name][weekLabel] = { booked: 0, cancelled: 0, no_show: 0, rescheduled: 0 };
+        weeksByLocation[name][weekLabel] = { arrived: 0, booked: 0, archived: 0, cancelled: 0, no_show: 0, rescheduled: 0 };
       }
 
       weeksByLocation[name][weekLabel][status]++;
@@ -493,7 +500,9 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
         const weekData = weeksByLocation[name][weekLabel];
         return {
           week: weekLabel,
+          arrived: weekData.arrived || 0,
           booked: weekData.booked || 0,
+          archived: weekData.archived || 0,
           cancelled: weekData.cancelled || 0,
           no_show: weekData.no_show || 0,
           rescheduled: weekData.rescheduled || 0,
@@ -502,12 +511,12 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
     }
 
     // Return the result for testing
+    console.log(result)
     return result;
   } catch (error) {
     console.error("Error generating test data:", error);
   }
 };
-
 
 module.exports = {
   executeSpecificFetchFunctionMIV,
