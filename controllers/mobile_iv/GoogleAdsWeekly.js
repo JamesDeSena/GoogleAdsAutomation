@@ -201,12 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    AZ: 'Mobile Drip IV AZ!A2:U',
-    LV: 'Mobile Drip IV LV!A2:U',
-    NYC: 'Mobile Drip IV NYC!A2:U',
-    AZLive: 'Mobile Drip IV AZ Live!A2:U',
-    LVLive: 'Mobile Drip IV LV Live!A2:U',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:U',
+    AZ: 'Mobile Drip IV AZ!A2:V',
+    LV: 'Mobile Drip IV LV!A2:V',
+    NYC: 'Mobile Drip IV NYC!A2:V',
+    AZLive: 'Mobile Drip IV AZ Live!A2:V',
+    LVLive: 'Mobile Drip IV LV Live!A2:V',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:V',
   };
 
   try {
@@ -254,6 +254,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Archived": formatPercentage(calculateWoWVariance(janeLastRecord.archived, janeSecondToLastRecord.archived)),
         "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
         "No Show": formatPercentage(calculateWoWVariance(janeLastRecord.no_show, janeSecondToLastRecord.no_show)),
+        "Never Booked": formatPercentage(calculateWoWVariance(janeLastRecord.never_booked, janeSecondToLastRecord.never_booked)),
         "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
         // "Conv Value per Time": formatPercentage(calculateWoWVariance(lastRecord.conv_date, secondToLastRecord.conv_date)),
       });
@@ -283,6 +284,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Archived": formatNumber(janeRecord.archived || 0),
           "Cancelled": formatNumber(janeRecord.cancelled || 0),
           "No Show": formatNumber(janeRecord.no_Show || 0),
+          "Never Booked": formatNumber(janeRecord.never_booked || 0),
           "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
           // "Conv Value per Time": record.conv_date,
         });
@@ -328,6 +330,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Archived": "Archived",
             "Cancelled": "Cancelled",
             "No Show": "No Show",
+            "Never Booked": "Never Booked",
             "Rescheduled": "Rescheduled",
             // "Conv Value per Time": "Conv Value per Time",
             isBold: true,
@@ -364,6 +367,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["Archived"],
       record["Cancelled"],
       record["No Show"],
+      record["Never Booked"],
       record["Rescheduled"],
       // record["Conv Value per Time"],
     ]);
@@ -456,7 +460,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       return res.json({ message: "No data found" });
     }
 
-    const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "rescheduled"]);
+    const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "never_booked", "rescheduled"]);
     const startDate = new Date('2024-11-11');
     const weeksByLocation = {};
 
@@ -486,7 +490,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       }
 
       if (!weeksByLocation[name][weekLabel]) {
-        weeksByLocation[name][weekLabel] = { arrived: 0, booked: 0, archived: 0, cancelled: 0, no_show: 0, rescheduled: 0 };
+        weeksByLocation[name][weekLabel] = { arrived: 0, booked: 0, archived: 0, cancelled: 0, no_show: 0, never_booked: 0, rescheduled: 0 };
       }
 
       weeksByLocation[name][weekLabel][status]++;
@@ -505,13 +509,12 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
           archived: weekData.archived || 0,
           cancelled: weekData.cancelled || 0,
           no_show: weekData.no_show || 0,
+          never_booked: weekData.never_booked || 0,
           rescheduled: weekData.rescheduled || 0,
         };
       });
     }
 
-    // Return the result for testing
-    console.log(result)
     return result;
   } catch (error) {
     console.error("Error generating test data:", error);
