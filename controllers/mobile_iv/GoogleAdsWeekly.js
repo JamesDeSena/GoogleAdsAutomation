@@ -245,11 +245,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked , janeSecondToLastRecord.booked)),
-        "CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
+        "Leads": formatPercentage(calculateWoWVariance(janeLastRecord.allBook , janeSecondToLastRecord.allBook)),
+        "CPL": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
         "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
+        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked , janeSecondToLastRecord.booked)),
         "Arrived": formatPercentage(calculateWoWVariance(janeLastRecord.arrived, janeSecondToLastRecord.arrived)),
         "Archived": formatPercentage(calculateWoWVariance(janeLastRecord.archived, janeSecondToLastRecord.archived)),
         "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
@@ -275,15 +276,16 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": record.conversions,
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "Booked": formatNumber(janeRecord.booked || 0),
-          "CAC": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
+          "Leads": formatNumber(janeRecord.allBook || 0),
+          "CPL": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),
+          "Booked": formatNumber(janeRecord.booked || 0),
           "Arrived": formatNumber(janeRecord.arrived || 0),
           "Archived": formatNumber(janeRecord.archived || 0),
           "Cancelled": formatNumber(janeRecord.cancelled || 0),
-          "No Show": formatNumber(janeRecord.no_Show || 0),
+          "No Show": formatNumber(janeRecord.no_show || 0),
           "Never Booked": formatNumber(janeRecord.never_booked || 0),
           "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
           // "Conv Value per Time": record.conv_date,
@@ -321,11 +323,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Booked": "Booked",
-            "CAC": "CAC",
+            "Leads": "Leads",
+            "CPL": "CPL",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            "Booked": "Booked",
             "Arrived": "Arrived",
             "Archived": "Archived",
             "Cancelled": "Cancelled",
@@ -358,11 +361,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       record["Conversion"],
       record["Cost Per Conv"],
       record["Conv. Rate"],
-      record["Booked"],
-      record["CAC"],
+      record["Leads"],
+      record["CPL"],
       record["Calls from Ads - Local SEO"],
       record["Book Now Form Local SEO"],
       record["Phone No. Click Local SEO"],
+      record["Booked"],
       record["Arrived"],
       record["Archived"],
       record["Cancelled"],
@@ -456,32 +460,30 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
     const rows = response.data.values;
 
     if (!rows || rows.length === 0) {
-      console.log("No data found in the sheet.");
       return res.json({ message: "No data found" });
     }
 
     const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "never_booked", "rescheduled"]);
     const startDate = new Date('2024-11-11');
     const weeksByLocation = {};
+    const totalBookedByWeek = {};
 
     rows.forEach(row => {
-      const name = row[1]; // Location Name
+      const name = row[1];
       const date = row[2] ? row[2].split(" ")[0] : null;
       const status = row[14];
 
       if (!date || !validStatuses.has(status) || new Date(date) < startDate) return;
 
       const currentRowDate = new Date(date);
-      
-      // Get the correct week (Monday-Sunday)
       const dayOfWeek = currentRowDate.getDay();
       const diffToMonday = (dayOfWeek + 6) % 7;
 
       const weekStart = new Date(currentRowDate);
-      weekStart.setDate(currentRowDate.getDate() - diffToMonday); // Set to Monday
+      weekStart.setDate(currentRowDate.getDate() - diffToMonday);
 
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6); // Set to Sunday
+      weekEnd.setDate(weekStart.getDate() + 6);
 
       const weekLabel = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')} - ${weekEnd.getFullYear()}-${(weekEnd.getMonth() + 1).toString().padStart(2, '0')}-${weekEnd.getDate().toString().padStart(2, '0')}`;
 
@@ -494,9 +496,16 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       }
 
       weeksByLocation[name][weekLabel][status]++;
+
+      if (!totalBookedByWeek[weekLabel]) {
+        totalBookedByWeek[weekLabel] = 0;
+      }
+
+      if (status === "booked") {
+        totalBookedByWeek[weekLabel]++;
+      }
     });
 
-    // Create arrays for each location
     const result = {};
     for (const name in weeksByLocation) {
       const sheetKey = sheetNames[name] || "Other";
@@ -504,6 +513,8 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
         const weekData = weeksByLocation[name][weekLabel];
         return {
           week: weekLabel,
+          allData: (weekData.arrived + weekData.booked + weekData.archived + weekData.cancelled + weekData.no_show + weekData.never_booked + weekData.rescheduled) || 0, 
+          allBook: totalBookedByWeek[weekLabel] || 0,
           arrived: weekData.arrived || 0,
           booked: weekData.booked || 0,
           archived: weekData.archived || 0,
@@ -514,7 +525,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
         };
       });
     }
-
+    console.log(result)
     return result;
   } catch (error) {
     console.error("Error generating test data:", error);
