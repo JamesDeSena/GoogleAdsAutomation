@@ -273,7 +273,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           'Cost': formatCurrency(record.cost),
           "CPC": formatCurrency(record.cost / record.clicks),
           "CTR": formatPercentage((record.clicks / record.impressions) * 100),
-          "Conversion": record.conversions,
+          "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
           "Leads": formatNumber(janeRecord.allBook || 0),
@@ -405,7 +405,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             {
               repeatCell: {
                 range: {
-                  sheetId: 0,
+                  sheetId: 2045694540,
                   startRowIndex: 1,
                   endRowIndex: data.length + 1,
                   startColumnIndex: 0,
@@ -525,7 +525,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
         };
       });
     }
-    console.log(result)
+
     return result;
   } catch (error) {
     console.error("Error generating test data:", error);
