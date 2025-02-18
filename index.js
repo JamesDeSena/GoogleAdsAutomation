@@ -16,6 +16,7 @@ const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendFinalPacingReportToAirtable, sendLPCBudgettoGoogleSheets } = require('./controllers/PacingReport');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
+const { ExportToReport } = require('./controllers/lpc/DailyFetch');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 
@@ -91,6 +92,7 @@ const eveningJobs = [
 ];
 
 const morningJobs2 = [
+  ExportToReport,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendBlendedCACToGoogleSheetsHS,

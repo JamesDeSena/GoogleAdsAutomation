@@ -5,6 +5,10 @@ const router = express.Router();
 //   fetchReportDataDailyHS
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
+const { 
+  ExportToReport,
+} = require("../controllers/lpc/DailyFetch");
+
 const {
   fetchReportDataWeeklyCampaignHS,
   fetchReportDataWeeklySearchHS,
@@ -37,6 +41,16 @@ const {
 // router.get('/report-brand', fetchReportDataWeeklyBrand);
 // router.get('/report-nb', fetchReportDataWeeklyNB);
 // router.get('/report-final', sendFinalReportToAirtable);
+
+router.get('/lpc/report-daily', async (req, res) => {
+  try {
+    await ExportToReport(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
 
 router.get('/hi_skin/report-final/:date?', async (req, res) => {
   try {
