@@ -201,12 +201,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
-    AZ: 'Mobile Drip IV AZ!A2:V',
-    LV: 'Mobile Drip IV LV!A2:V',
-    NYC: 'Mobile Drip IV NYC!A2:V',
-    AZLive: 'Mobile Drip IV AZ Live!A2:V',
-    LVLive: 'Mobile Drip IV LV Live!A2:V',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:V',
+    // AZ: 'Mobile Drip IV AZ!A2:W',
+    // LV: 'Mobile Drip IV LV!A2:W',
+    // NYC: 'Mobile Drip IV NYC!A2:W',
+    AZLive: 'Mobile Drip IV AZ Live!A2:W',
+    LVLive: 'Mobile Drip IV LV Live!A2:W',
+    NYCLive: 'Mobile Drip IV NYC Live!A2:W',
   };
 
   try {
@@ -377,9 +377,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     ]);
 
     const dataToSend = {
-      AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
-      LV: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
-      NYC: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
+      // AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
+      // LV: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
+      // NYC: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
       AZLive: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
       LVLive: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
       NYCLive: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
