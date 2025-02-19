@@ -7,7 +7,6 @@ const ExportToReport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-
   const spreadsheetId = process.env.LPC_BUDGET_SPREADSHEET;
   const dataRanges = {
     Export: 'Daily Export!A2:C',
@@ -19,33 +18,53 @@ const ExportToReport = async (req, res) => {
       spreadsheetId,
       range: dataRanges.Report,
     });
-
     let reportData = reportResponse.data.values || [];
 
     const exportResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: dataRanges.Export,
     });
-
     let exportData = exportResponse.data.values || [];
 
-    const transformedData = exportData.map(([createdAt, value, columnC], index) => {
-      if (!createdAt) return ["", "", "", "", ""];
+    const validValuesForD = [
+      "Initial Call - Not something we handle",
+      "At Capacity - Refer Out",
+      "Initial Call - Not Moving Forward"
+    ];
 
-      const [date, time] = createdAt.split(" ");
-      let columnCValue = "";
-      let columnDValue = value !== "Initial PCs" ? value : ""; 
-      let columnEValue = columnC || "";
-      let columnCReport = "";
+    const validValuesForE = [
+      "Strategy Session Scheduled",
+      "Strategy Session - Not moving forward",
+      "Strategy Session - Time Remaining"
+    ];
 
-      if (value === "Initial PCs" && !reportData[index]?.[2]) {
-        columnCReport = "Yes"; // Set "Yes" only if Column C is empty (never overwrite existing "Yes")
-      } else if (reportData[index]?.[2] === "Yes") {
-        columnCReport = "Yes"; // Keep "Yes" if it's already set in Column C
+    // Store previous "Yes" values mapped by Date + Time
+    let previousYesMap = new Map();
+    reportData.forEach(([prevDate, prevTime, prevC]) => {
+      if (prevC === "Yes") {
+        previousYesMap.set(`${prevDate} ${prevTime}`, true);
       }
-
-      return [date, time, columnCReport, columnDValue, columnEValue];
     });
+
+    const transformedData = exportData
+      .map(([createdAt, columnB, columnC]) => {
+        if (!createdAt) return null; // Ignore rows with no date
+
+        const [date, time] = createdAt.split(" ");
+        let columnCReport = previousYesMap.has(`${date} ${time}`) ? "Yes" : "";
+        let columnDValue = validValuesForD.includes(columnB) ? columnB : "";
+        let columnEValue = validValuesForE.includes(columnB) ? `${columnC ? columnC + ", " : ""}${columnB}` : "";
+
+        if (columnB === "Initial PCs" && !columnCReport) {
+          columnCReport = "Yes";
+        }
+
+        // Remove rows where C, D, and E are all empty
+        if (!columnCReport && !columnDValue && !columnEValue) return null;
+
+        return [date, time, columnCReport, columnDValue, columnEValue];
+      })
+      .filter(row => row !== null); // Remove null rows
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
