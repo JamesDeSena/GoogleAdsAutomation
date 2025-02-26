@@ -369,7 +369,6 @@ const dailyToWeekly = async (req, res) => {
       resource: { values: sortedWeeks },
     });
 
-    console.log(sortedWeeks);
     console.log("LPC Daily to Weekly done successfully!");
   } catch (error) {
     console.error("Error aggregating weekly report:", error);
