@@ -49,7 +49,7 @@ const {
 
 router.get('/lpc/report', async (req, res) => {
   try {
-    await dailyToWeekly(req, res);
+    await runFullReportProcess(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
