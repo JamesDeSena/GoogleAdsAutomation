@@ -198,7 +198,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-
   const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
   const dataRanges = {
     // AZ: 'Mobile Drip IV AZ!A2:W',

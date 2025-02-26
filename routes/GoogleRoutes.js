@@ -6,7 +6,12 @@ const router = express.Router();
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
 const { 
-  ExportToReport,
+  getCampaigns,
+  dailyExport,
+  dailyReport,
+  dailyToWeekly,
+  runDailyExportAndReport,
+  runFullReportProcess
 } = require("../controllers/lpc/DailyFetch");
 
 const {
@@ -42,9 +47,9 @@ const {
 // router.get('/report-nb', fetchReportDataWeeklyNB);
 // router.get('/report-final', sendFinalReportToAirtable);
 
-router.get('/lpc/report-daily', async (req, res) => {
+router.get('/lpc/report', async (req, res) => {
   try {
-    await ExportToReport(req, res);
+    await dailyToWeekly(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
