@@ -326,21 +326,21 @@ const dailyToWeekly = async (req, res) => {
       ])
     );
 
-    const startDate = new Date('2024-12-29');
+    const startDate = new Date('2025-02-23');
     const weeks = {};
 
     rows.forEach(([date, , mqlVal, nopesVal, sqlVal]) => {
       if (!date) return;
       const [month, day, year] = date.split("/").map(Number);
       const currentDate = new Date(year, month - 1, day);
-      if (currentDate < startDate) return;
+      if (currentDate < startDate && currentDate.toDateString() !== startDate.toDateString()) return;
 
       let weekStart = new Date(currentDate);
       weekStart.setDate(currentDate.getDate() - currentDate.getDay());
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
 
-      const formatDate = (date) => date.toISOString().split('T')[0];
+      const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       const weekLabel = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
       const monthKey = `${weekStart.toLocaleString('en-US', { month: 'short' })}-${weekStart.getFullYear().toString().slice(-2)}`;
       if (!spendMap[monthKey]) return;
@@ -368,7 +368,7 @@ const dailyToWeekly = async (req, res) => {
       valueInputOption: 'RAW',
       resource: { values: sortedWeeks },
     });
-
+    
     console.log("LPC Daily to Weekly done successfully!");
   } catch (error) {
     console.error("Error aggregating weekly report:", error);

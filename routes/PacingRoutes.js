@@ -4,7 +4,8 @@ const router = express.Router();
 const { 
   getAllMetrics,
   sendFinalPacingReportToAirtable,
-  sendLPCBudgettoGoogleSheets
+  sendLPCBudgettoGoogleSheets,
+  sendBingHStoGoogleSheets,
 } = require("../controllers/PacingReport");
 
 router.get("/test", async (req, res) => {
