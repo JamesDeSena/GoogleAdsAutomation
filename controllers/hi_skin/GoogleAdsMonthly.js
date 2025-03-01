@@ -180,7 +180,7 @@ const sendFinalMonthlyReportToGoogleSheetsHS = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_HI_SKIN;
   const dataRange = 'Monthly Spend!A2:M';
 
   try {

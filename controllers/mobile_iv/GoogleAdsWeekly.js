@@ -198,7 +198,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.MOBILE_DRIP_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
     // AZ: 'Mobile Drip IV AZ!A2:W',
     // LV: 'Mobile Drip IV LV!A2:W',
@@ -441,7 +441,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
 
-  const sourceSpreadsheetId = process.env.JANE_SPREADSHEET;
+  const sourceSpreadsheetId = process.env.SHEET_JANE;
   const sourceDataRange = 'Data Record!A2:Y';
 
   const sheetNames = {

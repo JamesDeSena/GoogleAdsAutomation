@@ -184,7 +184,7 @@ const dailyExport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.LPC_BUDGET_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
   const dataRange = 'Daily Export!A2:B';
 
   try {
@@ -217,7 +217,7 @@ const dailyReport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.LPC_BUDGET_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
   const dataRanges = {
     Export: 'Daily Export!A2:C',
     Report: 'Daily Report!A2:E',
@@ -301,7 +301,7 @@ const dailyToWeekly = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.LPC_BUDGET_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
   const dataRanges = {
     Report: 'Daily Report!A2:E',
     Weekly: 'Weekly Report!A2:F',
@@ -383,7 +383,7 @@ const runDailyExportAndReport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.LPC_BUDGET_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
   const dataRanges = {
     Export: 'Daily Export!A2:C',
     Report: 'Daily Report!A2:E',

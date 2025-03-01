@@ -15,6 +15,7 @@ const {
 } = require("../controllers/lpc/DailyFetch");
 
 const {
+  downloadAndExtractHSBing,
   fetchReportDataWeeklyCampaignHS,
   fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
@@ -84,6 +85,16 @@ router.get('/mobile_iv/report-final/:date?', async (req, res) => {
   } catch (error) {
     console.error("Error processing final report:", error);
     res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get("/test", async (req, res) => {
+  try {
+    await downloadAndExtractHSBing();
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error in /test route:", error);
+    res.status(500).send("Error fetching all metrics");
   }
 });
 

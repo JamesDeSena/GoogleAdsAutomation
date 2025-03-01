@@ -1,6 +1,12 @@
+const axios = require("axios");
 const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
+const { getStoredAccessToken } = require("../BingAuth");
+const fs = require("fs");
+const path = require("path");
+const https = require("https");
+const { execSync } = require("child_process");
 
 let storedDateRanges = null;
 
@@ -57,6 +63,155 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 };
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
+
+async function generateHSBing() {
+  const token = getStoredAccessToken();
+  if (!token.accessToken_Bing) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
+  const requestBody = `
+    <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+      <s:Header xmlns="https://bingads.microsoft.com/Reporting/v13">
+        <Action mustUnderstand="1">SubmitGenerateReport</Action>
+        <AuthenticationToken>${token.accessToken_Bing}</AuthenticationToken>
+        <CustomerAccountId>${process.env.BING_ADS_ACCOUNT_ID_HS}</CustomerAccountId>
+        <CustomerId>${process.env.BING_ADS_CID}</CustomerId>
+        <DeveloperToken>${process.env.BING_ADS_DEVELOPER_TOKEN}</DeveloperToken>
+      </s:Header>
+      <s:Body>
+        <SubmitGenerateReportRequest xmlns="https://bingads.microsoft.com/Reporting/v13">
+            <ReportRequest i:type="CampaignPerformanceReportRequest" xmlns:a="https://bingads.microsoft.com/Reporting/v13">
+                <a:ExcludeColumnHeaders>false</a:ExcludeColumnHeaders>
+                <a:ExcludeReportFooter>true</a:ExcludeReportFooter>
+                <a:ExcludeReportHeader>true</a:ExcludeReportHeader>
+                <a:Format>Csv</a:Format>
+                <a:FormatVersion>2.0</a:FormatVersion>
+                <a:ReportName>CampaignPerformanceReport</a:ReportName> <!-- Include Date -->
+                <a:ReturnOnlyCompleteData>false</a:ReturnOnlyCompleteData>
+                <a:Aggregation>Daily</a:Aggregation>
+                <a:Columns>
+                  <a:CampaignPerformanceReportColumn>TimePeriod</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>CampaignName</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>Impressions</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>Clicks</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>Spend</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>Goal</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>Conversions</a:CampaignPerformanceReportColumn>
+                  <a:CampaignPerformanceReportColumn>AllConversions</a:CampaignPerformanceReportColumn>
+                </a:Columns>
+                <a:Scope>
+                <a:AccountIds xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                    <b:long>${process.env.BING_ADS_ACCOUNT_ID_HS}</b:long>
+                </a:AccountIds>
+                </a:Scope>
+                <a:Time>
+                <a:PredefinedTime>ThisMonth</a:PredefinedTime>
+                <a:ReportTimeZone>PacificTimeUSCanadaTijuana</a:ReportTimeZone>
+                </a:Time>
+            </ReportRequest>
+        </SubmitGenerateReportRequest>
+      </s:Body>
+    </s:Envelope>
+  `;
+
+  try {
+    const response = await axios.post(
+      "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "text/xml;charset=utf-8",
+          SOAPAction: "SubmitGenerateReport",
+        },
+        timeout: 10000,
+      }
+    );
+
+    const match = response.data.match(/<ReportRequestId>(.*?)<\/ReportRequestId>/)?.[1];
+    return match;
+  } catch (error) {
+    console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+
+async function pollingHSBing() {
+  const token = getStoredAccessToken();
+  if (!token.accessToken_Bing) {
+    console.error("Access token is missing. Please authenticate.");
+    return;
+  }
+
+  const key = await generateHSBing();
+
+  const requestBody = `
+    <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+      <s:Header xmlns="https://bingads.microsoft.com/Reporting/v13">
+        <Action mustUnderstand="1">SubmitGenerateReport</Action>
+        <AuthenticationToken>${token.accessToken_Bing}</AuthenticationToken>
+        <CustomerAccountId>${process.env.BING_ADS_ACCOUNT_ID_HS}</CustomerAccountId>
+        <CustomerId>${process.env.BING_ADS_CID}</CustomerId>
+        <DeveloperToken>${process.env.BING_ADS_DEVELOPER_TOKEN}</DeveloperToken>
+      </s:Header>
+      <s:Body>
+        <PollGenerateReportRequest xmlns="https://bingads.microsoft.com/Reporting/v13">
+          <ReportRequestId>${key}</ReportRequestId>
+        </PollGenerateReportRequest>
+      </s:Body>
+    </s:Envelope>
+  `;
+
+  try {
+    const response = await axios.post(
+      "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "text/xml;charset=utf-8",
+          SOAPAction: "PollGenerateReport",
+        },
+        timeout: 10000,
+      }
+    );
+
+    let match = response.data.match(/<ReportDownloadUrl>(.*?)<\/ReportDownloadUrl>/)?.[1];
+    let reportUrl = match.replace(/&amp;/g, "&");
+    return reportUrl;
+  } catch (error) {
+    console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+
+async function downloadAndExtractHSBing() {
+  const url = await pollingHSBing();
+  if (!url) return;
+
+  const zip = "/tmp/report.zip", dir = "/tmp/bing_report", csv = "report.csv";
+  fs.mkdirSync(dir, { recursive: true });
+
+  await new Promise((res, rej) =>
+    https.get(url, r => r.pipe(fs.createWriteStream(zip)).on("finish", res).on("error", rej))
+  );
+
+  if (process.platform === "win32") {
+    const AdmZip = require("adm-zip");
+    new AdmZip(zip).extractAllTo(dir, true);
+  } else {
+    execSync(`unzip ${zip} -d ${dir}`);
+  }
+
+  const file = fs.readdirSync(dir).find(f => f.endsWith(".csv"));
+  if (!file) throw new Error("CSV not found.");
+
+  fs.renameSync(path.join(dir, file), csv);
+  [zip, dir].forEach(f => fs.rmSync(f, { recursive: true, force: true }));
+
+  console.log("Saved CSV:", csv);
+  return csv;
+};
 
 const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
   const refreshToken_Google = getStoredRefreshToken();
@@ -455,7 +610,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
 
-  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_HI_SKIN;
   const dataRanges = {
     Live: 'Live View!A2:U',
     AllBNB: 'Reporting Overview!A2:U',
@@ -773,9 +928,9 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
 
-  const sourceSpreadsheetId = process.env.BLENDED_SPREADSHEET;
+  const sourceSpreadsheetId = process.env.SHEET_BLENDED;
   const sourceDataRange = 'MAA - Daily!A2:W';
-  const targetSpreadsheetId = process.env.HI_SKIN_SPREADSHEET;
+  const targetSpreadsheetId = process.env.SHEET_HI_SKIN;
   const targetDataRange = 'MAA - Daily!A2:C';
 
   try {
@@ -825,6 +980,7 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 };
 
 module.exports = {
+  downloadAndExtractHSBing,
   fetchReportDataWeeklyCampaignHS,
   fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,

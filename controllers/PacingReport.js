@@ -194,7 +194,6 @@ async function getAmountGoogleHSCampaigns() {
     "Pmax",
     "NB",
     "GDN",
-    "Bing",
   ];
 
   try {
@@ -724,7 +723,7 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.LPC_SPREADSHEET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const range = 'Google & Bing Monthly Ad Spend!A2:C';
 
   try {
@@ -773,43 +772,9 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   }
 };
 
-const sendBingHStoGoogleSheets = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.HI_SKIN_SPREADSHEET;
-  const dataRange = 'Bing Daily!A2:B';
-
-  try {
-    const record = await getAllMetrics();
-    const today = new Date().toISOString().split('T')[0];
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: dataRange,
-    });
-
-    const transformedData = [[today, record.data.BingHS]];
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: dataRange,
-      valueInputOption: "RAW",
-      resource: { values: transformedData },
-    });
-
-    console.log("Bing HS Daily report sent to Google Sheets successfully!");
-  } catch (error) {
-    console.error("Error sending Bing HS report to Google Sheets:", error);
-  }
-};
-
 module.exports = {
   getAllMetrics,
   sendFinalPacingReportToAirtable,
   fetchAndFormatTimeCreatedCST,
   sendLPCBudgettoGoogleSheets,
-  sendBingHStoGoogleSheets,
 };

@@ -135,3 +135,6 @@ date.json
 #tokens
 token.json
 serviceToken.json
+
+#csv
+.csv
