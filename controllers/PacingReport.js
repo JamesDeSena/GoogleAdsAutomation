@@ -772,9 +772,41 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   }
 };
 
+const sendTWtoGoogleSheets = async (req, res) => {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: 'serviceToken.json',
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const spreadsheetId = process.env.SHEET_TW;
+    const record = await getAllMetrics();
+
+    if (!record?.data?.Search || !record?.data?.Youtube) {
+      throw new Error("Missing data for Search or Youtube");
+    }
+
+    const values = [[record.data.Search], [record.data.Youtube]];
+    const range = 'Pacing!E3:E4';
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: "RAW",
+      resource: { values },
+    });
+
+    console.log("TW budget updated in Google Sheets successfully!");
+  } catch (error) {
+    console.error("Error updating TW budget in Google Sheets:", error);
+  }
+};
+
 module.exports = {
   getAllMetrics,
   sendFinalPacingReportToAirtable,
   fetchAndFormatTimeCreatedCST,
   sendLPCBudgettoGoogleSheets,
+  sendTWtoGoogleSheets,
 };
