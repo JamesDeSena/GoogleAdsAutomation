@@ -11,7 +11,9 @@ const {
   dailyReport,
   dailyToWeekly,
   runDailyExportAndReport,
-  runFullReportProcess
+  runFullReportProcess,
+  getRawCampaigns,
+  getWeeklyCampaigns
 } = require("../controllers/lpc/DailyFetch");
 
 const {
@@ -30,7 +32,8 @@ const {
 const {
   executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
-  sendJaneToGoogleSheetsMIV
+  sendJaneToGoogleSheetsMIV,
+  sendBookings
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
 
 // const {

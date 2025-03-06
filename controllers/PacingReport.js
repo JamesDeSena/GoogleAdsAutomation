@@ -803,10 +803,21 @@ const sendTWtoGoogleSheets = async (req, res) => {
   }
 };
 
+const sendSubPacingReport = async (req, res) => {
+  try {
+    await sendLPCBudgettoGoogleSheets(req, res);
+    await sendTWtoGoogleSheets(req, res);
+    console.log("LPC Budget and TW sent to Google Sheets successfully");
+  } catch (error) {
+    console.error("Error sending reports:", error);
+  }
+};
+
 module.exports = {
   getAllMetrics,
   sendFinalPacingReportToAirtable,
   fetchAndFormatTimeCreatedCST,
   sendLPCBudgettoGoogleSheets,
   sendTWtoGoogleSheets,
+  sendSubPacingReport,
 };

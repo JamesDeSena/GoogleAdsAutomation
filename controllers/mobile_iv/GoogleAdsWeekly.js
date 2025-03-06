@@ -200,12 +200,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    // AZ: 'Mobile Drip IV AZ!A2:W',
-    // LV: 'Mobile Drip IV LV!A2:W',
-    // NYC: 'Mobile Drip IV NYC!A2:W',
-    AZLive: 'Mobile Drip IV AZ Live!A2:W',
-    LVLive: 'Mobile Drip IV LV Live!A2:W',
-    NYCLive: 'Mobile Drip IV NYC Live!A2:W',
+    AZLive: 'AZ Weekly!A2:Z',
+    LVLive: 'LV Weekly!A2:X',
+    NYCLive: 'NYC Weekly!A2:X',
   };
 
   try {
@@ -217,10 +214,15 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const dripNYC = await fetchFunctions.fetchReportDataWeeklyNYC(req, res, dateRanges);
 
     const janeData = await sendJaneToGoogleSheetsMIV(req, res);
+    const bookingData = await sendBookings(req, res);
 
     const janeAZ = janeData.Arizona || [];
     const janeLV = janeData.LasVegas || [];
     const janeNYC = janeData.NewYork || [];
+
+    const bookingAZ = bookingData.AZ || [];
+    const bookingLV = bookingData.LV || [];
+    const bookingNY = bookingData.NYC || [];
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -229,10 +231,13 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
 
-    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, filter, filter2) => {
+    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, bookingRecords, filter, filter2) => {
       const janeLastRecord = janeRecords.find(j => j.week === lastRecord.date) || {};
       const janeSecondToLastRecord = janeRecords.find(j => j.week === secondToLastRecord.date) || {};
-      records.push({
+      const bookingLastRecord = bookingRecords.find(j => j.week === lastRecord.date) || {};
+      const bookingSecondToLastRecord = bookingRecords.find(j => j.week === secondToLastRecord.date) || {};
+
+      const baseRecord = {
         Week: "WoW Variance %",
         Filter: filter,
         Filter2: filter2,
@@ -257,13 +262,27 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Never Booked": formatPercentage(calculateWoWVariance(janeLastRecord.never_booked, janeSecondToLastRecord.never_booked)),
         "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
         // "Conv Value per Time": formatPercentage(calculateWoWVariance(lastRecord.conv_date, secondToLastRecord.conv_date)),
-      });
+      };
+
+      if (filter === "AZ") {
+        Object.assign(baseRecord, {
+          "Number of Appt Requests Phoenix": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Phoenix, bookingSecondToLastRecord.data?.Phoenix)),
+          "Number of Appt Requests Tucson": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Tucson, bookingSecondToLastRecord.data?.Tucson)),
+          "Number of Appt Requests Total": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Phoenix + bookingLastRecord.data?.Tucson, bookingSecondToLastRecord.data?.Phoenix + bookingSecondToLastRecord.data?.Tucson)),
+        });
+      } else {
+        Object.assign(baseRecord, {
+          "Number of Appt Requests": formatPercentage(calculateWoWVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
+        });
+      }
+      records.push(baseRecord);
     };
 
-    const addDataToRecords = (data, janeData, filter, filter2) => {
+    const addDataToRecords = (data, janeData, bookingData, filter, filter2) => {
       data.forEach((record) => {
         const janeRecord = janeData.find(j => j.week === record.date) || {};
-        records.push({
+        const bookingRecord = bookingData.find(j => j.week === record.date) || {};
+        const baseRecord = {
           Week: record.date,
           Filter: filter,
           Filter2: filter2,
@@ -288,18 +307,34 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Never Booked": formatNumber(janeRecord.never_booked || 0),
           "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
           // "Conv Value per Time": record.conv_date,
-        });
+        };
+
+        if (filter === "AZ") {
+          console.log("ok")
+          console.log(bookingRecord)
+          Object.assign(baseRecord, {
+            "Number of Appt Requests Phoenix": formatNumber(bookingRecord.data?.Phoenix || 0),
+            "Number of Appt Requests Tucson": formatNumber(bookingRecord.data?.Tucson || 0),
+            "Number of Appt Requests Total": formatNumber((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)),
+          });
+        } else {
+          console.log("go")
+          Object.assign(baseRecord, {
+            "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
+          });
+        }
+        records.push(baseRecord);
       });
     };
 
-    addDataToRecords(dripAZ, janeAZ, "AZ", 1);
-    addDataToRecords(dripLV, janeLV, "LV", 2);
-    addDataToRecords(dripNYC, janeNYC, "NYC", 3);
+    addDataToRecords(dripAZ, janeAZ, bookingAZ, "AZ", 1);
+    addDataToRecords(dripLV, janeLV, bookingLV, "LV", 2);
+    addDataToRecords(dripNYC, janeNYC, bookingNY, "NYC", 3);
 
     if (!date || date.trim() === '') {
-      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, "AZ", 1);
-      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, "LV", 2);
-      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, "NYC", 3);
+      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, bookingAZ, "AZ", 1);
+      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, bookingLV, "LV", 2);
+      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, bookingNY, "NYC", 3);
     }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
@@ -308,9 +343,10 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
     function processGroup(records) {
       let currentGroup = '';
+      
       records.forEach(record => {
         if (record.Filter !== currentGroup) {
-          finalRecords.push({
+          const baseHeader = {
             Week: record.Filter,
             Filter: "Filter",
             Filter2: "Filter2",
@@ -334,9 +370,20 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "No Show": "No Show",
             "Never Booked": "Never Booked",
             "Rescheduled": "Rescheduled",
-            // "Conv Value per Time": "Conv Value per Time",
-            isBold: true,
-          });
+          };
+          if (record.Filter === "AZ") {
+            Object.assign(baseHeader, {
+              "Number of Appt Requests Phoenix": "Number of Appt Requests Phoenix",
+              "Number of Appt Requests Tucson": "Number of Appt Requests Tucson",
+              "Number of Appt Requests Total": "Number of Appt Requests Total",
+            });
+          } else {
+            Object.assign(baseHeader, {
+              "Number of Appt Requests": "Number of Appt Requests",
+            });
+          }
+
+          finalRecords.push(baseHeader);
           currentGroup = record.Filter;
         }
         finalRecords.push({ ...record, isBold: false });
@@ -348,32 +395,46 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
     processGroup(records);
 
-    const sheetData = finalRecords.map(record => [
-      record.Week,
-      record.Filter,
-      record.Filter2,
-      record["Impr."],
-      record["Clicks"],
-      record["Cost"],
-      record["CPC"],
-      record["CTR"],
-      record["Conversion"],
-      record["Cost Per Conv"],
-      record["Conv. Rate"],
-      record["Leads"],
-      record["CPL"],
-      record["Calls from Ads - Local SEO"],
-      record["Book Now Form Local SEO"],
-      record["Phone No. Click Local SEO"],
-      record["Booked"],
-      record["Arrived"],
-      record["Archived"],
-      record["Cancelled"],
-      record["No Show"],
-      record["Never Booked"],
-      record["Rescheduled"],
-      // record["Conv Value per Time"],
-    ]);
+    const sheetData = finalRecords.map(record => {
+      const baseData = [
+        record.Week,
+        record.Filter,
+        record.Filter2,
+        record["Impr."],
+        record["Clicks"],
+        record["Cost"],
+        record["CPC"],
+        record["CTR"],
+        record["Conversion"],
+        record["Cost Per Conv"],
+        record["Conv. Rate"],
+        record["Leads"],
+        record["CPL"],
+        record["Calls from Ads - Local SEO"],
+        record["Book Now Form Local SEO"],
+        record["Phone No. Click Local SEO"],
+        record["Booked"],
+        record["Arrived"],
+        record["Archived"],
+        record["Cancelled"],
+        record["No Show"],
+        record["Never Booked"],
+        record["Rescheduled"]
+        // record["Conv Value per Time"],
+      ];
+    
+      if (record.Filter === "AZ") {
+        baseData.push(
+          record["Number of Appt Requests Phoenix"],
+          record["Number of Appt Requests Tucson"],
+          record["Number of Appt Requests Total"]
+        );
+      } else {
+        baseData.push(record["Number of Appt Requests"]);
+      }
+    
+      return baseData;
+    });
 
     const dataToSend = {
       // AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
@@ -524,15 +585,84 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
         };
       });
     }
-
     return result;
   } catch (error) {
     console.error("Error generating test data:", error);
   }
 };
 
+const sendBookings = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  const sheets = google.sheets({ version: 'v4', auth });
+  const sourceSpreadsheetId = process.env.SHEET_MOBILE_DRIP;
+  const sourceDataRanges = {
+    "AZ_Phoenix": "AZ Phoenix Bookings Data!A2:D",
+    "AZ_Tucson": "AZ Tucson Bookings Data!A2:D",
+    "LV": "LV Bookings Data!A2:D",
+    "NYC": "NY Bookings Data!A2:D",
+  };
+
+  try {
+    const startDate = new Date('2024-11-11');
+    const result = { AZ: [], LV: [], NYC: [] };
+    const weeklyData = { AZ: {}, LV: {}, NYC: {} };
+
+    for (const [location, range] of Object.entries(sourceDataRanges)) {
+      const { data: { values: rows } } = await sheets.spreadsheets.values.get({
+        spreadsheetId: sourceSpreadsheetId,
+        range,
+      });
+      if (!rows) continue;
+
+      rows.forEach(([date, , , count]) => {
+
+        if (!date || !count || isNaN(count) || new Date(date) < startDate) return;
+      
+        const currentRowDate = new Date(date);
+        const dayOfWeek = currentRowDate.getDay();
+        const diffToMonday = (dayOfWeek + 6) % 7;
+
+        const weekStart = new Date(currentRowDate);
+        weekStart.setDate(currentRowDate.getDate() - diffToMonday);
+      
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        const weekLabel = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')} - ${weekEnd.getFullYear()}-${(weekEnd.getMonth() + 1).toString().padStart(2, '0')}-${weekEnd.getDate().toString().padStart(2, '0')}`;
+      
+        if (location.startsWith("AZ_")) {
+          const subLocation = location.replace("AZ_", "");
+          weeklyData.AZ[weekLabel] = weeklyData.AZ[weekLabel] || { Phoenix: 0, Tucson: 0 };
+          weeklyData.AZ[weekLabel][subLocation] += parseInt(count, 10);
+        } else {
+          weeklyData[location][weekLabel] = (weeklyData[location][weekLabel] || 0) + parseInt(count, 10);
+        }
+      });      
+    }
+
+    for (const [week, data] of Object.entries(weeklyData.AZ)) {
+      result.AZ.push({ week, data });
+    }
+    for (const [week, count] of Object.entries(weeklyData.LV)) {
+      result.LV.push({ week, data: count });
+    }
+    for (const [week, count] of Object.entries(weeklyData.NYC)) {
+      result.NYC.push({ week, data: count });
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error generating weekly data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
-  sendJaneToGoogleSheetsMIV
+  sendJaneToGoogleSheetsMIV,
+  sendBookings
 };

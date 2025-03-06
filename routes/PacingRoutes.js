@@ -6,6 +6,7 @@ const {
   sendFinalPacingReportToAirtable,
   sendLPCBudgettoGoogleSheets,
   sendTWtoGoogleSheets,
+  sendSubPacingReport
 } = require("../controllers/PacingReport");
 
 router.get("/test", async (req, res) => {

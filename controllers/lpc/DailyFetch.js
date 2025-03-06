@@ -74,19 +74,19 @@ function formatDate(dateString) {
 async function getCampaigns() {
   try {
     const initialResponse = await axios.get(
-      "https://api.lawmatics.com/v1/prospects?page=1&fields=created_at,stage",
+      "https://api.lawmatics.com/v1/prospects?page=1&fields=created_at,stage,events",
       { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
     );
 
     const totalPages = initialResponse.data.meta?.total_pages || 1;
     const requests = Array.from({ length: totalPages }, (_, i) =>
       axios.get(
-        `https://api.lawmatics.com/v1/prospects?page=${i + 1}&fields=created_at,stage`,
+        `https://api.lawmatics.com/v1/prospects?page=${i + 1}&fields=created_at,stage,events`,
         { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
       )
     );
     const responses = await Promise.all(requests);
-    
+
     const allCampaigns = responses.flatMap(response =>
       response.data.stages || response.data.data || response.data.results || []
     );
@@ -99,6 +99,17 @@ async function getCampaigns() {
       "21574": "Strategy Session Scheduled",
       "60522": "Strategy Session - Time Remaining",
       "21575": "Strategy Session - Not moving forward",
+      "21578": "Pending Review with Firm",
+      "21579": "Pending Engagement",
+    };
+
+    const formatDateToMMDDYYYY = (dateString) => {
+      if (!dateString) return null;
+      const date = new Date(dateString);
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
     };
 
     const filteredCampaigns = allCampaigns
@@ -106,16 +117,132 @@ async function getCampaigns() {
         const createdAt = attributes?.created_at;
         const stageId = relationships?.stage?.data?.id;
         if (!createdAt || !stageMapping[stageId]) return false;
-        return new Date(new Date(createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })) >=
-          new Date("2025-01-01T00:00:00-08:00");
+
+        const createdDate = new Date(
+          new Date(createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+        );
+
+        return createdDate >= new Date("2025-01-01T00:00:00-08:00");
       })
       .map(({ attributes, relationships }) => ({
         created_at: formatDate(attributes.created_at),
         stage: stageMapping[relationships.stage.data.id],
+        event: relationships?.events?.data?.length 
+          ? relationships.events.data[0].id 
+          : null,
       }));
 
-    // console.log("All Campaigns:", JSON.stringify(filteredCampaigns, null, 2));
-    return filteredCampaigns;
+    const eventRequests = filteredCampaigns
+      .filter(campaign => campaign.event) 
+      .map(campaign =>
+        axios.get(`https://api.lawmatics.com/v1/events/${campaign.event}`, {
+          headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }
+        })
+        .then(response => ({
+          event: campaign.event,
+          event_start: formatDateToMMDDYYYY(response.data.data.attributes.start_date)
+        }))
+        .catch(error => ({
+          event: campaign.event,
+          event_start: null
+        }))
+      );
+
+    const eventResponses = await Promise.all(eventRequests);
+
+    const finalCampaigns = filteredCampaigns.map(campaign => {
+      const eventData = eventResponses.find(event => event.event === campaign.event);
+      return {
+        ...campaign,
+        event_start: eventData ? eventData.event_start : null
+      };
+    });
+
+    console.log("Final Campaigns:", JSON.stringify(finalCampaigns, null, 2));
+    return finalCampaigns;
+  } catch (error) {
+    throw new Error(
+      error.response ? error.response.data : error.message
+    );
+  }
+};
+
+async function getRawCampaigns() {
+  try {
+    const initialResponse = await axios.get(
+      "https://api.lawmatics.com/v1/prospects?page=1&fields=created_at,stage,events",
+      { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
+    );
+
+    const totalPages = initialResponse.data.meta?.total_pages || 1;
+    const requests = Array.from({ length: totalPages }, (_, i) =>
+      axios.get(
+        `https://api.lawmatics.com/v1/prospects?page=${i + 1}&fields=created_at,stage,events`,
+        { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
+      )
+    );
+    const responses = await Promise.all(requests);
+
+    const allCampaigns = responses.flatMap(response =>
+      response.data.stages || response.data.data || response.data.results || []
+    );
+
+    const formatDateToMMDDYYYY = (dateString) => {
+      if (!dateString) return null;
+      const date = new Date(dateString);
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    };
+
+    const filteredCampaigns = allCampaigns
+      .filter(({ attributes }) => {
+        const createdAt = attributes?.created_at;
+        if (!createdAt) return false;
+
+        const createdDate = new Date(
+          new Date(createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+        );
+
+        return createdDate >= new Date("2024-12-29T00:00:00-08:00");
+      })
+      .map(({ attributes, relationships }) => ({
+        created_at: formatDateToMMDDYYYY(attributes.created_at),
+        stage_id: relationships?.stage?.data?.id || null,
+        event: relationships?.events?.data?.length 
+          ? relationships.events.data[0].id 
+          : null,
+      }));
+
+    const eventRequests = filteredCampaigns
+      .filter(campaign => campaign.event) 
+      .map(campaign =>
+        axios.get(`https://api.lawmatics.com/v1/events/${campaign.event}`, {
+          headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }
+        })
+        .then(response => ({
+          event: campaign.event,
+          event_start: formatDateToMMDDYYYY(response.data.data.attributes.start_date)
+        }))
+        .catch(error => ({
+          event: campaign.event,
+          event_start: null
+        }))
+      );
+
+    const eventResponses = await Promise.all(eventRequests);
+
+    const finalCampaigns = filteredCampaigns.map(campaign => {
+      const eventData = eventResponses.find(event => event.event === campaign.event);
+      return {
+        ...campaign,
+        event_start: eventData ? eventData.event_start : null
+      };
+    });
+
+    // console.log("Final Campaigns:", JSON.stringify(finalCampaigns, null, 2));
+    return finalCampaigns;
   } catch (error) {
     throw new Error(
       error.response ? error.response.data : error.message
@@ -245,7 +372,9 @@ const dailyReport = async (req, res) => {
     const validValuesForE = [
       "Strategy Session Scheduled",
       "Strategy Session - Not moving forward",
-      "Strategy Session - Time Remaining"
+      "Strategy Session - Time Remaining",
+      "Pending Review with Firm",
+      "Pending Engagement",
     ];
 
     // Store previous "Yes" values mapped by Date + Time
@@ -376,6 +505,86 @@ const dailyToWeekly = async (req, res) => {
   }
 };
 
+const getWeeklyCampaigns = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const dataRanges = {
+    Weekly: 'Weekly Report!A2:F',
+    Spend: 'Google & Bing Monthly Ad Spend!A2:B',
+  };
+
+  try {
+    const allCampaigns = await getRawCampaigns();
+    const lpcData = await fetchAndAggregateLPCData(req, res);
+    const spendRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges.Spend });
+    
+    const spendMap = Object.fromEntries(
+      spendRes.data.values.map(([month, spend]) => [
+        month.trim(),
+        parseFloat(String(spend).replace(/[$,]/g, '')) || 0,
+      ])
+    );
+
+    const startDate = new Date("2024-12-29");
+    const weeks = {};
+    const nopeStages = new Set(["80193", "113690", "21589"]);
+
+    allCampaigns.forEach(({ created_at, stage_id, event_start }) => {
+      if (!created_at) return;
+      const createdDate = new Date(
+        new Date(created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+      );
+      if (createdDate < startDate) return;
+
+      let weekStart = new Date(createdDate);
+      weekStart.setDate(createdDate.getDate() - createdDate.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const weekLabel = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+      const monthKey = `${weekStart.toLocaleString('en-US', { month: 'short' })}-${weekStart.getFullYear().toString().slice(-2)}`;
+
+      if (!weeks[weekLabel]) {
+        weeks[weekLabel] = [weekLabel, 0, 0, 0, spendMap[monthKey], 0];
+      }
+
+      weeks[weekLabel][1]++;
+      if (stage_id && nopeStages.has(stage_id)) {
+        weeks[weekLabel][2]++;
+      }
+
+      if (event_start) {
+        weeks[weekLabel][3]++;
+      }
+    });
+
+    lpcData.forEach(({ date, clicks }) => {
+      if (weeks[date]) weeks[date][5] = clicks;
+    });
+
+    const sortedWeeks = Object.values(weeks).sort(
+      (a, b) => new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0])
+    );
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: dataRanges.Weekly,
+      valueInputOption: 'RAW',
+      resource: { values: sortedWeeks },
+    });
+    
+    console.log("Weekly campaign data successfully updated!");
+  } catch (error) {
+    console.error("Error processing weekly campaigns:", error);
+  }
+};
+
 const runDailyExportAndReport = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
@@ -468,7 +677,7 @@ const runDailyExportAndReport = async (req, res) => {
 const runFullReportProcess = async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
-    await dailyToWeekly(req, res);
+    await getWeeklyCampaigns(req, res);
     console.log("Full report process completed");
   } catch (error) {
     console.error("Error in full report process:", error);
@@ -477,9 +686,11 @@ const runFullReportProcess = async (req, res) => {
 
 module.exports = {
   getCampaigns,
+  getRawCampaigns,
   dailyExport,
   dailyReport,
   dailyToWeekly,
+  getWeeklyCampaigns,
   runDailyExportAndReport,
-  runFullReportProcess
+  runFullReportProcess,
 };
