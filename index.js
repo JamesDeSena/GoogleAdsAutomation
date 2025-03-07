@@ -19,6 +19,7 @@ const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } 
 const { runFullReportProcess } = require('./controllers/lpc/DailyFetch');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
+const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
 
 app.use(express.json());
 
@@ -98,6 +99,7 @@ const morningJobs2 = [
   sendBlendedCACToGoogleSheetsHS,
   sendSubPacingReport,
   sendFinalMonthlyReportToGoogleSheetsHS,
+  sendFinalMonthlyReportToGoogleSheetsMIV,
 ];
 
 const eveningJobs2 = [

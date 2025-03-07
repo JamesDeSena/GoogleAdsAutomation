@@ -4,63 +4,55 @@ const { getStoredRefreshToken } = require("../GoogleAuth");
 
 let storedDateRanges = null;
 
-const generateWeeklyDateRanges = (startDate, endDate) => {
+const generateMonthlyDateRanges = (startDate, endDate) => {
   const dateRanges = [];
-  let currentStartDate = new Date(startDate);
+  let currentMonthStart = new Date(`${startDate}-01T00:00:00Z`); // Normalize to UTC
 
-  const adjustedEndDate = new Date(endDate);
-  const daysToSunday = (7 - adjustedEndDate.getDay()) % 7;
-  adjustedEndDate.setDate(adjustedEndDate.getDate() + daysToSunday);
+  while (currentMonthStart <= endDate) {
+    const currentMonthEnd = new Date(Date.UTC(
+      currentMonthStart.getUTCFullYear(),
+      currentMonthStart.getUTCMonth() + 1, // Move to next month
+      0 // Last day of the current month
+    ));
 
-  while (currentStartDate <= adjustedEndDate) {
-    let currentEndDate = new Date(currentStartDate);
-    currentEndDate.setDate(currentStartDate.getDate() + 6);
+    const adjustedEndDate = currentMonthEnd > endDate ? endDate : currentMonthEnd;
 
     dateRanges.push({
-      start: currentStartDate.toISOString().split("T")[0],
-      end: currentEndDate.toISOString().split("T")[0],
+      start: currentMonthStart.toISOString().split('T')[0],
+      end: adjustedEndDate.toISOString().split('T')[0],
     });
 
-    currentStartDate.setDate(currentStartDate.getDate() + 7);
+    // Move to the 1st of the next month
+    currentMonthStart = new Date(Date.UTC(
+      currentMonthStart.getUTCFullYear(),
+      currentMonthStart.getUTCMonth() + 1,
+      1
+    ));
   }
 
   return dateRanges;
 };
 
-const getOrGenerateDateRanges = (inputStartDate = null) => {
+const getOrGenerateDateRanges = () => {
   const today = new Date();
-  const dayOfWeek = today.getDay();
-  const daysSinceLast = (dayOfWeek + 6) % 7; //Friday (dayOfWeek + 1) % 7; Monday (dayOfWeek + 6) % 7;
+  const startDate = '2024-12';
+  const endDate = today; 
 
-  const previousLast = new Date(today);
-  previousLast.setDate(today.getDate() - daysSinceLast);
-
-  const currentDay = new Date(previousLast);
-  currentDay.setDate(previousLast.getDate() + 6);
-
-  const startDate = '2024-11-11'; //previousFriday 2024-09-13 / 11-11
-  // const fixedEndDate = '2024-11-07'; // currentDay
-
-  const endDate = currentDay; //new Date(fixedEndDate); //currentDay;
-
-  if (inputStartDate) {
-    return generateWeeklyDateRanges(inputStartDate, new Date(new Date(inputStartDate).setDate(new Date(inputStartDate).getDate() + 6)));
-  } else {
-    if (
-      !storedDateRanges ||
-      new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate
-    ) {
-      storedDateRanges = generateWeeklyDateRanges(startDate, endDate);
-    }
-    return storedDateRanges;
+  if (!storedDateRanges || new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate) {
+    storedDateRanges = generateMonthlyDateRanges(startDate, endDate);
   }
+
+  return storedDateRanges;
 };
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
-const aggregateDataForWeek = async (customer, startDate, endDate ) => {
+const aggregateDataForMonth = async (customer, startDate, endDate ) => {
+  const startDateObj = new Date(startDate);
+  const formattedDate = `${startDateObj.getFullYear()}-${(startDateObj.getMonth() + 1).toString().padStart(2, '0')}`;
+  
   const aggregatedData = {
-    date: `${startDate} - ${endDate}`,
+    date: formattedDate,
     impressions: 0,
     clicks: 0,
     cost: 0,
@@ -139,7 +131,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
   return aggregatedData;
 };
 
-const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
+const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
   const refreshToken_Google = getStoredRefreshToken();
 
   if (!refreshToken_Google) {
@@ -156,13 +148,13 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
     
     // const dateRanges = getOrGenerateDateRanges();
 
-    const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
-      return aggregateDataForWeek(customer, start, end);
+    const allMonthlyDataPromises = dateRanges.map(({ start, end }) => {
+      return aggregateDataForMonth(customer, start, end);
     });
 
-    const allWeeklyData = await Promise.all(allWeeklyDataPromises);
+    const allMonthlyData = await Promise.all(allMonthlyDataPromises);
 
-    return allWeeklyData;
+    return allMonthlyData;
   } catch (error) {
     console.error("Error fetching report data:", error);
     // res.status(500).send("Error fetching report data");
@@ -170,17 +162,17 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportN
 };
 
 const createFetchFunction = (campaignNameFilter, reportName) => {
-  return (req, res, dateRanges) => fetchReportDataWeeklyFilter(req, res, campaignNameFilter, reportName, dateRanges);
+  return (req, res, dateRanges) => fetchReportDataMonthlyFilter(req, res, campaignNameFilter, reportName, dateRanges);
 };
 
 const fetchFunctions = {
-  fetchReportDataWeeklyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, "Mobile IV Drip AZ"),
-  fetchReportDataWeeklyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV, "Mobile IV Drip LV"),
-  fetchReportDataWeeklyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC, "Mobile IV Drip NYC"),
+  fetchReportDatamonthlyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, "Mobile IV Drip AZ"),
+  fetchReportDatamonthlyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV, "Mobile IV Drip LV"),
+  fetchReportDatamonthlyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC, "Mobile IV Drip NYC"),
 };
 
 const executeSpecificFetchFunctionMIV = async (req, res) => {
-  const functionName = "fetchReportDataWeeklyAZ";
+  const functionName = "fetchReportDatamonthlyAZ";
   const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
     const data = await fetchFunctions[functionName](req, res, dateRanges);
@@ -191,7 +183,7 @@ const executeSpecificFetchFunctionMIV = async (req, res) => {
   }
 };
 
-const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
+const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -200,18 +192,16 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    AZLive: 'AZ Weekly!A2:AA',
-    LVLive: 'LV Weekly!A2:Y',
-    NYCLive: 'NYC Weekly!A2:Y',
+    Monthly: 'Monthly View!A2:T',
   };
 
   try {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const dripAZ = await fetchFunctions.fetchReportDataWeeklyAZ(req, res, dateRanges);
-    const dripLV = await fetchFunctions.fetchReportDataWeeklyLV(req, res, dateRanges);
-    const dripNYC = await fetchFunctions.fetchReportDataWeeklyNYC(req, res, dateRanges);
+    const dripAZ = await fetchFunctions.fetchReportDatamonthlyAZ(req, res, dateRanges);
+    const dripLV = await fetchFunctions.fetchReportDatamonthlyLV(req, res, dateRanges);
+    const dripNYC = await fetchFunctions.fetchReportDatamonthlyNYC(req, res, dateRanges);
 
     const janeData = await sendJaneToGoogleSheetsMIV(req, res);
     const bookingData = await sendBookings(req, res);
@@ -225,88 +215,17 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const bookingNY = bookingData.NYC || [];
 
     const records = [];
-    const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
     const formatCurrency = (value) => `$${value.toFixed(2)}`;
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
-
-    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, bookingRecords, filter, filter2) => {
-      const janeLastRecord = janeRecords.find(j => j.week === lastRecord.date) || {};
-      const janeSecondToLastRecord = janeRecords.find(j => j.week === secondToLastRecord.date) || {};
-      const bookingLastRecord = bookingRecords.find(j => j.week === lastRecord.date) || {};
-      const bookingSecondToLastRecord = bookingRecords.find(j => j.week === secondToLastRecord.date) || {};
-    
-      const baseRecord = {
-        Week: "WoW Variance %",
-        Filter: filter,
-        Filter2: filter2,
-        "Impr.": formatPercentage(calculateWoWVariance(lastRecord.impressions, secondToLastRecord.impressions)),
-        "Clicks": formatPercentage(calculateWoWVariance(lastRecord.clicks, secondToLastRecord.clicks)),
-        "Cost": formatPercentage(calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost)),
-        "CPC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
-        "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
-        "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
-        "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
-        "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "Leads": formatPercentage(calculateWoWVariance(janeLastRecord.allBook, janeSecondToLastRecord.allBook)),
-        "CPL": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
-      };
-    
-      if (filter === "AZ") {
-        Object.assign(baseRecord, {
-          "Number of Appt Requests Total": formatPercentage(calculateWoWVariance(
-            (bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0),
-            (bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0)
-          )),
-        });
-      } else {
-        Object.assign(baseRecord, {
-          "Number of Appt Requests": formatPercentage(calculateWoWVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
-        });
-      }
-    
-      Object.assign(baseRecord, {
-        "CAC": filter === "AZ"
-          ? formatPercentage(calculateWoWVariance(
-              lastRecord.cost / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
-              secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
-            ))
-          : formatPercentage(calculateWoWVariance(
-              lastRecord.cost / (bookingLastRecord.data || 0),
-              secondToLastRecord.cost / (bookingSecondToLastRecord.data || 0)
-            )),
-        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
-        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
-        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
-      });
-    
-      if (filter === "AZ") {
-        Object.assign(baseRecord, {
-          "Number of Appt Requests Phoenix": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Phoenix, bookingSecondToLastRecord.data?.Phoenix)),
-          "Number of Appt Requests Tucson": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Tucson, bookingSecondToLastRecord.data?.Tucson)),
-        });
-      }
-    
-      Object.assign(baseRecord, {
-        "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked, janeSecondToLastRecord.booked)),
-        "Arrived": formatPercentage(calculateWoWVariance(janeLastRecord.arrived, janeSecondToLastRecord.arrived)),
-        "Archived": formatPercentage(calculateWoWVariance(janeLastRecord.archived, janeSecondToLastRecord.archived)),
-        "Cancelled": formatPercentage(calculateWoWVariance(janeLastRecord.cancelled, janeSecondToLastRecord.cancelled)),
-        "No Show": formatPercentage(calculateWoWVariance(janeLastRecord.no_show, janeSecondToLastRecord.no_show)),
-        "Never Booked": formatPercentage(calculateWoWVariance(janeLastRecord.never_booked, janeSecondToLastRecord.never_booked)),
-        "Rescheduled": formatPercentage(calculateWoWVariance(janeLastRecord.rescheduled, janeSecondToLastRecord.rescheduled)),
-      });
-    
-      records.push(baseRecord);
-    };    
-
+   
     const addDataToRecords = (data, janeData, bookingData, filter, filter2) => { 
       data.forEach((record) => {
-        const janeRecord = janeData.find(j => j.week === record.date) || {};
-        const bookingRecord = bookingData.find(j => j.week === record.date) || {};
+        const janeRecord = janeData.find(j => j.month === record.date) || {};
+        const bookingRecord = bookingData.find(j => j.month === record.date) || {};
         const baseRecord = {
-          Week: record.date,
+          month: record.date,
           Filter: filter,
           Filter2: filter2,
           "Impr.": formatNumber(record.impressions),
@@ -349,16 +268,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           });
         }
     
-        Object.assign(baseRecord, {
-          "Booked": formatNumber(janeRecord.booked || 0),
-          "Arrived": formatNumber(janeRecord.arrived || 0),
-          "Archived": formatNumber(janeRecord.archived || 0),
-          "Cancelled": formatNumber(janeRecord.cancelled || 0),
-          "No Show": formatNumber(janeRecord.no_show || 0),
-          "Never Booked": formatNumber(janeRecord.never_booked || 0),
-          "Rescheduled": formatNumber(janeRecord.rescheduled || 0),
-        });
-    
         records.push(baseRecord);
       });
     };    
@@ -366,12 +275,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     addDataToRecords(dripAZ, janeAZ, bookingAZ, "AZ", 1);
     addDataToRecords(dripLV, janeLV, bookingLV, "LV", 2);
     addDataToRecords(dripNYC, janeNYC, bookingNY, "NYC", 3);
-
-    if (!date || date.trim() === '') {
-      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, bookingAZ, "AZ", 1);
-      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, bookingLV, "LV", 2);
-      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, bookingNY, "NYC", 3);
-    }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
@@ -383,7 +286,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       records.forEach(record => {
         if (record.Filter !== currentGroup) {
           const baseHeader = {
-            Week: record.Filter,
+            month: record.Filter,
             Filter: "Filter",
             Filter2: "Filter2",
             "Impr.": "Impr.",
@@ -421,25 +324,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
               "Number of Appt Requests Tucson": "Number of Appt Requests Tucson",
             });
           }
-    
-          Object.assign(baseHeader, {
-            "Booked": "Booked",
-            "Arrived": "Arrived",
-            "Archived": "Archived",
-            "Cancelled": "Cancelled",
-            "No Show": "No Show",
-            "Never Booked": "Never Booked",
-            "Rescheduled": "Rescheduled",
-          });
 
           finalRecords.push(baseHeader);
           currentGroup = record.Filter;
         }
     
         finalRecords.push({ ...record, isBold: false });
-        if (record.Week === "WoW Variance %") {
-          finalRecords.push({ Week: "", Filter: "", Filter2: "", isBold: false });
-        }
       });
     }    
 
@@ -447,7 +337,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
 
     const sheetData = finalRecords.map(record => {
       const baseData = [
-        record.Week,
+        record.month,
         record.Filter,
         record.Filter2,
         record["Impr."],
@@ -481,16 +371,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           record["Number of Appt Requests Tucson"]
         );
       }
-    
-      baseData.push(
-        record["Booked"],
-        record["Arrived"],
-        record["Archived"],
-        record["Cancelled"],
-        record["No Show"],
-        record["Never Booked"],
-        record["Rescheduled"]
-      );
       
       return baseData;
     });    
@@ -499,9 +379,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       // AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
       // LV: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
       // NYC: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
-      AZLive: sheetData.filter(row => ["AZ"].includes(row[1])),
-      LVLive: sheetData.filter(row => ["LV"].includes(row[1])),
-      NYCLive: sheetData.filter(row => ["NYC"].includes(row[1])),
+      Monthly: sheetData,
     };    
 
     const formatSheets = async (sheetName, data) => {
@@ -547,7 +425,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       await formatSheets(sheetName, data);
     }    
 
-    console.log("Final Mobile IV Drip weekly report sent to Google Sheets successfully!");
+    console.log("Final Mobile IV Drip monthly report sent to Google Sheets successfully!");
   } catch (error) {
     console.error("Error sending final report to Google Sheets:", error);
   }
@@ -583,9 +461,9 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
     }
 
     const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "never_booked", "rescheduled"]);
-    const startDate = new Date('2024-11-11');
-    const weeksByLocation = {};
-    const totalBookedByWeek = {};
+    const startDate = new Date('2024-11-01');
+    const monthsByLocation = {};
+    const totalBookedByMonth = {};
 
     rows.forEach(row => {
       const name = row[1];
@@ -595,52 +473,43 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
       if (!date || !validStatuses.has(status) || new Date(date) < startDate) return;
 
       const currentRowDate = new Date(date);
-      const dayOfWeek = currentRowDate.getDay();
-      const diffToMonday = (dayOfWeek + 6) % 7;
+      const monthLabel = `${currentRowDate.getFullYear()}-${(currentRowDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-      const weekStart = new Date(currentRowDate);
-      weekStart.setDate(currentRowDate.getDate() - diffToMonday);
-
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-
-      const weekLabel = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')} - ${weekEnd.getFullYear()}-${(weekEnd.getMonth() + 1).toString().padStart(2, '0')}-${weekEnd.getDate().toString().padStart(2, '0')}`;
-
-      if (!weeksByLocation[name]) {
-        weeksByLocation[name] = {};
+      if (!monthsByLocation[name]) {
+        monthsByLocation[name] = {};
       }
 
-      if (!weeksByLocation[name][weekLabel]) {
-        weeksByLocation[name][weekLabel] = { arrived: 0, booked: 0, archived: 0, cancelled: 0, no_show: 0, never_booked: 0, rescheduled: 0 };
+      if (!monthsByLocation[name][monthLabel]) {
+        monthsByLocation[name][monthLabel] = { arrived: 0, booked: 0, archived: 0, cancelled: 0, no_show: 0, never_booked: 0, rescheduled: 0 };
       }
 
-      weeksByLocation[name][weekLabel][status]++;
+      monthsByLocation[name][monthLabel][status]++;
 
-      if (!totalBookedByWeek[weekLabel]) {
-        totalBookedByWeek[weekLabel] = 0;
+      if (!totalBookedByMonth[monthLabel]) {
+        totalBookedByMonth[monthLabel] = 0;
       }
 
       if (status === "booked") {
-        totalBookedByWeek[weekLabel]++;
+        totalBookedByMonth[monthLabel]++;
       }
     });
 
     const result = {};
-    for (const name in weeksByLocation) {
+    for (const name in monthsByLocation) {
       const sheetKey = sheetNames[name] || "Other";
-      result[sheetKey] = Object.keys(weeksByLocation[name]).map(weekLabel => {
-        const weekData = weeksByLocation[name][weekLabel];
+      result[sheetKey] = Object.keys(monthsByLocation[name]).map(monthLabel => {
+        const monthData = monthsByLocation[name][monthLabel];
         return {
-          week: weekLabel,
-          allData: (weekData.arrived + weekData.booked + weekData.archived + weekData.cancelled + weekData.no_show + weekData.never_booked + weekData.rescheduled) || 0, 
-          allBook: totalBookedByWeek[weekLabel] || 0,
-          arrived: weekData.arrived || 0,
-          booked: weekData.booked || 0,
-          archived: weekData.archived || 0,
-          cancelled: weekData.cancelled || 0,
-          no_show: weekData.no_show || 0,
-          never_booked: weekData.never_booked || 0,
-          rescheduled: weekData.rescheduled || 0,
+          month: monthLabel,
+          allData: (monthData.arrived + monthData.booked + monthData.archived + monthData.cancelled + monthData.no_show + monthData.never_booked + monthData.rescheduled) || 0, 
+          allBook: totalBookedByMonth[monthLabel] || 0,
+          arrived: monthData.arrived || 0,
+          booked: monthData.booked || 0,
+          archived: monthData.archived || 0,
+          cancelled: monthData.cancelled || 0,
+          no_show: monthData.no_show || 0,
+          never_booked: monthData.never_booked || 0,
+          rescheduled: monthData.rescheduled || 0,
         };
       });
     }
@@ -667,7 +536,7 @@ const sendBookings = async (req, res) => {
   try {
     const startDate = new Date('2024-11-11');
     const result = { AZ: [], LV: [], NYC: [] };
-    const weeklyData = { AZ: {}, LV: {}, NYC: {} };
+    const monthlyData = { AZ: {}, LV: {}, NYC: {} };
 
     for (const [location, range] of Object.entries(sourceDataRanges)) {
       const { data: { values: rows } } = await sheets.spreadsheets.values.get({
@@ -677,51 +546,40 @@ const sendBookings = async (req, res) => {
       if (!rows) continue;
 
       rows.forEach(([date, , , count]) => {
-
         if (!date || !count || isNaN(count) || new Date(date) < startDate) return;
-      
+
         const currentRowDate = new Date(date);
-        const dayOfWeek = currentRowDate.getDay();
-        const diffToMonday = (dayOfWeek + 6) % 7;
+        const monthLabel = `${currentRowDate.getFullYear()}-${(currentRowDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-        const weekStart = new Date(currentRowDate);
-        weekStart.setDate(currentRowDate.getDate() - diffToMonday);
-      
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-
-        const weekLabel = `${weekStart.getFullYear()}-${(weekStart.getMonth() + 1).toString().padStart(2, '0')}-${weekStart.getDate().toString().padStart(2, '0')} - ${weekEnd.getFullYear()}-${(weekEnd.getMonth() + 1).toString().padStart(2, '0')}-${weekEnd.getDate().toString().padStart(2, '0')}`;
-      
         if (location.startsWith("AZ_")) {
           const subLocation = location.replace("AZ_", "");
-          weeklyData.AZ[weekLabel] = weeklyData.AZ[weekLabel] || { Phoenix: 0, Tucson: 0 };
-          weeklyData.AZ[weekLabel][subLocation] += parseInt(count, 10);
+          monthlyData.AZ[monthLabel] = monthlyData.AZ[monthLabel] || { Phoenix: 0, Tucson: 0 };
+          monthlyData.AZ[monthLabel][subLocation] += parseInt(count, 10);
         } else {
-          weeklyData[location][weekLabel] = (weeklyData[location][weekLabel] || 0) + parseInt(count, 10);
+          monthlyData[location][monthLabel] = (monthlyData[location][monthLabel] || 0) + parseInt(count, 10);
         }
       });      
     }
 
-    for (const [week, data] of Object.entries(weeklyData.AZ)) {
-      result.AZ.push({ week, data });
+    for (const [month, data] of Object.entries(monthlyData.AZ)) {
+      result.AZ.push({ month, data });
     }
-    for (const [week, count] of Object.entries(weeklyData.LV)) {
-      result.LV.push({ week, data: count });
+    for (const [month, count] of Object.entries(monthlyData.LV)) {
+      result.LV.push({ month, data: count });
     }
-    for (const [week, count] of Object.entries(weeklyData.NYC)) {
-      result.NYC.push({ week, data: count });
+    for (const [month, count] of Object.entries(monthlyData.NYC)) {
+      result.NYC.push({ month, data: count });
     }
-
     return result;
   } catch (error) {
-    console.error("Error generating weekly data:", error);
+    console.error("Error generating monthly data:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
 module.exports = {
   executeSpecificFetchFunctionMIV,
-  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendFinalMonthlyReportToGoogleSheetsMIV,
   sendJaneToGoogleSheetsMIV,
   sendBookings
 };
