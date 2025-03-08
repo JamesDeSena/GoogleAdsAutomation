@@ -200,9 +200,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    AZLive: 'AZ Weekly!A2:AA',
-    LVLive: 'LV Weekly!A2:Y',
-    NYCLive: 'NYC Weekly!A2:Y',
+    AZLive: 'AZ Weekly!A2:AB',
+    LVLive: 'LV Weekly!A2:Z',
+    NYCLive: 'NYC Weekly!A2:Z',
   };
 
   try {
@@ -249,8 +249,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "Leads": formatPercentage(calculateWoWVariance(janeLastRecord.allBook, janeSecondToLastRecord.allBook)),
-        "CPL": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
       };
     
       if (filter === "AZ") {
@@ -276,6 +274,15 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
               lastRecord.cost / (bookingLastRecord.data || 0),
               secondToLastRecord.cost / (bookingSecondToLastRecord.data || 0)
             )),
+        "Appt Conv Rate": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              lastRecord.clicks / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
+              secondToLastRecord.clicks / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              lastRecord.clicks / (bookingLastRecord.data || 0),
+              secondToLastRecord.clicks / (bookingSecondToLastRecord.data || 0)
+            )),
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
         "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
@@ -289,6 +296,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       }
     
       Object.assign(baseRecord, {
+        "Leads": formatPercentage(calculateWoWVariance(janeLastRecord.allBook, janeSecondToLastRecord.allBook)),
+        "CPL": formatPercentage(calculateWoWVariance(lastRecord.cost / janeLastRecord.booked, secondToLastRecord.cost / janeSecondToLastRecord.booked)),
         "Booked": formatPercentage(calculateWoWVariance(janeLastRecord.booked, janeSecondToLastRecord.booked)),
         "Arrived": formatPercentage(calculateWoWVariance(janeLastRecord.arrived, janeSecondToLastRecord.arrived)),
         "Archived": formatPercentage(calculateWoWVariance(janeLastRecord.archived, janeSecondToLastRecord.archived)),
@@ -317,8 +326,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "Leads": formatNumber(janeRecord.allBook || 0),
-          "CPL": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
         };
     
         if (filter === "AZ") {
@@ -335,8 +342,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         
         Object.assign(baseRecord, {
           "CAC": filter === "AZ"
-            ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 1) 
-            : formatCurrency(record.cost / (bookingRecord.data || 0) || 1),
+            ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 0) 
+            : formatCurrency(record.cost / (bookingRecord.data || 0) || 0),
+          "Appt Conv Rate": filter === "AZ"
+            ? formatPercentage(record.clicks / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 0) 
+            : formatPercentage(record.clicks / (bookingRecord.data || 0) || 0),
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),
@@ -350,6 +360,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         }
     
         Object.assign(baseRecord, {
+          "Leads": formatNumber(janeRecord.allBook || 0),
+          "CPL": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
           "Booked": formatNumber(janeRecord.booked || 0),
           "Arrived": formatNumber(janeRecord.arrived || 0),
           "Archived": formatNumber(janeRecord.archived || 0),
@@ -394,8 +406,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Leads": "Leads",
-            "CPL": "CPL",
           };
     
           if (record.Filter.trim().toUpperCase() === "AZ") {
@@ -410,6 +420,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     
           Object.assign(baseHeader, {
             "CAC": "CAC",
+            "Appt Conv Rate": "Appt Conv Rate",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
@@ -423,6 +434,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           }
     
           Object.assign(baseHeader, {
+            "Leads": "Leads",
+            "CPL": "CPL",
             "Booked": "Booked",
             "Arrived": "Arrived",
             "Archived": "Archived",
@@ -458,8 +471,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-        record["Leads"],
-        record["CPL"],
       ];
     
       if (record.Filter === "AZ") {
@@ -470,6 +481,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     
       baseData.push(
         record["CAC"],
+        record["Appt Conv Rate"],
         record["Calls from Ads - Local SEO"],
         record["Book Now Form Local SEO"],
         record["Phone No. Click Local SEO"]
@@ -483,6 +495,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       }
     
       baseData.push(
+        record["Leads"],
+        record["CPL"],
         record["Booked"],
         record["Arrived"],
         record["Archived"],

@@ -192,7 +192,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    Monthly: 'Monthly View!A2:T',
+    Monthly: 'Monthly View!A2:Q',
   };
 
   try {
@@ -214,67 +214,251 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
     const bookingLV = bookingData.LV || [];
     const bookingNY = bookingData.NYC || [];
 
+    const mergeAndSum = (datasets) => {
+      const mergedData = {};
+
+      datasets.forEach((data) => {
+        data.forEach((entry) => {
+          const { date, month, data, ...metrics } = entry;
+          const key = date || month;
+
+          if (!mergedData[key]) {
+            mergedData[key] = { date: key };
+          }
+
+          Object.keys(metrics).forEach((k) => {
+            mergedData[key][k] = (mergedData[key][k] || 0) + (Number(metrics[k]) || 0);
+          });
+        });
+      });
+
+      return Object.values(mergedData);
+    };
+
+    const total = mergeAndSum([dripAZ, dripLV, dripNYC, janeAZ, janeLV, janeNYC]);
+
+    const addTotalBookings = (totalData, bookings) => {
+      bookings.forEach((booking) => {
+        const { month, data } = booking;
+        const key = month;
+
+        const totalEntry = totalData.find((entry) => entry.date === key);
+        if (totalEntry) {
+          let totalBookings = 0;
+
+          if (typeof data === "object") {
+            totalBookings = Object.values(data).reduce((sum, num) => sum + num, 0);
+          } else if (typeof data === "number") {
+            totalBookings = data;
+          }
+
+          totalEntry.totalBook = (totalEntry.totalBook || 0) + totalBookings;
+        }
+      });
+    };
+
+    addTotalBookings(total, bookingAZ);
+    addTotalBookings(total, bookingLV);
+    addTotalBookings(total, bookingNY);
+
     const records = [];
+    const calculateMoMVariance = (current, previous) => ((current - previous) / previous) * 100;
 
     const formatCurrency = (value) => `$${value.toFixed(2)}`;
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
-   
-    const addDataToRecords = (data, janeData, bookingData, filter, filter2) => { 
-      data.forEach((record) => {
-        const janeRecord = janeData.find(j => j.month === record.date) || {};
-        const bookingRecord = bookingData.find(j => j.month === record.date) || {};
+
+    const getDaysInMonth = (dateString) => {
+      const [year, month] = dateString.split("-").map(Number);
+      return new Date(year, month, 0).getDate();
+    };
+
+    const addMoMVariance = (lastRecord, secondToLastRecord, janeRecords, bookingRecords, filter, filter2) => {
+      const daysInMonthLast = getDaysInMonth(lastRecord.date);
+      const daysInMonthSecond = getDaysInMonth(secondToLastRecord.date);
+      if(filter === "Total"){
+        
         const baseRecord = {
-          month: record.date,
+          Month: "MoM Variance %",
           Filter: filter,
           Filter2: filter2,
-          "Impr.": formatNumber(record.impressions),
-          "Clicks": formatNumber(record.clicks),
-          "Cost": formatCurrency(record.cost),
-          "CPC": formatCurrency(record.cost / record.clicks),
-          "CTR": formatPercentage((record.clicks / record.impressions) * 100),
-          "Conversion": formatNumber(record.conversions),
-          "Cost Per Conv": formatCurrency(record.cost / record.conversions),
-          "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "Leads": formatNumber(janeRecord.allBook || 0),
-          "CPL": janeRecord.booked ? formatCurrency(record.cost / janeRecord.booked) : formatCurrency(0),
+          "Impr.": formatPercentage(calculateMoMVariance(lastRecord.impressions, secondToLastRecord.impressions)),
+          "Clicks": formatPercentage(calculateMoMVariance(lastRecord.clicks, secondToLastRecord.clicks)),
+          "Cost": formatPercentage(calculateMoMVariance(lastRecord.cost, secondToLastRecord.cost)),
+          "CPC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
+          "CTR": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
+          "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
+          "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
+          "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+          "Number of Appt Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook, secondToLastRecord.totalBook)),
+          "CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.totalBook, secondToLastRecord.cost / secondToLastRecord.totalBook)),
+          "Appt Conv Rate": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.totalBook, secondToLastRecord.clicks / secondToLastRecord.totalBook)),
+          "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
+          "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
+          "Daily Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook / daysInMonthLast, secondToLastRecord.totalBook / daysInMonthSecond)),
         };
-    
+
+        records.push(baseRecord);
+      } else {
+        const janeLastRecord = janeRecords.find(j => j.month === lastRecord.date) || {};
+        const janeSecondToLastRecord = janeRecords.find(j => j.month === secondToLastRecord.date) || {};
+        const bookingLastRecord = bookingRecords.find(j => j.month === lastRecord.date) || {};
+        const bookingSecondToLastRecord = bookingRecords.find(j => j.month === secondToLastRecord.date) || {};
+      
+        const baseRecord = {
+          Month: "MoM Variance %",
+          Filter: filter,
+          Filter2: filter2,
+          "Impr.": formatPercentage(calculateMoMVariance(lastRecord.impressions, secondToLastRecord.impressions)),
+          "Clicks": formatPercentage(calculateMoMVariance(lastRecord.clicks, secondToLastRecord.clicks)),
+          "Cost": formatPercentage(calculateMoMVariance(lastRecord.cost, secondToLastRecord.cost)),
+          "CPC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
+          "CTR": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
+          "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
+          "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
+          "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        };
+      
         if (filter === "AZ") {
           Object.assign(baseRecord, {
-            "Number of Appt Requests Total": formatNumber(
-              (bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)
-            ),
+            "Number of Appt Requests Total": formatPercentage(calculateMoMVariance(
+              (bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0),
+              (bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0)
+            )),
           });
         } else {
           Object.assign(baseRecord, {
-            "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
+            "Number of Appt Requests": formatPercentage(calculateMoMVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
           });
         }
-        
+      
         Object.assign(baseRecord, {
+          "Daily Requests": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)) / daysInMonthLast,
+                ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0)) / daysInMonthSecond
+              ))
+            : formatPercentage(calculateMoMVariance(
+                (bookingLastRecord.data || 0) / daysInMonthLast,
+                (bookingSecondToLastRecord.data || 0) / daysInMonthSecond
+              )),
           "CAC": filter === "AZ"
-            ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 1) 
-            : formatCurrency(record.cost / (bookingRecord.data || 0) || 1),
-          "Calls from Ads - Local SEO": formatNumber(record.calls),
-          "Book Now Form Local SEO": formatNumber(record.books),
-          "Phone No. Click Local SEO": formatNumber(record.phone),
+            ? formatPercentage(calculateMoMVariance(
+                lastRecord.cost / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
+                secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
+              ))
+            : formatPercentage(calculateMoMVariance(
+                lastRecord.cost / (bookingLastRecord.data || 0),
+                secondToLastRecord.cost / (bookingSecondToLastRecord.data || 0)
+              )),
+          "Appt Conv Rate": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                lastRecord.clicks / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
+                secondToLastRecord.clicks / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
+              ))
+            : formatPercentage(calculateMoMVariance(
+                lastRecord.clicks / (bookingLastRecord.data || 0),
+                secondToLastRecord.clicks / (bookingSecondToLastRecord.data || 0)
+              )),
+          "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
+          "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         });
-    
-        if (filter === "AZ") {
-          Object.assign(baseRecord, {
-            "Number of Appt Requests Phoenix": formatNumber(bookingRecord.data?.Phoenix || 0),
-            "Number of Appt Requests Tucson": formatNumber(bookingRecord.data?.Tucson || 0),
-          });
-        }
-    
+
         records.push(baseRecord);
-      });
+      }
+    };    
+   
+    const addDataToRecords = (data, janeData, bookingData, filter, filter2) => { 
+      if(filter === "Total"){
+        data.forEach((record) => {
+          const daysInMonth = getDaysInMonth(record.date);
+          const baseRecord = {
+            Month: record.date,
+            Filter: filter,
+            Filter2: filter2,
+            "Impr.": formatNumber(record.impressions),
+            "Clicks": formatNumber(record.clicks),
+            "Cost": formatCurrency(record.cost),
+            "CPC": formatCurrency(record.cost / record.clicks),
+            "CTR": formatPercentage((record.clicks / record.impressions) * 100),
+            "Conversion": formatNumber(record.conversions),
+            "Cost Per Conv": formatCurrency(record.cost / record.conversions),
+            "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+            "Number of Appt Requests": formatNumber(record.totalBook || 0),
+            "Daily Requests": formatNumber((record.totalBook || 0) / daysInMonth ),
+            "CAC": formatCurrency(record.clicks / (record.totalBook || 0) || 1),
+            "Appt Conv Rate": formatCurrency(record.clicks / (record.totalBook || 0) || 1),
+            "Calls from Ads - Local SEO": formatNumber(record.calls),
+            "Book Now Form Local SEO": formatNumber(record.books),
+            "Phone No. Click Local SEO": formatNumber(record.phone),
+          };
+      
+          records.push(baseRecord);
+        });
+      } else {
+        data.forEach((record) => {
+          const daysInMonth = getDaysInMonth(record.date);
+          const janeRecord = janeData.find(j => j.month === record.date) || {};
+          const bookingRecord = bookingData.find(j => j.month === record.date) || {};
+          const baseRecord = {
+            Month: record.date,
+            Filter: filter,
+            Filter2: filter2,
+            "Impr.": formatNumber(record.impressions),
+            "Clicks": formatNumber(record.clicks),
+            "Cost": formatCurrency(record.cost),
+            "CPC": formatCurrency(record.cost / record.clicks),
+            "CTR": formatPercentage((record.clicks / record.impressions) * 100),
+            "Conversion": formatNumber(record.conversions),
+            "Cost Per Conv": formatCurrency(record.cost / record.conversions),
+            "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          };
+      
+          if (filter === "AZ") {
+            Object.assign(baseRecord, {
+              "Number of Appt Requests Total": formatNumber(
+                (bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)
+              ),
+            });
+          } else {
+            Object.assign(baseRecord, {
+              "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
+            });
+          }
+          
+          Object.assign(baseRecord, {
+            "Daily Requests": filter === "AZ"
+              ? formatCurrency((((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) / daysInMonth) || 1) 
+              : formatCurrency(((bookingRecord.data || 0) / daysInMonth) || 1),
+            "CAC": filter === "AZ"
+              ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 1) 
+              : formatCurrency(record.cost / (bookingRecord.data || 0) || 1),
+            "Appt Conv Rate": filter === "AZ"
+              ? formatCurrency(record.clicks / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 1) 
+              : formatCurrency(record.clicks / (bookingRecord.data || 0) || 1),
+            "Calls from Ads - Local SEO": formatNumber(record.calls),
+            "Book Now Form Local SEO": formatNumber(record.books),
+            "Phone No. Click Local SEO": formatNumber(record.phone),
+          });
+      
+          records.push(baseRecord);
+        });
+      }
     };    
 
-    addDataToRecords(dripAZ, janeAZ, bookingAZ, "AZ", 1);
-    addDataToRecords(dripLV, janeLV, bookingLV, "LV", 2);
-    addDataToRecords(dripNYC, janeNYC, bookingNY, "NYC", 3);
+    addDataToRecords(total, [], [], "Total", 1)
+    addDataToRecords(dripAZ, janeAZ, bookingAZ, "AZ", 2);
+    addDataToRecords(dripLV, janeLV, bookingLV, "LV", 3);
+    addDataToRecords(dripNYC, janeNYC, bookingNY, "NYC", 4);
+    
+    if (!date || date.trim() === '') {
+      addMoMVariance(total.slice(-2)[0], total.slice(-3)[0], [], [], "Total", 1);
+      addMoMVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, bookingAZ, "AZ", 2);
+      addMoMVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, bookingLV, "LV", 3);
+      addMoMVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, bookingNY, "NYC", 4);
+    }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
@@ -286,7 +470,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
       records.forEach(record => {
         if (record.Filter !== currentGroup) {
           const baseHeader = {
-            month: record.Filter,
+            Month: record.Filter,
             Filter: "Filter",
             Filter2: "Filter2",
             "Impr.": "Impr.",
@@ -297,8 +481,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Leads": "Leads",
-            "CPL": "CPL",
           };
     
           if (record.Filter.trim().toUpperCase() === "AZ") {
@@ -312,24 +494,21 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           }          
     
           Object.assign(baseHeader, {
+            "Daily Requests": "Daily Requests",
             "CAC": "CAC",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
           });
-    
-          if (record.Filter.trim().toUpperCase() === "AZ") {
-            Object.assign(baseHeader, {
-              "Number of Appt Requests Phoenix": "Number of Appt Requests Phoenix",
-              "Number of Appt Requests Tucson": "Number of Appt Requests Tucson",
-            });
-          }
 
           finalRecords.push(baseHeader);
           currentGroup = record.Filter;
         }
     
         finalRecords.push({ ...record, isBold: false });
+        if (record.Month === "MoM Variance %") {
+          finalRecords.push({ Month: "", Filter: "", Filter2: "", isBold: false });
+        }
       });
     }    
 
@@ -337,7 +516,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
 
     const sheetData = finalRecords.map(record => {
       const baseData = [
-        record.month,
+        record.Month,
         record.Filter,
         record.Filter2,
         record["Impr."],
@@ -348,8 +527,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-        record["Leads"],
-        record["CPL"],
       ];
     
       if (record.Filter === "AZ") {
@@ -359,18 +536,12 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
       }
     
       baseData.push(
+        record["Daily Requests"],
         record["CAC"],
         record["Calls from Ads - Local SEO"],
         record["Book Now Form Local SEO"],
         record["Phone No. Click Local SEO"]
       );
-    
-      if (record.Filter === "AZ") {
-        baseData.push(
-          record["Number of Appt Requests Phoenix"],
-          record["Number of Appt Requests Tucson"]
-        );
-      }
       
       return baseData;
     });    
@@ -461,7 +632,7 @@ const sendJaneToGoogleSheetsMIV = async (req, res) => {
     }
 
     const validStatuses = new Set(["arrived", "booked", "archived", "cancelled", "no_show", "never_booked", "rescheduled"]);
-    const startDate = new Date('2024-11-01');
+    const startDate = new Date('2024-12-01');
     const monthsByLocation = {};
     const totalBookedByMonth = {};
 
@@ -581,5 +752,5 @@ module.exports = {
   executeSpecificFetchFunctionMIV,
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendJaneToGoogleSheetsMIV,
-  sendBookings
+  sendBookings,
 };

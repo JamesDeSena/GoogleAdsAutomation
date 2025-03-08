@@ -33,14 +33,15 @@ const {
   // executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   // sendJaneToGoogleSheetsMIV,
-  // sendBookings
+  // sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
 
 const {
   executeSpecificFetchFunctionMIV,
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendJaneToGoogleSheetsMIV,
-  sendBookings
+  sendBookings,
+  getTotal
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
 
 // const {
@@ -60,7 +61,7 @@ const {
 
 router.get('/lpc/report', async (req, res) => {
   try {
-    await getWeeklyCampaigns(req, res);
+    await runFullReportProcess(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

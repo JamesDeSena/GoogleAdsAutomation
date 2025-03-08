@@ -167,89 +167,6 @@ async function getCampaigns() {
   }
 };
 
-// async function getRawCampaigns() {
-//   try {
-//     const initialResponse = await axios.get(
-//       "https://api.lawmatics.com/v1/prospects?page=1&fields=created_at,stage,events",
-//       { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-//     );
-
-//     const totalPages = initialResponse.data.meta?.total_pages || 1;
-//     const requests = Array.from({ length: totalPages }, (_, i) =>
-//       axios.get(
-//         `https://api.lawmatics.com/v1/prospects?page=${i + 1}&fields=created_at,stage,events`,
-//         { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-//       )
-//     );
-//     const responses = await Promise.all(requests);
-
-//     const allCampaigns = responses.flatMap(response =>
-//       response.data.stages || response.data.data || response.data.results || []
-//     );
-
-//     const formatDateToMMDDYYYY = (dateString) => {
-//       if (!dateString) return null;
-//       const date = new Date(dateString);
-//       const month = String(date.getMonth() + 1).padStart(2, "0");
-//       const day = String(date.getDate()).padStart(2, "0");
-//       const year = date.getFullYear();
-//       return `${month}/${day}/${year}`;
-//     };
-
-//     const filteredCampaigns = allCampaigns
-//       .filter(({ attributes }) => {
-//         const createdAt = attributes?.created_at;
-//         if (!createdAt) return false;
-
-//         const createdDate = new Date(
-//           new Date(createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-//         );
-
-//         return createdDate >= new Date("2021-10-03T00:00:00-08:00");
-//       })
-//       .map(({ attributes, relationships }) => ({
-//         created_at: formatDateToMMDDYYYY(attributes.created_at),
-//         stage_id: relationships?.stage?.data?.id || null,
-//         event: relationships?.events?.data?.length 
-//           ? relationships.events.data[0].id 
-//           : null,
-//       }));
-
-//     const eventRequests = filteredCampaigns
-//       .filter(campaign => campaign.event) 
-//       .map(campaign =>
-//         axios.get(`https://api.lawmatics.com/v1/events/${campaign.event}`, {
-//           headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }
-//         })
-//         .then(response => ({
-//           event: campaign.event,
-//           event_start: formatDateToMMDDYYYY(response.data.data.attributes.start_date)
-//         }))
-//         .catch(error => ({
-//           event: campaign.event,
-//           event_start: null
-//         }))
-//       );
-
-//     const eventResponses = await Promise.all(eventRequests);
-
-//     const finalCampaigns = filteredCampaigns.map(campaign => {
-//       const eventData = eventResponses.find(event => event.event === campaign.event);
-//       return {
-//         ...campaign,
-//         event_start: eventData ? eventData.event_start : null
-//       };
-//     });
-
-//     // console.log("Final Campaigns:", JSON.stringify(finalCampaigns, null, 2));
-//     return finalCampaigns;
-//   } catch (error) {
-//     throw new Error(
-//       error.response ? error.response.data : error.message
-//     );
-//   }
-// };
-
 async function getRawCampaigns() {
   try {
     const initialResponse = await axios.get(
@@ -329,9 +246,9 @@ async function getRawCampaigns() {
         event_start: formatDateToMMDDYYYY(event.attributes?.start_date),
         event_id: event.id,
       }));
-
+    const combinedData = {campaigns: filteredCampaigns, events: strategySessions};
     // console.log("Final Campaigns:", JSON.stringify(combinedData, null, 2));
-    return { campaigns: filteredCampaigns, events: strategySessions };
+    return combinedData;
   } catch (error) {
     throw new Error(
       error.response ? error.response.data : error.message
@@ -400,7 +317,7 @@ const dailyExport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const dataRange = 'Daily Export!A2:B';
 
   try {
@@ -433,7 +350,7 @@ const dailyReport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
     Export: 'Daily Export!A2:C',
     Report: 'Daily Report!A2:E',
@@ -517,7 +434,7 @@ const dailyToWeekly = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
     Report: 'Daily Report!A2:E',
     Weekly: 'Weekly Report!A2:F',
@@ -599,7 +516,7 @@ const getWeeklyCampaigns = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
     Weekly: 'Weekly Report!A2:F',
     Spend: 'Google & Bing Monthly Ad Spend!A2:B',
@@ -699,7 +616,7 @@ const runDailyExportAndReport = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC_BUDGET;
+  const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
     Export: 'Daily Export!A2:C',
     Report: 'Daily Report!A2:E',

@@ -727,8 +727,8 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   const range = 'Google & Bing Monthly Ad Spend!A2:C';
 
   try {
-    const record = await getAllMetrics();
-
+    const record = await getAmountGoogleLPC();
+    const bing = await getAmountBingTotal();
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
     const currentYear = currentDate.getFullYear() % 100; // Get last two digits of the year
@@ -755,7 +755,7 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     const updateRange = `Google & Bing Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
     const resource = {
       values: [
-        [currentMonthYear, record.data.GoogleLPC, record.data.BingLPC],
+        [currentMonthYear, record.GoogleLPC, bing.BingLPC],
       ],
     };
 
@@ -781,13 +781,12 @@ const sendTWtoGoogleSheets = async (req, res) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.SHEET_TW;
-    const record = await getAllMetrics();
-
-    if (!record?.data?.Search || !record?.data?.Youtube) {
+    const record = await getAmountGoogleTWCampaigns();
+    if (!record?.Search || !record?.Youtube) {
       throw new Error("Missing data for Search or Youtube");
     }
 
-    const values = [[record.data.Search], [record.data.Youtube]];
+    const values = [[record.Search], [record.Youtube]];
     const range = 'Pacing!E3:E4';
 
     await sheets.spreadsheets.values.update({
@@ -814,10 +813,9 @@ const sendSubPacingReport = async (req, res) => {
 };
 
 module.exports = {
+  getAmountGoogleLPC,
   getAllMetrics,
-  sendFinalPacingReportToAirtable,
-  fetchAndFormatTimeCreatedCST,
-  sendLPCBudgettoGoogleSheets,
   sendTWtoGoogleSheets,
+  sendFinalPacingReportToAirtable,
   sendSubPacingReport,
 };
