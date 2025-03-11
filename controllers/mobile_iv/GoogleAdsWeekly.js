@@ -276,12 +276,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             )),
         "Appt Conv Rate": filter === "AZ"
           ? formatPercentage(calculateWoWVariance(
-              lastRecord.clicks / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
-              secondToLastRecord.clicks / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
+              ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0) / lastRecord.clicks),
+              ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0) / secondToLastRecord.clicks)
             ))
           : formatPercentage(calculateWoWVariance(
-              lastRecord.clicks / (bookingLastRecord.data || 0),
-              secondToLastRecord.clicks / (bookingSecondToLastRecord.data || 0)
+              (bookingLastRecord.data || 0) / lastRecord.clicks,
+              (bookingSecondToLastRecord.data || 0) / secondToLastRecord.clicks
             )),
         "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
         "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
@@ -345,8 +345,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 0) 
             : formatCurrency(record.cost / (bookingRecord.data || 0) || 0),
           "Appt Conv Rate": filter === "AZ"
-            ? formatPercentage(record.clicks / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 0) 
-            : formatPercentage(record.clicks / (bookingRecord.data || 0) || 0),
+            ? formatPercentage((((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) / record.clicks) * 100 || 0) 
+            : formatPercentage(((bookingRecord.data || 0) / record.clicks) * 100 || 0),
           "Calls from Ads - Local SEO": formatNumber(record.calls),
           "Book Now Form Local SEO": formatNumber(record.books),
           "Phone No. Click Local SEO": formatNumber(record.phone),

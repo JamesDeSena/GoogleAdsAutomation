@@ -1,0 +1,26 @@
+{
+  "data": {
+    "BingLPC": 85.75,
+    "BingVault": 303.06,
+    "BingHS": 76.95,
+    "GoogleLPC": 11298.35,
+    "GoogleVault": 7309.15,
+    "MKTHeights": 230.75,
+    "Gilbert": 125.61,
+    "Scottsdale": 109.13,
+    "Phoenix": 226.34,
+    "Montrose": 40.37,
+    "Uptown": 160.68,
+    "RiceVillage": 131.08,
+    "14thSt": 355.75,
+    "Mosaic": 62.29,
+    "Pmax": 481.68,
+    "NB": 2496.99,
+    "GDN": 0,
+    "AZ": 1735.88,
+    "LV": 1243.26,
+    "NYC": 1387.21,
+    "Search": 15143.69,
+    "Youtube": 4248.45
+  }
+}

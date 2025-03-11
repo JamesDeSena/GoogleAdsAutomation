@@ -1,13 +1,18 @@
 const axios = require("axios");
-const schedule = require("node-schedule");
 const Airtable = require("airtable");
+
 const { google } = require('googleapis');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID_PACING
 );
-const { client } = require("../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("./GoogleAuth");
-const { getStoredAccessToken } = require("./BingAuth");
+
+const { client } = require("../../configs/googleAdsConfig");
+const { getStoredRefreshToken } = require("../GoogleAuth");
+const { getStoredAccessToken } = require("../BingAuth");
+
+const fs = require("fs");
+const path = require("path");
+const tokenFilePath = path.join(__dirname, "metrics.json");
 
 function getCurrentMonth() {
   const now = new Date();
@@ -372,22 +377,7 @@ async function getAllMetrics() {
     const googleDripNYC = await getAmountGoogleNYC();
     const googleTW = await getAmountGoogleTWCampaigns();
     
-    // console.log({
-    //   data: {
-    //     ...bingTotal,
-    //     ...googleLPC,
-    //     ...googleVault,
-    //     // ...googleWB,
-    //     ...googleCampaigns,
-    //     // ...googleGTAI,
-    //     ...googleDripAZ,
-    //     ...googleDripLV,
-    //     ...googleDripNYC,
-    //     ...googleTW,
-    //   },
-    // });
-
-    return {
+    const metrics = {
       data: {
         ...bingTotal,
         ...googleLPC,
@@ -401,6 +391,9 @@ async function getAllMetrics() {
         ...googleTW,
       },
     };
+
+    saveMetricsToFile(metrics);
+    return metrics;
   } catch (error) {
     console.error("Error fetching all data:", error.message);
     throw new Error("Error fetching all data");
@@ -716,6 +709,262 @@ const sendFinalPacingReportToAirtable = async () => {
   }
 };
 
+const sendPacingReportToGoogleSheets = async () => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
+  const dataRanges = {
+    Monthly: 'Monthly View!A2:R',
+  };
+  
+  try {
+    const record = await getAllMetrics();
+    console.log(record);
+    const pacingData = await fetchAndFormatTimeCreatedCST();
+
+    const records = [
+      {
+        fields: {
+          Brand: "LP+C",
+          Campaign: "Total",
+          "Monthly Budget": 31000.0,
+          "MTD Spend": pacingData["BingLPC"] + record.data.GoogleLPC,
+        },
+      },
+      {
+        fields: {
+          Brand: "LP+C",
+          Campaign: "Google",
+          "Monthly Budget": 25000.0,
+          "MTD Spend": record.data.GoogleLPC,
+        },
+      },
+      {
+        fields: {
+          Brand: "LP+C",
+          Campaign: "Bing",
+          "Monthly Budget": 1000.0,
+          "MTD Spend": record.data.BingLPC,
+        },
+      },
+      {
+        fields: {
+          Brand: "The Vault",
+          Campaign: "Total",
+          "Monthly Budget": 15000.0,
+          "MTD Spend": pacingData["BingVault"] + record.data.GoogleVault,
+        },
+      },
+      {
+        fields: {
+          Brand: "The Vault",
+          Campaign: "Google",
+          "Monthly Budget": 0,
+          "MTD Spend": record.data.GoogleVault,
+        },
+      },
+      {
+        fields: {
+          Brand: "The Vault",
+          Campaign: "Bing",
+          "Monthly Budget": 0,
+          "MTD Spend": record.data.BingVault,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Google Total",
+          "Monthly Budget": 15000.0,
+          "MTD Spend":
+            record.data.MKTHeights +
+            record.data.Gilbert +
+            record.data.Scottsdale +
+            record.data.Phoenix +
+            record.data.Montrose +
+            record.data.Uptown +
+            record.data.RiceVillage +
+            record.data["14thSt"] +
+            record.data.Mosaic +
+            record.data.Pmax + 
+            record.data.NB +
+            record.data.GDN +
+            record.data.BingHS
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Houston_MKTHeights",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.MKTHeights,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Gilbert",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Gilbert,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Scottsdale",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Scottsdale,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Phoenix",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Phoenix,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Houston_Montrose",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Montrose,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Houston_UptownPark",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Uptown,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Rice Village",
+          "Monthly Budget": 2000.0,
+          "MTD Spend": record.data.RiceVillage,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "DC",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data["14thSt"],
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Mosaic",
+          "Monthly Budget": 1200.0,
+          "MTD Spend": record.data.Mosaic,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Pmax",
+          "Monthly Budget": 1300.0,
+          "MTD Spend": record.data.Pmax,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "NB",
+          "Monthly Budget": 1500.0,
+          "MTD Spend": record.data.NB,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "GDN",
+          "Monthly Budget": 500.0,
+          "MTD Spend": record.data.GDN,
+        },
+      },
+      {
+        fields: {
+          Brand: "Hi, Skin",
+          Campaign: "Bing",
+          "Monthly Budget": 100.0,
+          "MTD Spend": record.data.BingHS,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip",
+          Campaign: "Total",
+          "Monthly Budget": 16000.0,
+          "MTD Spend": record.data.AZ + record.data.LV + record.data.NYC,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip AZ",
+          Campaign: "Arizona",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.AZ,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip LV",
+          Campaign: "Las Vegas",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.LV,
+        },
+      },
+      {
+        fields: {
+          Brand: "Mobile IV Drip NYC",
+          Campaign: "New York",
+          "Monthly Budget": 5000.0,
+          "MTD Spend": record.data.NYC,
+        },
+      },
+      {
+        fields: {
+          Brand: "Triple Whale",
+          Campaign: "Google - Paid Search",
+          "Monthly Budget": 33500.0,
+          "MTD Spend": record.data.Search,
+        },
+      },
+      {
+        fields: {
+          Brand: "Triple Whale",
+          Campaign: "Google - Youtube",
+          "Monthly Budget": 15000.0,
+          "MTD Spend": record.data.Youtube,
+        },
+      },
+    ];
+
+    const batchSize = 10;
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      await base("Pacing Report").create(batch);
+      console.log(
+        `Batch of ${batch.length} records sent to Airtable successfully!`
+      );
+    }
+
+    console.log("Pacing report sent to Airtable successfully!");
+  } catch (error) {
+    console.error("Error sending pacing report to Airtable:", error);
+  }
+};
+
 const sendLPCBudgettoGoogleSheets = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
@@ -727,11 +976,10 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   const range = 'Google & Bing Monthly Ad Spend!A2:C';
 
   try {
-    const record = await getAmountGoogleLPC();
-    const bing = await getAmountBingTotal();
+    const record = getStoredMetrics();
     const currentDate = new Date();
     const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
-    const currentYear = currentDate.getFullYear() % 100; // Get last two digits of the year
+    const currentYear = currentDate.getFullYear() % 100;
     const currentMonthYear = `${currentMonth}-${currentYear}`;
 
     const getSheetData = await sheets.spreadsheets.values.get({
@@ -755,7 +1003,7 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     const updateRange = `Google & Bing Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
     const resource = {
       values: [
-        [currentMonthYear, record.GoogleLPC, bing.BingLPC],
+        [currentMonthYear, record.data.GoogleLPC, record.data.BingLPC],
       ],
     };
 
@@ -772,6 +1020,35 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
   }
 };
 
+function saveMetricsToFile(metrics) {
+  try {
+    let currentData = {};
+
+    console.log(tokenFilePath)
+    
+    if (fs.existsSync(tokenFilePath)) {
+      currentData = JSON.parse(fs.readFileSync(tokenFilePath, "utf8"));
+    }
+    
+    if (JSON.stringify(currentData) !== JSON.stringify(metrics)) {
+      fs.writeFileSync(tokenFilePath, JSON.stringify(metrics, null, 2));
+    }
+  } catch (error) {
+    console.error("Error saving metrics data:", error);
+  }
+}
+
+const getStoredMetrics = () => {
+  try {
+    const data = fs.readFileSync(tokenFilePath, "utf8");
+    const metricsData = JSON.parse(data);
+    return metricsData;
+  } catch (err) {
+    console.error("Error reading token:", err);
+    return null;
+  }
+};
+
 const sendTWtoGoogleSheets = async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -781,12 +1058,12 @@ const sendTWtoGoogleSheets = async (req, res) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.SHEET_TW;
-    const record = await getAmountGoogleTWCampaigns();
-    if (!record?.Search || !record?.Youtube) {
+    const record = getStoredMetrics();
+    if (!record?.data.Search || !record?.data.Youtube) {
       throw new Error("Missing data for Search or Youtube");
     }
 
-    const values = [[record.Search], [record.Youtube]];
+    const values = [[record.data.Search], [record.data.Youtube]];
     const range = 'Pacing!E3:E4';
 
     await sheets.spreadsheets.values.update({
@@ -815,7 +1092,7 @@ const sendSubPacingReport = async (req, res) => {
 module.exports = {
   getAmountGoogleLPC,
   getAllMetrics,
-  sendTWtoGoogleSheets,
+  sendLPCBudgettoGoogleSheets,
   sendFinalPacingReportToAirtable,
   sendSubPacingReport,
 };

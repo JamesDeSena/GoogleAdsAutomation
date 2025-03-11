@@ -5,7 +5,7 @@ const {
   getAllMetrics,
   sendFinalPacingReportToAirtable,
   sendSubPacingReport,
-} = require("../controllers/PacingReport");
+} = require("../controllers/pacing_report/PacingReport");
 
 router.get("/test", async (req, res) => {
   try {
