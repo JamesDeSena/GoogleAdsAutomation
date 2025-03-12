@@ -612,17 +612,17 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
 
   const spreadsheetId = process.env.SHEET_HI_SKIN;
   const dataRanges = {
-    Live: 'Live View!A2:U',
+    Live: 'Weekly Performance!A2:U',
     AllBNB: 'Reporting Overview!A2:U',
-    Gilbert: 'Gilbert!A2:U',
-    MKT: 'MKT!A2:U',
-    Phoenix: 'Phoenix!A2:U',
-    Scottsdale: 'Scottsdale!A2:U',
-    UptownPark: 'UptownPark!A2:U',
-    Montrose: 'Montrose!A2:U',
-    RiceVillage: 'RiceVillage!A2:U',
-    Mosaic: 'Mosaic!A2:U',
-    FourteenthSt: '14thSt!A2:U',
+    // Gilbert: 'Gilbert!A2:U',
+    // MKT: 'MKT!A2:U',
+    // Phoenix: 'Phoenix!A2:U',
+    // Scottsdale: 'Scottsdale!A2:U',
+    // UptownPark: 'UptownPark!A2:U',
+    // Montrose: 'Montrose!A2:U',
+    // RiceVillage: 'RiceVillage!A2:U',
+    // Mosaic: 'Mosaic!A2:U',
+    // FourteenthSt: '14thSt!A2:U',
   };
 
   try {
