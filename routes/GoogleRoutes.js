@@ -6,10 +6,10 @@ const router = express.Router();
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
 const { 
-  getCampaigns,
-  dailyExport,
-  dailyReport,
-  dailyToWeekly,
+  // getCampaigns,
+  // dailyExport,
+  // dailyReport,
+  // dailyToWeekly,
   runDailyExportAndReport,
   runFullReportProcess,
   getRawCampaigns,
@@ -30,6 +30,11 @@ const {
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
 const {
+  executeSpecificFetchFunctionMIV,
+  sendFinalDailyReportToGoogleSheetsMIV,
+} = require('../controllers/mobile_iv/GoogleAdsDaily');
+
+const {
   // executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   // sendJaneToGoogleSheetsMIV,
@@ -37,11 +42,10 @@ const {
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
 
 const {
-  executeSpecificFetchFunctionMIV,
+  // executeSpecificFetchFunctionMIV,
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendJaneToGoogleSheetsMIV,
   sendBookings,
-  getTotal
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
 
 // const {
@@ -82,6 +86,16 @@ router.get('/hi_skin/report-final/:date?', async (req, res) => {
 router.get('/hi_skin/report-month/:date?', async (req, res) => {
   try {
     await sendFinalMonthlyReportToGoogleSheetsHS(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/mobile_iv/report-daily/:date?', async (req, res) => {
+  try {
+    await sendFinalDailyReportToGoogleSheetsMIV(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

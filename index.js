@@ -18,6 +18,7 @@ const { sendPacingReportToGoogleSheets, sendSubPacingReport } = require('./contr
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
 const { runFullReportProcess } = require('./controllers/lpc/DailyFetch');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
+const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
 
@@ -86,10 +87,12 @@ rule4.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
+  sendFinalDailyReportToGoogleSheetsMIV,
 ];
 
 const eveningJobs = [
-  sendPacingReportToGoogleSheets
+  sendPacingReportToGoogleSheets,
+  sendFinalDailyReportToGoogleSheetsMIV,
 ];
 
 const morningJobs2 = [
@@ -103,7 +106,6 @@ const morningJobs2 = [
 ];
 
 const eveningJobs2 = [
-  // sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalMonthlyReportToGoogleSheetsHS,
 ];
 

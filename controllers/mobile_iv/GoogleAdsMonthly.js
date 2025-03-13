@@ -166,13 +166,13 @@ const createFetchFunction = (campaignNameFilter, reportName) => {
 };
 
 const fetchFunctions = {
-  fetchReportDatamonthlyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, "Mobile IV Drip AZ"),
-  fetchReportDatamonthlyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV, "Mobile IV Drip LV"),
-  fetchReportDatamonthlyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC, "Mobile IV Drip NYC"),
+  fetchReportDataMonthlyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, "Mobile IV Drip AZ"),
+  fetchReportDataMonthlyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV, "Mobile IV Drip LV"),
+  fetchReportDataMonthlyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC, "Mobile IV Drip NYC"),
 };
 
 const executeSpecificFetchFunctionMIV = async (req, res) => {
-  const functionName = "fetchReportDatamonthlyAZ";
+  const functionName = "fetchReportDataMonthlyAZ";
   const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
     const data = await fetchFunctions[functionName](req, res, dateRanges);
@@ -199,9 +199,9 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const dripAZ = await fetchFunctions.fetchReportDatamonthlyAZ(req, res, dateRanges);
-    const dripLV = await fetchFunctions.fetchReportDatamonthlyLV(req, res, dateRanges);
-    const dripNYC = await fetchFunctions.fetchReportDatamonthlyNYC(req, res, dateRanges);
+    const dripAZ = await fetchFunctions.fetchReportDataMonthlyAZ(req, res, dateRanges);
+    const dripLV = await fetchFunctions.fetchReportDataMonthlyLV(req, res, dateRanges);
+    const dripNYC = await fetchFunctions.fetchReportDataMonthlyNYC(req, res, dateRanges);
 
     const janeData = await sendJaneToGoogleSheetsMIV(req, res);
     const bookingData = await sendBookings(req, res);
