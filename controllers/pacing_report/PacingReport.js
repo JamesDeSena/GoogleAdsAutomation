@@ -447,6 +447,35 @@ const sendPacingReportToGoogleSheets = async () => {
   }
 };
 
+function saveMetricsToFile(metrics) {
+  try {
+    let currentData = {};
+
+    console.log(tokenFilePath)
+    
+    if (fs.existsSync(tokenFilePath)) {
+      currentData = JSON.parse(fs.readFileSync(tokenFilePath, "utf8"));
+    }
+    
+    if (JSON.stringify(currentData) !== JSON.stringify(metrics)) {
+      fs.writeFileSync(tokenFilePath, JSON.stringify(metrics, null, 2));
+    }
+  } catch (error) {
+    console.error("Error saving metrics data:", error);
+  }
+}
+
+const getStoredMetrics = () => {
+  try {
+    const data = fs.readFileSync(tokenFilePath, "utf8");
+    const metricsData = JSON.parse(data);
+    return metricsData;
+  } catch (err) {
+    console.error("Error reading token:", err);
+    return null;
+  }
+};
+
 const sendLPCBudgettoGoogleSheets = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
@@ -455,7 +484,7 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
 
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_LPC;
-  const range = 'Google & Bing Monthly Ad Spend!A2:E';
+  const range = 'Monthly Ad Spend!A2:E';
 
   try {
     const record = getStoredMetrics();
@@ -499,35 +528,6 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     console.log("Data updated successfully in LPC Google Sheets.");
   } catch (error) {
     console.error("Error updating data in LPC Google Sheets:", error);
-  }
-};
-
-function saveMetricsToFile(metrics) {
-  try {
-    let currentData = {};
-
-    console.log(tokenFilePath)
-    
-    if (fs.existsSync(tokenFilePath)) {
-      currentData = JSON.parse(fs.readFileSync(tokenFilePath, "utf8"));
-    }
-    
-    if (JSON.stringify(currentData) !== JSON.stringify(metrics)) {
-      fs.writeFileSync(tokenFilePath, JSON.stringify(metrics, null, 2));
-    }
-  } catch (error) {
-    console.error("Error saving metrics data:", error);
-  }
-}
-
-const getStoredMetrics = () => {
-  try {
-    const data = fs.readFileSync(tokenFilePath, "utf8");
-    const metricsData = JSON.parse(data);
-    return metricsData;
-  } catch (err) {
-    console.error("Error reading token:", err);
-    return null;
   }
 };
 

@@ -276,17 +276,21 @@ const fetchAndAggregateLPCData = async () => {
         const aggregatedData = {
           date: `${start} - ${end}`,
           clicks: 0,
+          cost: 0,
         };
 
         const metricsQuery = `
           SELECT
             campaign.id,
+            campaign.name,
             metrics.clicks,
+            metrics.cost_micros,
             segments.date
           FROM
             campaign
           WHERE
             segments.date BETWEEN '${start}' AND '${end}'
+            AND campaign.name LIKE '%CA%'
           ORDER BY
             segments.date DESC
         `;
@@ -296,6 +300,7 @@ const fetchAndAggregateLPCData = async () => {
           const metricsResponse = await customer.query(metricsQuery);
           metricsResponse.forEach((campaign) => {
             aggregatedData.clicks += campaign.metrics.clicks || 0;
+            aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
           });
           metricsPageToken = metricsResponse.next_page_token;
         } while (metricsPageToken);
@@ -427,119 +432,29 @@ const dailyReport = async (req, res) => {
   }
 };
 
-const dailyToWeekly = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC;
-  const dataRanges = {
-    Report: 'Daily Report!A2:E',
-    Weekly: 'Weekly Report!A2:F',
-    Spend: 'Google & Bing Monthly Ad Spend!A2:B',
-  };
-
-  try {
-    const lpcData = await fetchAndAggregateLPCData(req, res);
-    const [reportRes, spendRes, weeklyRes] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges.Report }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges.Spend }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges.Weekly }),
-    ]);
-
-    const rows = reportRes.data.values;
-    if (!rows || rows.length === 0) return [];
-
-    const spendMap = Object.fromEntries(
-      spendRes.data.values.map(([month, spend]) => [
-        month.trim(),
-        parseFloat(String(spend).replace(/[$,]/g, '')) || 0,
-      ])
-    );
-
-    const startDate = new Date('2025-02-23');
-    const weeks = {};
-
-    rows.forEach(([date, , mqlVal, nopesVal, sqlVal]) => {
-      if (!date) return;
-      const [month, day, year] = date.split("/").map(Number);
-      const currentDate = new Date(year, month - 1, day);
-      if (currentDate < startDate && currentDate.toDateString() !== startDate.toDateString()) return;
-
-      let weekStart = new Date(currentDate);
-      weekStart.setDate(currentDate.getDate() - currentDate.getDay());
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-
-      const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      const weekLabel = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
-      const monthKey = `${weekStart.toLocaleString('en-US', { month: 'short' })}-${weekStart.getFullYear().toString().slice(-2)}`;
-      if (!spendMap[monthKey]) return;
-
-      if (!weeks[weekLabel]) {
-        weeks[weekLabel] = [weekLabel, 0, 0, 0, spendMap[monthKey], 0];
-      }
-
-      weeks[weekLabel][1] += mqlVal.trim().toLowerCase() === "yes" ? 1 : 0;
-      weeks[weekLabel][2] += nopesVal && nopesVal.trim() !== "" ? 1 : 0;
-      weeks[weekLabel][3] += sqlVal && sqlVal.trim() !== "" ? 1 : 0;
-    });
-
-    lpcData.forEach(({ date, clicks }) => {
-      if (weeks[date]) weeks[date][5] = clicks;
-    });
-
-    const sortedWeeks = Object.values(weeks).sort(
-      (a, b) => new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0])
-    );
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: dataRanges.Weekly,
-      valueInputOption: 'RAW',
-      resource: { values: sortedWeeks },
-    });
-    
-    console.log("LPC Daily to Weekly done successfully!");
-  } catch (error) {
-    console.error("Error aggregating weekly report:", error);
-    return [];
-  }
-};
-
 const getWeeklyCampaigns = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    keyFile: "serviceToken.json",
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
-  const sheets = google.sheets({ version: 'v4', auth });
+  const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
-    Weekly: 'Weekly Report!A2:F',
-    Spend: 'Google & Bing Monthly Ad Spend!A2:B',
+    Weekly: "CA Weekly Report!A2:H",
   };
 
   try {
     const { campaigns, events } = await getRawCampaigns();
     const lpcData = await fetchAndAggregateLPCData(req, res);
-    const spendRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges.Spend });
-    
-    const spendMap = Object.fromEntries(
-      spendRes.data.values.map(([month, spend]) => [
-        month.trim(),
-        parseFloat(String(spend).replace(/[$,]/g, '')) || 0,
-      ])
-    );
 
     const startDate = new Date("2021-10-03");
     const today = new Date();
     const weeks = {};
     const nopeStages = new Set(["80193", "113690", "21589"]);
-    
-    const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    const formatDate = (date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
     const processDate = (date) => {
       if (!date) return null;
@@ -556,7 +471,6 @@ const getWeeklyCampaigns = async (req, res) => {
       weekEnd.setDate(weekStart.getDate() + 6);
       return {
         label: `${formatDate(weekStart)} - ${formatDate(weekEnd)}`,
-        monthKey: `${weekStart.toLocaleString('en-US', { month: 'short' })}-${weekStart.getFullYear().toString().slice(-2)}`,
         weekStart,
       };
     };
@@ -565,9 +479,9 @@ const getWeeklyCampaigns = async (req, res) => {
       const createdDate = processDate(created_at);
       if (!createdDate || createdDate > today) return;
 
-      const { label, monthKey } = processWeek(createdDate);
+      const { label } = processWeek(createdDate);
       if (!weeks[label]) {
-        weeks[label] = [label, 0, 0, 0, spendMap[monthKey] || 0, 0];
+        weeks[label] = [label, 0, 0, 0, 0, 0, 0];
       }
 
       weeks[label][1]++;
@@ -582,14 +496,21 @@ const getWeeklyCampaigns = async (req, res) => {
 
       const { label } = processWeek(eventDate);
       if (!weeks[label]) {
-        weeks[label] = [label, 0, 0, 0, 0, 0];
+        weeks[label] = [label, 0, 0, 0, 0, 0, 0];
       }
 
-      weeks[label][3]++;
+      weeks[label][4]++;
     });
 
-    lpcData.forEach(({ date, clicks }) => {
-      if (weeks[date]) weeks[date][5] = clicks;
+    lpcData.forEach(({ date, clicks, cost }) => {
+      if (weeks[date]) {
+        weeks[date][5] = cost;
+        weeks[date][6] = clicks;
+      }
+    });
+
+    Object.values(weeks).forEach((week) => {
+      week[3] = week[1] - week[2];
     });
 
     const sortedWeeks = Object.values(weeks).sort(
@@ -599,10 +520,10 @@ const getWeeklyCampaigns = async (req, res) => {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: dataRanges.Weekly,
-      valueInputOption: 'RAW',
+      valueInputOption: "RAW",
       resource: { values: sortedWeeks },
     });
-    
+
     console.log("Weekly campaign data successfully updated!");
   } catch (error) {
     console.error("Error processing weekly campaigns:", error);
@@ -713,7 +634,6 @@ module.exports = {
   getRawCampaigns,
   dailyExport,
   dailyReport,
-  dailyToWeekly,
   getWeeklyCampaigns,
   runDailyExportAndReport,
   runFullReportProcess,
