@@ -1,5 +1,4 @@
 const axios = require("axios");
-const Airtable = require("airtable");
 
 const { google } = require('googleapis');
 
