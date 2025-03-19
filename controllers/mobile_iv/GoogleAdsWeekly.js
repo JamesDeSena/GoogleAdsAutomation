@@ -221,6 +221,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const janeNYC = janeData.NewYork || [];
 
     const bookingAZ = bookingData.AZ || [];
+    const bookingAllAZ = bookingData.allAZ || [];
     const bookingLV = bookingData.LV || [];
     const bookingNY = bookingData.NYC || [];
 
@@ -231,11 +232,14 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
 
-    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, bookingRecords, filter, filter2) => {
+    const addWoWVariance = (lastRecord, secondToLastRecord, janeRecords, bookingAZ, bookingRecords, filter, filter2) => {
       const janeLastRecord = janeRecords.find(j => j.week === lastRecord.date) || {};
       const janeSecondToLastRecord = janeRecords.find(j => j.week === secondToLastRecord.date) || {};
       const bookingLastRecord = bookingRecords.find(j => j.week === lastRecord.date) || {};
       const bookingSecondToLastRecord = bookingRecords.find(j => j.week === secondToLastRecord.date) || {};
+
+      const bookingLastRecordAZ = bookingAZ.find(j => j.week === lastRecord.date) || {};
+      const bookingSecondToLastRecordAZ = bookingAZ.find(j => j.week === secondToLastRecord.date) || {};
     
       const baseRecord = {
         Week: "WoW Variance %",
@@ -249,49 +253,18 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "Number of Appt Requests": formatPercentage(calculateWoWVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
+        "CAC": formatPercentage(calculateWoWVariance((bookingLastRecord.data || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data || 0) / secondToLastRecord.clicks)),
+        "Appt Conv Rate":formatPercentage(calculateWoWVariance((bookingLastRecord.data || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data || 0) / secondToLastRecord.clicks)),
+        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
+        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
+        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
       };
     
       if (filter === "AZ") {
         Object.assign(baseRecord, {
-          "Number of Appt Requests Total": formatPercentage(calculateWoWVariance(
-            (bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0),
-            (bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0)
-          )),
-        });
-      } else {
-        Object.assign(baseRecord, {
-          "Number of Appt Requests": formatPercentage(calculateWoWVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
-        });
-      }
-    
-      Object.assign(baseRecord, {
-        "CAC": filter === "AZ"
-          ? formatPercentage(calculateWoWVariance(
-              lastRecord.cost / ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0)),
-              secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0))
-            ))
-          : formatPercentage(calculateWoWVariance(
-              lastRecord.cost / (bookingLastRecord.data || 0),
-              secondToLastRecord.cost / (bookingSecondToLastRecord.data || 0)
-            )),
-        "Appt Conv Rate": filter === "AZ"
-          ? formatPercentage(calculateWoWVariance(
-              ((bookingLastRecord.data?.Phoenix || 0) + (bookingLastRecord.data?.Tucson || 0) / lastRecord.clicks),
-              ((bookingSecondToLastRecord.data?.Phoenix || 0) + (bookingSecondToLastRecord.data?.Tucson || 0) / secondToLastRecord.clicks)
-            ))
-          : formatPercentage(calculateWoWVariance(
-              (bookingLastRecord.data || 0) / lastRecord.clicks,
-              (bookingSecondToLastRecord.data || 0) / secondToLastRecord.clicks
-            )),
-        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
-        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
-        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
-      });
-    
-      if (filter === "AZ") {
-        Object.assign(baseRecord, {
-          "Number of Appt Requests Phoenix": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Phoenix, bookingSecondToLastRecord.data?.Phoenix)),
-          "Number of Appt Requests Tucson": formatPercentage(calculateWoWVariance(bookingLastRecord.data?.Tucson, bookingSecondToLastRecord.data?.Tucson)),
+          "Number of Appt Requests Phoenix": formatPercentage(calculateWoWVariance(bookingLastRecordAZ.data?.Phoenix, bookingSecondToLastRecordAZ.data?.Phoenix)),
+          "Number of Appt Requests Tucson": formatPercentage(calculateWoWVariance(bookingLastRecordAZ.data?.Tucson, bookingSecondToLastRecordAZ.data?.Tucson)),
         });
       }
     
@@ -310,10 +283,11 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       records.push(baseRecord);
     };    
 
-    const addDataToRecords = (data, janeData, bookingData, filter, filter2) => { 
+    const addDataToRecords = (data, janeData, bookingDataAZ, bookingData, filter, filter2) => { 
       data.forEach((record) => {
         const janeRecord = janeData.find(j => j.week === record.date) || {};
         const bookingRecord = bookingData.find(j => j.week === record.date) || {};
+        const bookingRecordAZ = bookingDataAZ.find(j => j.week === record.date) || {};
         const baseRecord = {
           Week: record.date,
           Filter: filter,
@@ -326,36 +300,18 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
+          "CAC": formatCurrency(record.cost / (bookingRecord.data || 0) || 0),
+          "Appt Conv Rate": formatPercentage(((bookingRecord.data || 0) / record.clicks) * 100 || 0),
+          "Calls from Ads - Local SEO": formatNumber(record.calls),
+          "Book Now Form Local SEO": formatNumber(record.books),
+          "Phone No. Click Local SEO": formatNumber(record.phone),
         };
     
         if (filter === "AZ") {
           Object.assign(baseRecord, {
-            "Number of Appt Requests Total": formatNumber(
-              (bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)
-            ),
-          });
-        } else {
-          Object.assign(baseRecord, {
-            "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
-          });
-        }
-        
-        Object.assign(baseRecord, {
-          "CAC": filter === "AZ"
-            ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) || 0) 
-            : formatCurrency(record.cost / (bookingRecord.data || 0) || 0),
-          "Appt Conv Rate": filter === "AZ"
-            ? formatPercentage((((bookingRecord.data?.Phoenix || 0) + (bookingRecord.data?.Tucson || 0)) / record.clicks) * 100 || 0) 
-            : formatPercentage(((bookingRecord.data || 0) / record.clicks) * 100 || 0),
-          "Calls from Ads - Local SEO": formatNumber(record.calls),
-          "Book Now Form Local SEO": formatNumber(record.books),
-          "Phone No. Click Local SEO": formatNumber(record.phone),
-        });
-    
-        if (filter === "AZ") {
-          Object.assign(baseRecord, {
-            "Number of Appt Requests Phoenix": formatNumber(bookingRecord.data?.Phoenix || 0),
-            "Number of Appt Requests Tucson": formatNumber(bookingRecord.data?.Tucson || 0),
+            "Number of Appt Requests Phoenix": formatNumber(bookingRecordAZ.data?.Phoenix || 0),
+            "Number of Appt Requests Tucson": formatNumber(bookingRecordAZ.data?.Tucson || 0),
           });
         }
     
@@ -375,14 +331,14 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       });
     };    
 
-    addDataToRecords(dripAZ, janeAZ, bookingAZ, "AZ", 1);
-    addDataToRecords(dripLV, janeLV, bookingLV, "LV", 2);
-    addDataToRecords(dripNYC, janeNYC, bookingNY, "NYC", 3);
+    addDataToRecords(dripAZ, janeAZ, bookingAZ, bookingAllAZ, "AZ", 1);
+    addDataToRecords(dripLV, janeLV, [], bookingLV, "LV", 2);
+    addDataToRecords(dripNYC, janeNYC, [], bookingNY, "NYC", 3);
 
     if (!date || date.trim() === '') {
-      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, bookingAZ, "AZ", 1);
-      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, bookingLV, "LV", 2);
-      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, bookingNY, "NYC", 3);
+      addWoWVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], janeAZ, bookingAZ, bookingAllAZ, "AZ", 1);
+      addWoWVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], janeLV, [], bookingLV, "LV", 2);
+      addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], janeNYC, [], bookingNY, "NYC", 3);
     }
 
     records.sort((a, b) => a.Filter2 - b.Filter2);
@@ -406,25 +362,13 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-          };
-    
-          if (record.Filter.trim().toUpperCase() === "AZ") {
-            Object.assign(baseHeader, {
-              "Number of Appt Requests Total": "Number of Appt Requests Total",
-            });
-          } else {
-            Object.assign(baseHeader, {
-              "Number of Appt Requests": "Number of Appt Requests",
-            });
-          }          
-    
-          Object.assign(baseHeader, {
+            "Number of Appt Requests": "Number of Appt Requests",
             "CAC": "CAC",
             "Appt Conv Rate": "Appt Conv Rate",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
-          });
+          };    
     
           if (record.Filter.trim().toUpperCase() === "AZ") {
             Object.assign(baseHeader, {
@@ -471,21 +415,13 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-      ];
-    
-      if (record.Filter === "AZ") {
-        baseData.push(record["Number of Appt Requests Total"]);
-      } else {
-        baseData.push(record["Number of Appt Requests"]);
-      }
-    
-      baseData.push(
+        record["Number of Appt Requests"],
         record["CAC"],
         record["Appt Conv Rate"],
         record["Calls from Ads - Local SEO"],
         record["Book Now Form Local SEO"],
         record["Phone No. Click Local SEO"]
-      );
+      ];
     
       if (record.Filter === "AZ") {
         baseData.push(
@@ -510,9 +446,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
     });    
 
     const dataToSend = {
-      // AZ: sheetData.filter(row => ["AZ"].includes(row[0]) || ["AZ"].includes(row[1])),
-      // LV: sheetData.filter(row => ["LV"].includes(row[0]) || ["LV"].includes(row[1])),
-      // NYC: sheetData.filter(row => ["NYC"].includes(row[0]) || ["NYC"].includes(row[1])),
       AZLive: sheetData.filter(row => ["AZ"].includes(row[1])),
       LVLive: sheetData.filter(row => ["LV"].includes(row[1])),
       NYCLive: sheetData.filter(row => ["NYC"].includes(row[1])),
@@ -674,14 +607,15 @@ const sendBookings = async (req, res) => {
   const sourceDataRanges = {
     "AZ_Phoenix": "AZ Phoenix Bookings Data!A2:D",
     "AZ_Tucson": "AZ Tucson Bookings Data!A2:D",
+    "allAZ": "AZ Bookings Data!A2:D",
     "LV": "LV Bookings Data!A2:D",
     "NYC": "NY Bookings Data!A2:D",
   };
 
   try {
     const startDate = new Date('2024-11-11');
-    const result = { AZ: [], LV: [], NYC: [] };
-    const weeklyData = { AZ: {}, LV: {}, NYC: {} };
+    const result = { AZ: [], allAZ: [], LV: [], NYC: [] };
+    const weeklyData = { AZ: {}, allAZ: {}, LV: {}, NYC: {} };
 
     for (const [location, range] of Object.entries(sourceDataRanges)) {
       const { data: { values: rows } } = await sheets.spreadsheets.values.get({
@@ -718,6 +652,9 @@ const sendBookings = async (req, res) => {
 
     for (const [week, data] of Object.entries(weeklyData.AZ)) {
       result.AZ.push({ week, data });
+    }
+    for (const [week, count] of Object.entries(weeklyData.allAZ)) {
+      result.allAZ.push({ week, data: count });
     }
     for (const [week, count] of Object.entries(weeklyData.LV)) {
       result.LV.push({ week, data: count });

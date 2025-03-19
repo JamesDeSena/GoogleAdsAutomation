@@ -7,14 +7,32 @@ let storedDate = null;
 const generateDailyDate = () => {
   const now = new Date();
   const offset = -8 * 60;
-  const laTime = new Date(now.getTime() + offset * 60000);
-  return laTime.toISOString().split('T')[0];
+  let laTime = new Date(now.getTime() + offset * 60000);
+  
+  const startOfMonth = new Date(laTime.getFullYear(), laTime.getMonth(), 1);
+  let today;
+  
+  if (now.getDate() === 1) {
+    today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else {
+    today = new Date(laTime.getFullYear(), laTime.getMonth(), laTime.getDate());
+  }
+  
+  const dates = [];
+  let currentDate = new Date(startOfMonth);
+  
+  while (currentDate <= today) {
+    dates.push(currentDate.toISOString().split('T')[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return dates;
 };
 
 const getOrGenerateDate = () => {
-  const today = generateDailyDate();
-  if (storedDate !== today) {
-    storedDate = today;
+  const dates = generateDailyDate();
+  if (!storedDate || storedDate.length !== dates.length) {
+    storedDate = dates;
   }
 
   return storedDate;
@@ -22,46 +40,53 @@ const getOrGenerateDate = () => {
 
 setInterval(getOrGenerateDate, 24 * 60 * 60 * 1000);
 
-const aggregateDataForDaily = async (customer, startDate, campaignName = '') => {
-  const startDateObj = new Date(startDate);
-  const formattedDate = `${(startDateObj.getMonth() + 1).toString().padStart(2, '0')}/${startDateObj.getDate().toString().padStart(2, '0')}/${startDateObj.getFullYear()}`;
-
-  const aggregatedData = {
-    date: formattedDate,
-    cost: 0,
-  };
+const aggregateDataForDaily = async (customer, dates, campaignName = '') => {
+  let aggregatedData = dates.map(date => {
+    const dateObj = new Date(date);
+    const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getDate().toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+    return {
+      date: formattedDate,
+      cost: 0,
+    };
+  });
 
   const campaignFilter = campaignName ? `AND campaign.name LIKE '%${campaignName}%'` : '';
 
-  const metricsQuery = `
-    SELECT
-      campaign.id,
-      metrics.cost_micros,
-      segments.date
-    FROM
-      campaign
-    WHERE
-      segments.date = '${startDate}'
-      ${campaignFilter}
-    ORDER BY
-      segments.date DESC
-  `;
+  for (const date of dates) {
+    const metricsQuery = `
+      SELECT
+        campaign.id,
+        metrics.cost_micros,
+        segments.date
+      FROM
+        campaign
+      WHERE
+        segments.date = '${date}' 
+        ${campaignFilter}
+      ORDER BY
+        segments.date DESC
+    `;
 
-  let metricsPageToken = null;
-  do {
-    const metricsResponse = await customer.query(metricsQuery);
-    metricsResponse.forEach((campaign) => {
-      aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
-    });
-    metricsPageToken = metricsResponse.next_page_token;
-  } while (metricsPageToken);
+    let metricsPageToken = null;
+    do {
+      const metricsResponse = await customer.query(metricsQuery);
+      metricsResponse.forEach((campaign) => {
+        const dateObj = new Date(date);
+        const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getDate().toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+        const dataEntry = aggregatedData.find(entry => entry.date === formattedDate);
+        if (dataEntry) {
+          dataEntry.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
+        }
+      });
+      metricsPageToken = metricsResponse.next_page_token;
+    } while (metricsPageToken);
+  }
 
   return aggregatedData;
 };
 
 const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaignNames) => {
   const refreshToken_Google = getStoredRefreshToken();
-
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -74,11 +99,11 @@ const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaign
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    const date = getOrGenerateDate();
+    const dates = getOrGenerateDate();
 
     const allDailyDataPromises = campaignNames.length
-      ? campaignNames.map((name) => aggregateDataForDaily(customer, date, name))
-      : [aggregateDataForDaily(customer, date)];
+      ? campaignNames.map((name) => aggregateDataForDaily(customer, dates, name))
+      : [aggregateDataForDaily(customer, dates)];
 
     const allDailyData = await Promise.all(allDailyDataPromises);
 
@@ -94,6 +119,7 @@ const createFetchFunction = (campaignNameFilter, campaignNames = []) => {
 
 const fetchFunctions = {
   fetchReportDataDailyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, ["Phoenix", "Tucson"]),
+  fetchReportDataDailyAllAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ),
   fetchReportDataDailyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV),
   fetchReportDataDailyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC),
 };
@@ -122,6 +148,7 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
   const dataRanges = {
     Phoenix: 'AZ Phoenix Bookings Data!A2:K',
     Tucson: 'AZ Tucson Bookings Data!A2:K',
+    AZ: 'AZ Bookings Data!A2:K',
     LV: 'LV Bookings Data!A2:K',
     NY: 'NY Bookings Data!A2:K',
   };
@@ -131,49 +158,78 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     const dateRanges = getOrGenerateDate(date);
 
     const azData = await fetchFunctions.fetchReportDataDailyAZ(req, res, dateRanges);
+    const allAZData = await fetchFunctions.fetchReportDataDailyAllAZ(req, res, dateRanges);
     const lvData = await fetchFunctions.fetchReportDataDailyLV(req, res, dateRanges);
     const nyData = await fetchFunctions.fetchReportDataDailyNYC(req, res, dateRanges);
 
     const sheetsData = {
       [dataRanges.Phoenix]: azData[0],
       [dataRanges.Tucson]: azData[1],
+      [dataRanges.AZ]: allAZData[0],
       [dataRanges.LV]: lvData[0],
       [dataRanges.NY]: nyData[0],
     };
 
-    for (const [sheet, data] of Object.entries(sheetsData)) {
-      if (!data) continue;
+    const batchGetRanges = Object.keys(sheetsData).map(sheet => sheet);
+    const batchResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges: batchGetRanges,
+    });
 
-      const sheetDate = Array.isArray(data) ? data[0]?.date : data.date;
-      if (!sheetDate) {
-        console.error(`Missing date in data for sheet: ${sheet}`);
+    const existingData = {};
+    batchResponse.data.valueRanges.forEach((response, index) => {
+      existingData[batchGetRanges[index]] = response.values || [];
+    });
+
+    const batchUpdates = [];
+    const batchAppends = [];
+
+    for (const [sheet, dataArr] of Object.entries(sheetsData)) {
+      if (!Array.isArray(dataArr) || dataArr.length === 0) {
+        console.error(`No data for ${sheet}`);
         continue;
       }
 
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: sheet,
-      });
+      const rows = existingData[sheet] || [];
 
-      const rows = response.data.values || [];
-      let rowIndex = rows.findIndex(row => row[0] === sheetDate);
+      for (const data of dataArr) {
+        const sheetDate = data?.date;
+        if (!sheetDate) {
+          console.error(`Missing date in data for sheet: ${sheet}`);
+          continue;
+        }
 
-      if (rowIndex !== -1) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `${sheet.split("!")[0]}!K${rowIndex + 2}`,
-          valueInputOption: 'RAW',
-          resource: { values: [[data.cost]] },
-        });
-      } else {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: sheet,
-          valueInputOption: 'RAW',
-          insertDataOption: 'INSERT_ROWS',
-          resource: { values: [[sheetDate, ...Array(9), data.cost]] },
-        });
+        let rowIndex = rows.findIndex(row => row[0] === sheetDate);
+
+        if (rowIndex !== -1) {
+          batchUpdates.push({
+            range: `${sheet.split("!")[0]}!K${rowIndex + 2}`,
+            values: [[data.cost]],
+          });
+        } else {
+          batchAppends.push([sheetDate, ...Array(9).fill(''), data.cost]);
+        }
       }
+    }
+
+    if (batchUpdates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: 'RAW',
+          data: batchUpdates,
+        },
+      });
+    }
+
+    if (batchAppends.length > 0) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: batchGetRanges[0],
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        resource: { values: batchAppends },
+      });
     }
 
     console.log("Daily MIVD data updated successfully!");
