@@ -97,12 +97,12 @@ const eveningJobs = [
 
 const morningJobs2 = [
   runFullReportProcess,
-  sendFinalWeeklyReportToGoogleSheetsHS,
-  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendFinalMonthlyReportToGoogleSheetsMIV,
+  sendFinalMonthlyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS,
   sendSubPacingReport,
-  sendFinalMonthlyReportToGoogleSheetsHS,
-  sendFinalMonthlyReportToGoogleSheetsMIV,
+  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendFinalWeeklyReportToGoogleSheetsHS,
 ];
 
 const eveningJobs2 = [

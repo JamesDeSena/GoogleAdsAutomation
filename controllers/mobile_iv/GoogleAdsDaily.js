@@ -6,26 +6,18 @@ let storedDate = null;
 
 const generateDailyDate = () => {
   const now = new Date();
-  const offset = -8 * 60;
-  let laTime = new Date(now.getTime() + offset * 60000);
-  
-  const startOfMonth = new Date(laTime.getFullYear(), laTime.getMonth(), 1);
-  let today;
-  
-  if (now.getDate() === 1) {
-    today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  } else {
-    today = new Date(laTime.getFullYear(), laTime.getMonth(), laTime.getDate());
-  }
-  
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1); // Set to yesterday
+
+  const startOfMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
   const dates = [];
   let currentDate = new Date(startOfMonth);
-  
-  while (currentDate <= today) {
-    dates.push(currentDate.toISOString().split('T')[0]);
+
+  while (currentDate <= yesterday) {
+    dates.push(currentDate.toLocaleDateString('en-CA')); // Ensures 'YYYY-MM-DD' format
     currentDate.setDate(currentDate.getDate() + 1);
   }
-  
+
   return dates;
 };
 
@@ -157,24 +149,30 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDate(date);
 
-    const azData = await fetchFunctions.fetchReportDataDailyAZ(req, res, dateRanges);
-    const allAZData = await fetchFunctions.fetchReportDataDailyAllAZ(req, res, dateRanges);
-    const lvData = await fetchFunctions.fetchReportDataDailyLV(req, res, dateRanges);
-    const nyData = await fetchFunctions.fetchReportDataDailyNYC(req, res, dateRanges);
+    const [azData, allAZData] = await Promise.all([
+      fetchFunctions.fetchReportDataDailyAZ(req, res, dateRanges),
+      fetchFunctions.fetchReportDataDailyAllAZ(req, res, dateRanges)
+    ]);
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const [lvData, nyData] = await Promise.all([
+      fetchFunctions.fetchReportDataDailyLV(req, res, dateRanges),
+      fetchFunctions.fetchReportDataDailyNYC(req, res, dateRanges)
+    ]);
 
     const sheetsData = {
-      [dataRanges.Phoenix]: azData[0],
-      [dataRanges.Tucson]: azData[1],
-      [dataRanges.AZ]: allAZData[0],
-      [dataRanges.LV]: lvData[0],
-      [dataRanges.NY]: nyData[0],
+      [dataRanges.Phoenix]: azData[0] || [],
+      [dataRanges.Tucson]: azData[1] || [],
+      [dataRanges.AZ]: allAZData[0] || [],
+      [dataRanges.LV]: lvData[0] || [],
+      [dataRanges.NY]: nyData[0] || [],
     };
 
-    const batchGetRanges = Object.keys(sheetsData).map(sheet => sheet);
-    const batchResponse = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId,
-      ranges: batchGetRanges,
-    });
+    const batchGetRanges = Object.keys(sheetsData).filter(sheet => sheetsData[sheet].length > 0);
+    if (batchGetRanges.length === 0) return console.log("No data to update.");
+
+    const batchResponse = await sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges: batchGetRanges });
 
     const existingData = {};
     batchResponse.data.valueRanges.forEach((response, index) => {
@@ -182,55 +180,50 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     });
 
     const batchUpdates = [];
-    const batchAppends = [];
+    const batchAppends = {};
+
+    for (const sheet of batchGetRanges) batchAppends[sheet] = [];
 
     for (const [sheet, dataArr] of Object.entries(sheetsData)) {
-      if (!Array.isArray(dataArr) || dataArr.length === 0) {
-        console.error(`No data for ${sheet}`);
-        continue;
-      }
+      if (!dataArr.length) continue;
 
       const rows = existingData[sheet] || [];
 
       for (const data of dataArr) {
         const sheetDate = data?.date;
-        if (!sheetDate) {
-          console.error(`Missing date in data for sheet: ${sheet}`);
-          continue;
-        }
+        if (!sheetDate) continue;
 
         let rowIndex = rows.findIndex(row => row[0] === sheetDate);
-
         if (rowIndex !== -1) {
-          batchUpdates.push({
-            range: `${sheet.split("!")[0]}!K${rowIndex + 2}`,
-            values: [[data.cost]],
-          });
+          batchUpdates.push({ range: `${sheet.split("!")[0]}!K${rowIndex + 2}`, values: [[data.cost]] });
         } else {
-          batchAppends.push([sheetDate, ...Array(9).fill(''), data.cost]);
+          batchAppends[sheet].push([sheetDate, ...Array(9).fill(''), data.cost]);
         }
       }
     }
 
+    const updatePromises = [];
+
     if (batchUpdates.length > 0) {
-      await sheets.spreadsheets.values.batchUpdate({
+      updatePromises.push(sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
-        resource: {
-          valueInputOption: 'RAW',
-          data: batchUpdates,
-        },
-      });
+        resource: { valueInputOption: 'RAW', data: batchUpdates },
+      }));
     }
 
-    if (batchAppends.length > 0) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: batchGetRanges[0],
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        resource: { values: batchAppends },
-      });
+    for (const [sheet, values] of Object.entries(batchAppends)) {
+      if (values.length > 0) {
+        updatePromises.push(sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: sheet,
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          resource: { values },
+        }));
+      }
     }
+
+    await Promise.all(updatePromises);
 
     console.log("Daily MIVD data updated successfully!");
   } catch (error) {

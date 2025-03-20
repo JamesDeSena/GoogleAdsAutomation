@@ -321,7 +321,7 @@ const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
     // res.json(allWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(500).send("Error fetching report data");
+    // res.status(300).send("Error fetching report data");
   }
 };
 
@@ -434,7 +434,7 @@ const fetchReportDataWeeklySearchHS = async (dateRanges) => {
     // res.json(allSearchWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(500).send("Error fetching report data");
+    // res.status(300).send("Error fetching report data");
   }
 };
 
@@ -548,7 +548,7 @@ const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, repor
     return allWeeklyData;
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(500).send("Error fetching report data");
+    // res.status(300).send("Error fetching report data");
   }
 };
 
@@ -614,55 +614,48 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
   const dataRanges = {
     Live: 'Weekly Performance!A2:U',
     AllBNB: 'Reporting Overview!A2:U',
-    // Gilbert: 'Gilbert!A2:U',
-    // MKT: 'MKT!A2:U',
-    // Phoenix: 'Phoenix!A2:U',
-    // Scottsdale: 'Scottsdale!A2:U',
-    // UptownPark: 'UptownPark!A2:U',
-    // Montrose: 'Montrose!A2:U',
-    // RiceVillage: 'RiceVillage!A2:U',
-    // Mosaic: 'Mosaic!A2:U',
-    // FourteenthSt: '14thSt!A2:U',
   };
 
   try {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const weeklyCampaignData = await fetchReportDataWeeklyCampaignHS(dateRanges);
-    const weeklySearchData = await fetchReportDataWeeklySearchHS(dateRanges);
-    const brandData = await fetchFunctions.fetchReportDataWeeklyHSBrand(req, res, dateRanges);
-    const noBrandData = await fetchFunctions.fetchReportDataWeeklyHSNB(req, res, dateRanges);
-    const gilbertData = await fetchFunctions.fetchReportDataWeeklyHSGilbert(req, res, dateRanges);
-    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyHSGilbertBrand(req, res, dateRanges);
-    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyHSGilbertNB(req, res, dateRanges);
-    const mktData = await fetchFunctions.fetchReportDataWeeklyHSMKT(req, res, dateRanges);
-    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMKTBrand(req, res, dateRanges);
-    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyHSMKTNB(req, res, dateRanges);
-    const phoenixData = await fetchFunctions.fetchReportDataWeeklyHSPhoenix(req, res, dateRanges);
-    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPhoenixBrand(req, res, dateRanges);
-    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyHSPhoenixNB(req, res, dateRanges);
-    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyHSScottsdale(req, res, dateRanges);
-    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleBrand(req, res, dateRanges);
-    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleNB(req, res, dateRanges);
-    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyHSUptownPark(req, res, dateRanges);
-    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyHSUptownParkBrand(req, res, dateRanges);
-    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyHSUptownParkNB(req, res, dateRanges);
-    const montroseData = await fetchFunctions.fetchReportDataWeeklyHSMontrose(req, res, dateRanges);
-    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMontroseBrand(req, res, dateRanges);
-    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyHSMontroseNB(req, res, dateRanges);
-    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyHSRiceVillage(req, res, dateRanges);
-    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageBrand(req, res, dateRanges);
-    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageNB(req, res, dateRanges);
-    const mosaicData = await fetchFunctions.fetchReportDataWeeklyHSMosaic(req, res, dateRanges);
-    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMosaicBrand(req, res, dateRanges);
-    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyHSMosaicNB(req, res, dateRanges);
-    const fourteenthStData = await fetchFunctions.fetchReportDataWeeklyHS14thSt(req, res, dateRanges);
-    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeeklyHS14thStBrand(req, res, dateRanges);
-    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeeklyHS14thStNB(req, res, dateRanges);
-    const pmaxData = await fetchFunctions.fetchReportDataWeeklyHSPmax(req, res, dateRanges);
-    const gdnData = await fetchFunctions.fetchReportDataWeeklyHSGDN(req, res, dateRanges);
-    const bingData = await fetchFunctions.fetchReportDataWeeklyHSBing(req, res, dateRanges);
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const weeklyCampaignData = await fetchReportDataWeeklyCampaignHS(dateRanges); await delay(300);
+    const weeklySearchData = await fetchReportDataWeeklySearchHS(dateRanges); await delay(300);
+    const brandData = await fetchFunctions.fetchReportDataWeeklyHSBrand(req, res, dateRanges); await delay(300);
+    const noBrandData = await fetchFunctions.fetchReportDataWeeklyHSNB(req, res, dateRanges); await delay(300);
+    const gilbertData = await fetchFunctions.fetchReportDataWeeklyHSGilbert(req, res, dateRanges); await delay(300);
+    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyHSGilbertBrand(req, res, dateRanges); await delay(300);
+    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyHSGilbertNB(req, res, dateRanges); await delay(300);
+    const mktData = await fetchFunctions.fetchReportDataWeeklyHSMKT(req, res, dateRanges); await delay(300);
+    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMKTBrand(req, res, dateRanges); await delay(300);
+    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyHSMKTNB(req, res, dateRanges); await delay(300);
+    const phoenixData = await fetchFunctions.fetchReportDataWeeklyHSPhoenix(req, res, dateRanges); await delay(300);
+    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPhoenixBrand(req, res, dateRanges); await delay(300);
+    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyHSPhoenixNB(req, res, dateRanges); await delay(300);
+    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyHSScottsdale(req, res, dateRanges); await delay(300);
+    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleBrand(req, res, dateRanges); await delay(300);
+    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleNB(req, res, dateRanges); await delay(300);
+    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyHSUptownPark(req, res, dateRanges); await delay(300);
+    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyHSUptownParkBrand(req, res, dateRanges); await delay(300);
+    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyHSUptownParkNB(req, res, dateRanges); await delay(300);
+    const montroseData = await fetchFunctions.fetchReportDataWeeklyHSMontrose(req, res, dateRanges); await delay(300);
+    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMontroseBrand(req, res, dateRanges); await delay(300);
+    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyHSMontroseNB(req, res, dateRanges); await delay(300);
+    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyHSRiceVillage(req, res, dateRanges); await delay(300);
+    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageBrand(req, res, dateRanges); await delay(300);
+    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageNB(req, res, dateRanges); await delay(300);
+    const mosaicData = await fetchFunctions.fetchReportDataWeeklyHSMosaic(req, res, dateRanges); await delay(300);
+    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMosaicBrand(req, res, dateRanges); await delay(300);
+    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyHSMosaicNB(req, res, dateRanges); await delay(300);
+    const fourteenthStData = await fetchFunctions.fetchReportDataWeeklyHS14thSt(req, res, dateRanges); await delay(300);
+    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeeklyHS14thStBrand(req, res, dateRanges); await delay(300);
+    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeeklyHS14thStNB(req, res, dateRanges); await delay(300);
+    const pmaxData = await fetchFunctions.fetchReportDataWeeklyHSPmax(req, res, dateRanges); await delay(300);
+    const gdnData = await fetchFunctions.fetchReportDataWeeklyHSGDN(req, res, dateRanges); await delay(300);
+    const bingData = await fetchFunctions.fetchReportDataWeeklyHSBing(req, res, dateRanges); await delay(300);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -866,15 +859,6 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const dataToSend = {
       Live: sheetData.filter(row => ["Brand Search", "NB Search", "Pmax", "GDN", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "NB Search", "Pmax", "GDN", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
       AllBNB: sheetData.filter(row => ["All Search", "Brand Search", "NB Search"].includes(row[0]) || ["All Search", "Brand Search", "NB Search"].includes(row[1])),
-      Gilbert: sheetData.filter(row => ["Gilbert", "Gilbert Brand", "Gilbert NB"].includes(row[0]) || ["Gilbert", "Gilbert Brand", "Gilbert NB"].includes(row[1])),
-      MKT: sheetData.filter(row => ["MKT", "MKT Brand", "MKT NB"].includes(row[0]) || ["MKT", "MKT Brand", "MKT NB"].includes(row[1])),
-      Phoenix: sheetData.filter(row => ["Phoenix", "Phoenix Brand", "Phoenix NB"].includes(row[0]) || ["Phoenix", "Phoenix Brand", "Phoenix NB"].includes(row[1])),
-      Scottsdale: sheetData.filter(row => ["Scottsdale", "Scottsdale Brand", "Scottsdale NB"].includes(row[0]) || ["Scottsdale", "Scottsdale Brand", "Scottsdale NB"].includes(row[1])),
-      UptownPark: sheetData.filter(row => ["UptownPark", "UptownPark Brand", "UptownPark NB"].includes(row[0]) || ["UptownPark", "UptownPark Brand", "UptownPark NB"].includes(row[1])),
-      Montrose: sheetData.filter(row => ["Montrose", "Montrose Brand", "Montrose NB"].includes(row[0]) || ["Montrose", "Montrose Brand", "Montrose NB"].includes(row[1])),
-      RiceVillage: sheetData.filter(row => ["RiceVillage", "RiceVillage Brand", "RiceVillage NB"].includes(row[0]) || ["RiceVillage", "RiceVillage Brand", "RiceVillage NB"].includes(row[1])),
-      Mosaic: sheetData.filter(row => ["Mosaic", "Mosaic Brand", "Mosaic NB"].includes(row[0]) || ["Mosaic", "Mosaic Brand", "Mosaic NB"].includes(row[1])),
-      FourteenthSt: sheetData.filter(row => ["14thSt", "14thSt Brand", "14thSt NB"].includes(row[0]) || ["14thSt", "14thSt Brand", "14thSt NB"].includes(row[1])),
     };    
 
     const formatSheets = async (sheetName, data) => {
