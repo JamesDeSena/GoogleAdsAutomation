@@ -510,7 +510,7 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
       rowIndexToUpdate = rows.length + 2;
     }
 
-    const updateRange = `'Google & Bing Monthly Ad Spend'!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
+    const updateRange = `Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
     const resource = {
       values: [
         [currentMonthYear, record.data.GoogleLPC, record.data.BingLPC],
