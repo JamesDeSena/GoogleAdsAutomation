@@ -5,17 +5,22 @@ const { getStoredRefreshToken } = require("../GoogleAuth");
 let storedDate = null;
 
 const generateDailyDate = () => {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1); // Set to yesterday
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate()); // Get yesterday's date
+  console.log("Local Time:", new Date()); // Expected: 2025-03-22 (your timezone)
+  console.log("UTC Time:", new Date().toISOString()); 
+  console.log(yesterday)
 
-  const startOfMonth = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
+  const startOfMonth = new Date();
+  startOfMonth.setDate(2);
+  console.log(startOfMonth)
+
   const dates = [];
   let currentDate = new Date(startOfMonth);
-
-  while (currentDate <= yesterday) {
-    dates.push(currentDate.toLocaleDateString('en-CA')); // Ensures 'YYYY-MM-DD' format
-    currentDate.setDate(currentDate.getDate() + 1);
+  console.log(currentDate)
+  while (startOfMonth <= yesterday) {
+    dates.push(startOfMonth.toISOString().split("T")[0]); // YYYY-MM-DD format
+    startOfMonth.setDate(startOfMonth.getDate() + 1);
   }
 
   return dates;
@@ -26,7 +31,7 @@ const getOrGenerateDate = () => {
   if (!storedDate || storedDate.length !== dates.length) {
     storedDate = dates;
   }
-
+  console.log(storedDate)
   return storedDate;
 };
 
@@ -197,7 +202,7 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
         if (rowIndex !== -1) {
           batchUpdates.push({ range: `${sheet.split("!")[0]}!K${rowIndex + 2}`, values: [[data.cost]] });
         } else {
-          batchAppends[sheet].push([sheetDate, ...Array(9).fill(''), data.cost]);
+          batchAppends[sheet].push([sheetDate, ...Array(9).fill(''), data.cost]); 
         }
       }
     }
