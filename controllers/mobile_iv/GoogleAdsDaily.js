@@ -7,17 +7,12 @@ let storedDate = null;
 const generateDailyDate = () => {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate()); // Get yesterday's date
-  console.log("Local Time:", new Date()); // Expected: 2025-03-22 (your timezone)
-  console.log("UTC Time:", new Date().toISOString()); 
-  console.log(yesterday)
 
   const startOfMonth = new Date();
-  startOfMonth.setDate(2);
-  console.log(startOfMonth)
+  startOfMonth.setDate(1);
 
   const dates = [];
-  let currentDate = new Date(startOfMonth);
-  console.log(currentDate)
+
   while (startOfMonth <= yesterday) {
     dates.push(startOfMonth.toISOString().split("T")[0]); // YYYY-MM-DD format
     startOfMonth.setDate(startOfMonth.getDate() + 1);
