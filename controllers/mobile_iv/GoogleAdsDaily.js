@@ -26,7 +26,7 @@ const getOrGenerateDate = () => {
   if (!storedDate || storedDate.length !== dates.length) {
     storedDate = dates;
   }
-  console.log(storedDate)
+  
   return storedDate;
 };
 
@@ -197,7 +197,7 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
         if (rowIndex !== -1) {
           batchUpdates.push({ range: `${sheet.split("!")[0]}!K${rowIndex + 2}`, values: [[data.cost]] });
         } else {
-          batchAppends[sheet].push([sheetDate, ...Array(9).fill(''), data.cost]); 
+          batchAppends[sheet].push([sheetDate, data.cost]); 
         }
       }
     }

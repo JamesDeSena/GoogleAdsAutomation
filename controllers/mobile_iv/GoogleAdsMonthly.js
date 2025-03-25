@@ -192,7 +192,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    Monthly: 'Monthly View!A2:R',
+    Monthly: 'Monthly View!A2:T',
   };
 
   try {
@@ -205,7 +205,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
 
     const bookingData = await sendBookings(req, res);
 
-    const bookingAZ = bookingData.allAZ || [];
+    const bookingAZ = bookingData.AZ || [];
     const bookingLV = bookingData.LV || [];
     const bookingNY = bookingData.NYC || [];
 
@@ -240,14 +240,22 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
         const totalEntry = totalData.find((entry) => entry.date === key);
         if (totalEntry) {
           let totalBookings = 0;
-
+          let totalNewBookings = 0;
+    
           if (typeof data === "object") {
-            totalBookings = Object.values(data).reduce((sum, num) => sum + num, 0);
-          } else if (typeof data === "number") {
-            totalBookings = data;
+            Object.values(data).forEach((num) => {
+              if (typeof num === "object") {
+                totalBookings += num.count1 || 0;
+                totalNewBookings += num.count2 || 0;
+              } else {
+                if (data.count1 !== undefined) totalBookings = data.count1;
+                if (data.count2 !== undefined) totalNewBookings = data.count2;
+              }
+            });
           }
-
+    
           totalEntry.totalBook = (totalEntry.totalBook || 0) + totalBookings;
+          totalEntry.totalNewBook = (totalEntry.totalNewBook || 0) + totalNewBookings;
         }
       });
     };
@@ -281,22 +289,24 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           "Cost": formatPercentage(calculateMoMVariance(lastRecord.cost, secondToLastRecord.cost)),
           "CPC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
           "CTR": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
+          "Booking Total": formatPercentage(calculateMoMVariance(lastRecord.totalBook, secondToLastRecord.totalBook)),
+          "CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.totalBook, secondToLastRecord.cost / secondToLastRecord.totalBook)),
+          "Daily Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook / daysInMonthLast, secondToLastRecord.totalBook / daysInMonthSecond)),
+          "Appt Conv Rate": formatPercentage(calculateMoMVariance(lastRecord.totalBook / lastRecord.clicks, secondToLastRecord.totalBook / secondToLastRecord.clicks)),
+          "New Requests": formatPercentage(calculateMoMVariance(lastRecord.totalNewBook, secondToLastRecord.totalNewBook)),
+          "New Requests CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.totalNewBook, secondToLastRecord.cost / secondToLastRecord.totalNewBook)),
           "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
           "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-          "Number of Appt Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook, secondToLastRecord.totalBook)),
-          "CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.totalBook, secondToLastRecord.cost / secondToLastRecord.totalBook)),
-          "Appt Conv Rate": formatPercentage(calculateMoMVariance(lastRecord.totalBook / lastRecord.clicks, secondToLastRecord.totalBook / secondToLastRecord.clicks)),
           "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
           "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
           "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
-          "Daily Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook / daysInMonthLast, secondToLastRecord.totalBook / daysInMonthSecond)),
         };
 
         records.push(baseRecord);
       } else {
-        const bookingLastRecord = bookingRecords.find(j => j.month === lastRecord.date) || {};
-        const bookingSecondToLastRecord = bookingRecords.find(j => j.month === secondToLastRecord.date) || {};
+        const bookingLastRecord = bookingRecords.find(j => j.month === lastRecord.date) || { data: {} };
+        const bookingSecondToLastRecord = bookingRecords.find(j => j.month === secondToLastRecord.date) || { data: {} };
       
         const baseRecord = {
           Month: "MoM Variance %",
@@ -306,19 +316,68 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           "Clicks": formatPercentage(calculateMoMVariance(lastRecord.clicks, secondToLastRecord.clicks)),
           "Cost": formatPercentage(calculateMoMVariance(lastRecord.cost, secondToLastRecord.cost)),
           "CPC": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
-          "CTR": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
+          "CTR": formatPercentage(calculateMoMVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),   
+          // "Booking Total": formatPercentage(calculateMoMVariance(bookingLastRecord.data.count2, bookingSecondToLastRecord.data.count2)),
+          // "CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data.count2 || 0), secondToLastRecord.cost / (bookingSecondToLastRecord.data.count2 || 0))),
+          // "Daily Requests": formatPercentage(calculateMoMVariance((bookingLastRecord.data.count2 || 0) / daysInMonthLast, (bookingSecondToLastRecord.data.count2 || 0) / daysInMonthSecond)),
+          // "Appt Conv Rate": formatPercentage(calculateMoMVariance((bookingLastRecord.data.count2 || 0) / lastRecord.clicks, (bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks)),
+          // "New Requests": formatPercentage(calculateMoMVariance(bookingLastRecord.data.count1, bookingSecondToLastRecord.data.count1)),
+          // "New Requests CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data.count1 || 1), secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0))),
+          // "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
+          // "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
+          // "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+          // "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
+          // "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          // "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
+        };
+
+        Object.assign(baseRecord, {
+          "Booking Total": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                (bookingLastRecord.data?.Phoenix?.count2 || 0) + (bookingLastRecord.data?.Tucson?.count2 || 0),
+                (bookingSecondToLastRecord.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count2 || 0)
+              ))
+            : formatPercentage(calculateMoMVariance(bookingLastRecord.data.count2, bookingSecondToLastRecord.data.count2)),
+          "CAC": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                lastRecord.cost / ((bookingLastRecord.data?.Phoenix?.count2 || 0) + (bookingLastRecord.data?.Tucson?.count2 || 0)),
+                secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count2 || 0))
+              ))
+            : formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data.count2 || 0), secondToLastRecord.cost / (bookingSecondToLastRecord.data.count2 || 0))),
+          "Daily Requests": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                ((bookingLastRecord.data?.Phoenix?.count2 || 0) + (bookingLastRecord.data?.Tucson?.count2 || 0)) / daysInMonthLast,
+                ((bookingSecondToLastRecord.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count2 || 0)) / daysInMonthSecond
+              ))
+            : formatPercentage(calculateMoMVariance((bookingLastRecord.data.count2 || 0) / daysInMonthLast, (bookingSecondToLastRecord.data.count2 || 0) / daysInMonthSecond)),
+          "Appt Conv Rate": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                ((bookingLastRecord.data?.Phoenix?.count2 || 0) + (bookingLastRecord.data?.Tucson?.count2 || 0)) / lastRecord.clicks,
+                ((bookingSecondToLastRecord.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count2 || 0)) / secondToLastRecord.clicks
+              ))
+            : formatPercentage(calculateMoMVariance((bookingLastRecord.data.count2 || 0) / lastRecord.clicks, (bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks)),
+          "New Requests": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                ((bookingLastRecord.data?.Phoenix?.count1 || 0) + (bookingLastRecord.data?.Tucson?.count1 || 0)) / lastRecord.clicks,
+                ((bookingSecondToLastRecord.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count1 || 0)) / secondToLastRecord.clicks
+              ))
+            : formatPercentage(calculateMoMVariance(bookingLastRecord.data.count1, bookingSecondToLastRecord.data.count1)),
+          "New Requests CAC": filter === "AZ"
+            ? formatPercentage(calculateMoMVariance(
+                lastRecord.cost / ((bookingLastRecord.data?.Phoenix.count1 || 0) + (bookingLastRecord.data?.Tucson.count1 || 0)),
+                secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson.count1 || 0))
+              ))
+            : formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data.count1 || 1), secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0))),
+        });
+
+        Object.assign(baseRecord, {
           "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
           "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-          "Daily Requests": formatPercentage(calculateMoMVariance(lastRecord.totalBook / daysInMonthLast, secondToLastRecord.totalBook / daysInMonthSecond)),
-          "Number of Appt Requests": formatPercentage(calculateMoMVariance(bookingLastRecord.data, bookingSecondToLastRecord.data)),
-          "Daily Requests": formatPercentage(calculateMoMVariance((bookingLastRecord.data || 0) / daysInMonthLast,(bookingSecondToLastRecord.data || 0) / daysInMonthSecond)),
-          "CAC": formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data || 0),secondToLastRecord.cost / (bookingSecondToLastRecord.data || 0))),
-          "Appt Conv Rate": formatPercentage(calculateMoMVariance((bookingLastRecord.data || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data || 0) / secondToLastRecord.clicks)),
           "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
           "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
           "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
-        };
+        });
 
         records.push(baseRecord);
       }
@@ -337,13 +396,15 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost": formatCurrency(record.cost),
             "CPC": formatCurrency(record.cost / record.clicks),
             "CTR": formatPercentage((record.clicks / record.impressions) * 100),
+            "Booking Total": formatNumber(record.totalBook || 0),
+            "CAC": formatCurrency(record.cost / (record.totalBook || 0) || 1),
+            "Daily Requests": formatNumber((record.totalBook || 0) / daysInMonth),
+            "Appt Conv Rate": formatPercentage(((record.totalBook || 0) / record.clicks) * 100 || 1),
+            "New Requests": formatNumber(record.totalNewBook || 0),
+            "New Requests CAC": formatCurrency((record.cost / ( record.totalNewBook || 0)) || 1),
             "Conversion": formatNumber(record.conversions),
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-            "Number of Appt Requests": formatNumber(record.totalBook || 0),
-            "Daily Requests": formatNumber((record.totalBook || 0) / daysInMonth ),
-            "CAC": formatCurrency(record.clicks / (record.totalBook || 0) || 1),
-            "Appt Conv Rate": formatPercentage(((record.totalBook || 0) / record.clicks) * 100 || 1),
             "Calls from Ads - Local SEO": formatNumber(record.calls),
             "Book Now Form Local SEO": formatNumber(record.books),
             "Phone No. Click Local SEO": formatNumber(record.phone),
@@ -354,7 +415,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
       } else {
         data.forEach((record) => {
           const daysInMonth = getDaysInMonth(record.date);
-          const bookingRecord = bookingData.find(j => j.month === record.date) || {};
+          const bookingRecord = bookingData.find(j => j.month === record.date) || { data: {} };
           const baseRecord = {
             Month: record.date,
             Filter: filter,
@@ -364,17 +425,49 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost": formatCurrency(record.cost),
             "CPC": formatCurrency(record.cost / record.clicks),
             "CTR": formatPercentage((record.clicks / record.impressions) * 100),
+            // "Booking Total": formatNumber(bookingRecord.data.count2 || 0),
+            // "CAC": formatCurrency(record.cost / (bookingRecord.data.count2 || 0) || 1),
+            // "Daily Requests": formatNumber(((bookingRecord.data.count2 || 0) / daysInMonth) || 1),
+            // "Appt Conv Rate": formatPercentage(((bookingRecord.data.count2 || 0) / record.clicks) * 100 || 1),
+            // "New Requests": formatNumber(bookingRecord.data.count1 || 0),
+            // "New Requests CAC": formatCurrency((record.cost / (bookingRecord.data.count1 || 0)) || 1),
+            // "Conversion": formatNumber(record.conversions),
+            // "Cost Per Conv": formatCurrency(record.cost / record.conversions),
+            // "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+            // "Calls from Ads - Local SEO": formatNumber(record.calls),
+            // "Book Now Form Local SEO": formatNumber(record.books),
+            // "Phone No. Click Local SEO": formatNumber(record.phone),
+          };
+          
+          Object.assign(baseRecord, {
+            "Booking Total": filter === "AZ"
+              ? formatNumber((bookingRecord.data?.Phoenix?.count2 || 0) + (bookingRecord.data?.Tucson?.count2 || 0))
+              : formatNumber(bookingRecord.data.count2 || 0),
+            "CAC": filter === "AZ"
+              ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix?.count2 || 0) + (bookingRecord.data?.Tucson?.count2 || 0)) || 1) 
+              : formatCurrency(record.cost / (bookingRecord.data.count2 || 0) || 1),
+            "Daily Requests": filter === "AZ"
+              ? formatNumber((((bookingRecord.data?.Phoenix?.count2 || 0) + (bookingRecord.data?.Tucson?.count2 || 0)) / daysInMonth) || 1) 
+              : formatNumber(((bookingRecord.data.count2 || 0) / daysInMonth) || 1),
+            "Appt Conv Rate": filter === "AZ"
+              ? formatPercentage((((bookingRecord.data?.Phoenix?.count2 || 0) + (bookingRecord.data?.Tucson?.count2 || 0)) / record.clicks) * 100 || 1) 
+              : formatPercentage(((bookingRecord.data.count2 || 0) / record.clicks) * 100 || 1),
+            "New Requests": filter === "AZ"
+              ? formatNumber((bookingRecord.data?.Phoenix?.count1 || 0) + (bookingRecord.data?.Tucson?.count1  || 0))
+              : formatNumber(bookingRecord.data.count1 || 0),
+            "New Requests CAC": filter === "AZ"
+              ? formatCurrency(record.cost / ((bookingRecord.data?.Phoenix?.count1  || 0) + (bookingRecord.data?.Tucson?.count1  || 0)) || 1) 
+              : formatCurrency((record.cost / (bookingRecord.data.count1 || 0))),
+          });
+
+          Object.assign(baseRecord, {
             "Conversion": formatNumber(record.conversions),
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-            "Number of Appt Requests": formatNumber(bookingRecord.data || 0),
-            "Daily Requests": formatNumber(((bookingRecord.data || 0) / daysInMonth) || 1),
-            "CAC": formatCurrency(record.cost / (bookingRecord.data || 0) || 1),
-            "Appt Conv Rate": formatPercentage(((bookingRecord.data || 0) / record.clicks) * 100 || 1),
             "Calls from Ads - Local SEO": formatNumber(record.calls),
             "Book Now Form Local SEO": formatNumber(record.books),
             "Phone No. Click Local SEO": formatNumber(record.phone),
-          };
+          });
       
           records.push(baseRecord);
         });
@@ -411,13 +504,15 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost": "Cost",
             "CPC": "CPC",
             "CTR": "CTR",
+            "Booking Total": "Booking Total",
+            "CAC": "CAC",
+            "Daily Requests": "Daily Requests",
+            "Appt Conv Rate": "Appt Conv Rate",
+            "New Requests": "New Requests",
+            "New Requests CAC": "New Requests CAC",
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Number of Appt Requests": "Number of Appt Requests",
-            "Daily Requests": "Daily Requests",
-            "CAC": "CAC",
-            "Appt Conv Rate": "Appt Conv Rate",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "Book Now Form Local SEO": "Book Now Form Local SEO",
             "Phone No. Click Local SEO": "Phone No. Click Local SEO",
@@ -446,13 +541,15 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
         record["Cost"],
         record["CPC"],
         record["CTR"],
+        record["Booking Total"],
+        record["CAC"],
+        record["Daily Requests"],
+        record["Appt Conv Rate"],
+        record["New Requests"],
+        record["New Requests CAC"],
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-        record["Number of Appt Requests"],
-        record["Daily Requests"],
-        record["CAC"],
-        record["Appt Conv Rate"],
         record["Calls from Ads - Local SEO"],
         record["Book Now Form Local SEO"],
         record["Phone No. Click Local SEO"]
@@ -543,35 +640,38 @@ const sendBookings = async (req, res) => {
         range,
       });
       if (!rows) continue;
-
-      rows.forEach(([date, , , count]) => {
-        if (!date || !count || isNaN(count) || new Date(date) < startDate) return;
-
+    
+      rows.forEach(([date, count1, , count2]) => {
+        if (!date || !count1 || !count2 || isNaN(count1) || isNaN(count2) || new Date(date) < startDate) return; 
+    
         const currentRowDate = new Date(date);
         const monthLabel = `${currentRowDate.getFullYear()}-${(currentRowDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
+    
         if (location.startsWith("AZ_")) {
           const subLocation = location.replace("AZ_", "");
-          monthlyData.AZ[monthLabel] = monthlyData.AZ[monthLabel] || { Phoenix: 0, Tucson: 0 };
-          monthlyData.AZ[monthLabel][subLocation] += parseInt(count, 10);
+          monthlyData.AZ[monthLabel] = monthlyData.AZ[monthLabel] || { Phoenix: { count1: 0, count2: 0 }, Tucson: { count1: 0, count2: 0 } };
+          monthlyData.AZ[monthLabel][subLocation].count1 += parseInt(count1, 10);
+          monthlyData.AZ[monthLabel][subLocation].count2 += parseInt(count2, 10);
         } else {
-          monthlyData[location][monthLabel] = (monthlyData[location][monthLabel] || 0) + parseInt(count, 10);
+          monthlyData[location][monthLabel] = monthlyData[location][monthLabel] || { count1: 0, count2: 0 };
+          monthlyData[location][monthLabel].count1 += parseInt(count1, 10);
+          monthlyData[location][monthLabel].count2 += parseInt(count2, 10);
         }
       });      
     }
-
+    
     for (const [month, data] of Object.entries(monthlyData.AZ)) {
       result.AZ.push({ month, data });
     }
-    for (const [month, count] of Object.entries(monthlyData.allAZ)) {
-      result.allAZ.push({ month, data: count });
+    for (const [month, data] of Object.entries(monthlyData.allAZ)) {
+      result.allAZ.push({ month, data });
     }
-    for (const [month, count] of Object.entries(monthlyData.LV)) {
-      result.LV.push({ month, data: count });
+    for (const [month, data] of Object.entries(monthlyData.LV)) {
+      result.LV.push({ month, data });
     }
-    for (const [month, count] of Object.entries(monthlyData.NYC)) {
-      result.NYC.push({ month, data: count });
-    }
+    for (const [month, data] of Object.entries(monthlyData.NYC)) {
+      result.NYC.push({ month, data });
+    }    
 
     return result;
   } catch (error) {
