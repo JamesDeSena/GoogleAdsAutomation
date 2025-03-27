@@ -6,15 +6,16 @@ const router = express.Router();
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
 const { 
-  // getCampaigns,
+  getCampaigns,
   // dailyExport,
   // dailyReport,
-  // dailyToWeekly,
   runDailyExportAndReport,
-  runFullReportProcess,
-  getRawCampaigns,
-  getWeeklyCampaigns
 } = require("../controllers/lpc/DailyFetch");
+
+const { 
+  getRawCampaigns,
+  sendFinalWeeklyReportToGoogleSheetsLPC,
+} = require("../controllers/lpc/GoogleAdsWeekly");
 
 const {
   downloadAndExtractHSBing,
@@ -44,7 +45,6 @@ const {
 const {
   // executeSpecificFetchFunctionMIV,
   sendFinalMonthlyReportToGoogleSheetsMIV,
-  sendJaneToGoogleSheetsMIV,
   sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
 
@@ -63,15 +63,26 @@ const {
 // router.get('/report-nb', fetchReportDataWeeklyNB);
 // router.get('/report-final', sendFinalReportToAirtable);
 
-router.get('/lpc/report', async (req, res) => {
+router.get('/lpc/report-daily', async (req, res) => {
   try {
-    await runFullReportProcess(req, res);
+    await runDailyExportAndReport(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
     res.status(500).send("Error processing final report.");
   }
 });
+
+router.get('/lpc/report-final', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsLPC(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
 
 router.get('/hi_skin/report-final/:date?', async (req, res) => {
   try {

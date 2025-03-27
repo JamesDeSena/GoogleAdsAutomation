@@ -16,7 +16,8 @@ const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendPacingReportToGoogleSheets, sendSubPacingReport } = require('./controllers/pacing_report/PacingReport');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
-const { runFullReportProcess } = require('./controllers/lpc/DailyFetch');
+const { runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
+const { sendFinalWeeklyReportToGoogleSheetsLPC } = require('./controllers/lpc/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
@@ -77,12 +78,12 @@ rule2.tz = 'America/Los_Angeles';
 
 const rule3 = new schedule.RecurrenceRule();
 rule3.hour = 7;
-rule3.minute = 10;
+rule3.minute = 15;
 rule3.tz = 'America/Los_Angeles';
 
 const rule4 = new schedule.RecurrenceRule();
 rule4.hour = 19;
-rule4.minute = 10;
+rule4.minute = 15;
 rule4.tz = 'America/Los_Angeles';
 
 const morningJobs = [
@@ -96,13 +97,14 @@ const eveningJobs = [
 ];
 
 const morningJobs2 = [
-  runFullReportProcess,
+  runDailyExportAndReport,
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendFinalMonthlyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS,
   sendSubPacingReport,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsHS,
+  sendFinalWeeklyReportToGoogleSheetsLPC,
 ];
 
 const eveningJobs2 = [

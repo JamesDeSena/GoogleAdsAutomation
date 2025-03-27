@@ -913,7 +913,7 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
 
   const sourceSpreadsheetId = process.env.SHEET_BLENDED;
-  const sourceDataRange = 'MAA - Daily!A2:W';
+  const sourceDataRange = 'MAA - Daily!A2:X';
   const targetSpreadsheetId = process.env.SHEET_HI_SKIN;
   const targetDataRange = 'MAA - Daily!A2:C';
 
@@ -932,8 +932,8 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 
     const filteredData = sourceRows.map(row => [
       row[1] || null,
-      row[21] || null,
-      row[22] || null
+      row[22] || null,
+      row[23] || null
     ]);
 
     const targetResponse = await sheets.spreadsheets.values.get({
