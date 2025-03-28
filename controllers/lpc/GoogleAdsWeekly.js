@@ -175,6 +175,16 @@ const fetchAndAggregateLPCData = async (filter) => {
           cost: 0,
         };
 
+        let whereClause = `segments.date BETWEEN '${start}' AND '${end}'`;
+
+        if (filter === "%CA%") {
+          whereClause += ` AND campaign.name NOT LIKE '%AZ%'`;
+        } else if (filter === "%AZ%") {
+          whereClause += ` AND campaign.name LIKE '%AZ%'`;
+        } else {
+          whereClause += ` AND campaign.name LIKE '${filter}'`;
+        }
+
         const metricsQuery = `
           SELECT
             campaign.id,
@@ -185,8 +195,7 @@ const fetchAndAggregateLPCData = async (filter) => {
           FROM
             campaign
           WHERE
-            segments.date BETWEEN '${start}' AND '${end}'
-            AND campaign.name LIKE '${filter}'
+            ${whereClause}
           ORDER BY
             segments.date DESC
         `;
@@ -204,7 +213,7 @@ const fetchAndAggregateLPCData = async (filter) => {
         return aggregatedData;
       })
     );
- 
+
     return lpcData;
   } catch (error) {
     console.error("Error fetching report data:", error);
@@ -220,8 +229,8 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
   const dataRanges = {
-    CA: "CA Weekly Report!A2:G",
-    AZ: "AZ Weekly Report!A2:G",
+    CA: "CA Weekly Report",
+    AZ: "AZ Weekly Report",
   };
 
   try {
@@ -261,15 +270,15 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
       if (!createdDate || createdDate > today) return;
-
-      const region = jurisdiction === "California" ? "CA" : jurisdiction === "Arizona" ? "AZ" : null;
+    
+      const region = jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
       if (!region) return;
-
+    
       const { label } = processWeek(createdDate);
       if (!weeks[region][label]) {
         weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
       }
-
+    
       weeks[region][label][1]++;
       if (
         stage_id &&
@@ -282,20 +291,17 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     events.forEach(({ event_id, event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
-
-      const region =
-        jurisdiction === "Strategy Sessions" ? "CA" :
-        jurisdiction === "AZ - Strategy Sessions" ? "AZ" :
-        null;
+    
+      const region = jurisdiction?.toLowerCase() === "AZ - Strategy Sessions" ? "AZ" : "CA";
       if (!region) return;
-
+    
       const { label } = processWeek(eventDate);
       if (!weeks[region][label]) {
         weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
       }
-
+    
       weeks[region][label][4]++;
-    });
+    });    
 
     if (Array.isArray(caData)) {
       caData.forEach(({ date, clicks, cost }) => {
@@ -313,7 +319,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
           weeks["AZ"][date][6] = clicks;
         }
       });
-    }
+    }    
     
     Object.keys(weeks).forEach((region) => {
       Object.values(weeks[region]).forEach((week) => {
@@ -339,25 +345,30 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
           existingRows.map((row, index) => [row[0], index + 1]) // Store week => row index
         );
 
-        const updates = [];
-        const newWeeks = [];
+        const batchUpdates = [];
+        const newValues = [];
 
         sortedWeeks.forEach((weekData) => {
           const weekLabel = weekData[0];
           if (existingWeeks.has(weekLabel)) {
-            updates.push({ rowIndex: existingWeeks.get(weekLabel), data: weekData });
+            const rowIndex = existingWeeks.get(weekLabel);
+            batchUpdates.push({
+              range: `${dataRanges[region]}!A${rowIndex + 1}:G${rowIndex + 1}`,
+              values: [weekData],
+            });
           } else {
-            newWeeks.push(weekData);
+            newValues.push(weekData);
           }
         });
 
         try {
-          for (const { rowIndex, data } of updates) {
-            await sheets.spreadsheets.values.update({
+          if (batchUpdates.length > 0) {
+            await sheets.spreadsheets.values.batchUpdate({
               spreadsheetId,
-              range: `${dataRanges[region]}!A${rowIndex}`,
-              valueInputOption: "RAW",
-              resource: { values: [data] },
+              resource: {
+                valueInputOption: "RAW",
+                data: batchUpdates,
+              },
             });
           }
         } catch (error) {
@@ -365,13 +376,13 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         }
 
         try {
-          if (newWeeks.length > 0) {
+          if (newValues.length > 0) {
             await sheets.spreadsheets.values.append({
               spreadsheetId,
-              range: dataRanges[region],
+              range: `${dataRanges[region]}!A2:G`,
               valueInputOption: "RAW",
               insertDataOption: "INSERT_ROWS",
-              resource: { values: newWeeks },
+              resource: { values: newValues },
             });
           }
         } catch (error) {
