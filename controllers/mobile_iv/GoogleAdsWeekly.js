@@ -309,6 +309,116 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       records.push(baseRecord);
     };    
 
+    const addBiWeeklyVariance = (previousRecord, secondToPreviousRecord, lastRecord, secondToLastRecord, bookingAZ, bookingRecords, filter, filter2) => {
+      const bookingPreviousRecord = bookingRecords.find(j => j.week === previousRecord.date) || { data: {} };
+      const bookingSecondToPreviousRecord = bookingRecords.find(j => j.week === secondToPreviousRecord.date) || { data: {} };
+
+      const bookingLastRecord = bookingRecords.find(j => j.week === lastRecord.date) || { data: {} };
+      const bookingSecondToLastRecord = bookingRecords.find(j => j.week === secondToLastRecord.date) || { data: {} };
+
+      const bookingPreviousRecordAZ = bookingAZ.find(j => j.week === previousRecord.date) || { data: {} };
+      const bookingSecondToPreviousRecordAZ = bookingAZ.find(j => j.week === secondToPreviousRecord.date) || { data: {} };
+
+      const bookingLastRecordAZ = bookingAZ.find(j => j.week === lastRecord.date) || { data: {} };
+      const bookingSecondToLastRecordAZ = bookingAZ.find(j => j.week === secondToLastRecord.date) || { data: {} };
+    
+      const baseRecord = {
+        Week: "Biweekly Variance %",
+        Filter: filter,
+        Filter2: filter2,
+        "Impr.": formatPercentage(calculateWoWVariance((previousRecord.impressions + secondToPreviousRecord.impressions), (lastRecord.impressions + secondToLastRecord.impressions))),
+        "Clicks": formatPercentage(calculateWoWVariance((previousRecord.clicks + secondToPreviousRecord.clicks), (lastRecord.clicks + secondToLastRecord.clicks))),
+        "Cost": formatPercentage(calculateWoWVariance((previousRecord.cost + secondToPreviousRecord.cost), (lastRecord.cost + secondToLastRecord.cost))),
+        "CPC": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.clicks) + (secondToPreviousRecord.cost / secondToPreviousRecord.clicks)), ((lastRecord.cost / lastRecord.clicks) + ( secondToLastRecord.cost / secondToLastRecord.clicks)))),
+        "CTR": formatPercentage(calculateWoWVariance(((previousRecord.clicks / previousRecord.impressions) + (secondToPreviousRecord.clicks / secondToPreviousRecord.impressions)), ((lastRecord.clicks / lastRecord.impressions) + (secondToLastRecord.clicks / secondToLastRecord.impressions)))),
+        // "Booking Total": formatPercentage(calculateWoWVariance(bookingLastRecord.data.count2, bookingSecondToLastRecord.data.count2)),
+        // "CAC": formatPercentage(calculateWoWVariance(lastRecord.cost /(bookingLastRecord.data.count2 || 0), secondToLastRecord.cost (bookingSecondToLastRecord.data.count2 || 0))),
+        // "Appt Conv Rate":formatPercentage(calculateWoWVariance((bookingLastRecord.data.count2 || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks.count2)),
+      };
+
+      Object.assign(baseRecord, {
+        "Booking Total": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              (((bookingPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count2 || 0)) +
+              ((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count2 || 0))),
+              (((bookingLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingLastRecordAZ.data?.Tucson?.count2 || 0)) +
+              ((bookingSecondToLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count2 || 0)))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              ((bookingPreviousRecord.data.count2 || 0) + (bookingSecondToPreviousRecord.data.count2 || 0)), 
+              ((bookingLastRecord.data.count2 || 0) + (bookingSecondToLastRecord.data.count2 || 0))
+            )),
+        "CAC": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              ((previousRecord.cost / ((bookingPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count2 || 0))) + 
+              (secondToPreviousRecord.cost / ((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count2 || 0)))),
+              ((lastRecord.cost / ((bookingLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingLastRecordAZ.data?.Tucson?.count2 || 0))) + 
+              (secondToLastRecord.cost / ((bookingSecondToLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count2 || 0))))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              ((previousRecord.cost / (bookingPreviousRecord.data.count2 || 0)) + (secondToPreviousRecord.cost / (bookingSecondToPreviousRecord.data.count2 || 0))),
+              ((lastRecord.cost / (bookingLastRecord.data.count2 || 0)) + ( secondToLastRecord.cost / (bookingSecondToLastRecord.data.count2 || 0)))
+            )),
+        "Appt Conv Rate": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              (((((bookingPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count2 || 0)) / previousRecord.clicks)  +
+              (((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count2 || 0)) / secondToPreviousRecord.clicks))),
+              (((((bookingLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingLastRecordAZ.data?.Tucson?.count2 || 0)) / lastRecord.clicks) + 
+              (((bookingSecondToLastRecordAZ.data?.Phoenix?.count2 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count2 || 0)) / secondToLastRecord.clicks)))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              (((bookingPreviousRecord.data.count2 || 0) / previousRecord.clicks) + ((bookingSecondToPreviousRecord.data.count2 || 0) / secondToPreviousRecord.clicks)),
+              (((bookingLastRecord.data.count2 || 0) / lastRecord.clicks) + ((bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks))
+            )),
+        "New Requests": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              (((bookingPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count1 || 0)) + 
+              ((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count1 || 0))),
+              (((bookingLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingLastRecordAZ.data?.Tucson?.count1 || 0)) + 
+              ((bookingSecondToLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count1 || 0)))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              (bookingPreviousRecord.data.count1 + bookingSecondToPreviousRecord.data.count1),
+              (bookingLastRecord.data.count1 + bookingSecondToLastRecord.data.count1)
+            )),
+        "New Requests CAC": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              ((previousRecord.cost / ((bookingPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count1 || 0))) + 
+              (secondToPreviousRecord.cost / ((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count1 || 0)))),
+              ((lastRecord.cost / ((bookingLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingLastRecordAZ.data?.Tucson?.count1 || 0))) + 
+              (secondToLastRecord.cost / ((bookingSecondToLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count1 || 0))))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              ((previousRecord.cost / (bookingPreviousRecord.data.count1 || 0)) + (secondToPreviousRecord.cost / (bookingSecondToPreviousRecord.data.count1 || 0))),
+              ((lastRecord.cost / (bookingLastRecord.data.count1 || 0)) + (secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0)))
+            )),
+      });
+
+      if (filter === "AZ") {
+        Object.assign(baseRecord, {
+          "Booking Total Phoenix": formatPercentage(calculateWoWVariance(
+            (bookingPreviousRecordAZ.data?.Phoenix?.count2 + bookingSecondToPreviousRecordAZ.data?.Phoenix?.count2),
+            (bookingLastRecordAZ.data?.Phoenix?.count2 + bookingSecondToLastRecordAZ.data?.Phoenix?.count2)
+          )),
+          "Booking Total Tucson": formatPercentage(calculateWoWVariance(
+            (bookingPreviousRecordAZ.data?.Tucson?.count2 + bookingSecondToPreviousRecordAZ.data?.Tucson?.count2),
+            (bookingLastRecordAZ.data?.Tucson?.count2 + bookingSecondToLastRecordAZ.data?.Tucson?.count2)
+          )),
+        });
+      }
+    
+      Object.assign(baseRecord, {
+        "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
+        "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
+        "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
+        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance((previousRecord.calls + secondToPreviousRecord.calls), (lastRecord.calls + secondToLastRecord.calls))),
+        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance((previousRecord.books + secondToPreviousRecord.books), (lastRecord.books + secondToLastRecord.books))),
+        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance((previousRecord.phone + secondToPreviousRecord.phone), (lastRecord.phone + secondToLastRecord.phone))),
+      });
+    
+      records.push(baseRecord);
+    }; 
+
     const addDataToRecords = (data, bookingDataAZ, bookingData, filter, filter2) => { 
       data.forEach((record) => {
         const bookingRecord = bookingData.find(j => j.week === record.date) || { data: {} };
@@ -375,6 +485,12 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       addWoWVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], [], bookingNY, "NYC", 3);
     }
 
+    if (!date || date.trim() === '') {
+      addBiWeeklyVariance(dripAZ.slice(-2)[0], dripAZ.slice(-3)[0], dripAZ.slice(-4)[0], dripAZ.slice(-5)[0], bookingAZ, bookingAllAZ, "AZ", 1);
+      addBiWeeklyVariance(dripLV.slice(-2)[0], dripLV.slice(-3)[0], dripLV.slice(-4)[0], dripLV.slice(-5)[0], [], bookingLV, "LV", 2);
+      addBiWeeklyVariance(dripNYC.slice(-2)[0], dripNYC.slice(-3)[0], dripNYC.slice(-4)[0], dripNYC.slice(-5)[0], [], bookingNY, "NYC", 3);
+    }
+
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
     const finalRecords = [];
@@ -421,7 +537,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         }
     
         finalRecords.push({ ...record, isBold: false });
-        if (record.Week === "WoW Variance %") {
+        if (record.Week === "Biweekly Variance %") {
           finalRecords.push({ Week: "", Filter: "", Filter2: "", isBold: false });
         }
       });
@@ -499,7 +615,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
                 },
                 cell: {
                   userEnteredFormat: {
-                    horizontalAlignment: "RIGHT",
+                    horizontalAlignment: "LEFT",
                   },
                 },
                 fields: "userEnteredFormat.horizontalAlignment",
