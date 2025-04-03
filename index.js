@@ -86,10 +86,10 @@ rule4.hour = 19;
 rule4.minute = 15;
 rule4.tz = 'America/Los_Angeles';
 
-const rule3 = new schedule.RecurrenceRule();
-rule3.hour = 7;
-rule3.minute = 30;
-rule3.tz = 'America/Los_Angeles';
+const rule5 = new schedule.RecurrenceRule();
+rule5.hour = 7;
+rule5.minute = 30;
+rule5.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
