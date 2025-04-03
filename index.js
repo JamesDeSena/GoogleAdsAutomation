@@ -86,6 +86,11 @@ rule4.hour = 19;
 rule4.minute = 15;
 rule4.tz = 'America/Los_Angeles';
 
+const rule3 = new schedule.RecurrenceRule();
+rule3.hour = 7;
+rule3.minute = 30;
+rule3.tz = 'America/Los_Angeles';
+
 const morningJobs = [
   sendPacingReportToGoogleSheets,
   sendFinalDailyReportToGoogleSheetsMIV,
@@ -102,13 +107,16 @@ const morningJobs2 = [
   sendFinalMonthlyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS,
   sendSubPacingReport,
-  sendFinalWeeklyReportToGoogleSheetsMIV,
-  sendFinalWeeklyReportToGoogleSheetsHS,
-  sendFinalWeeklyReportToGoogleSheetsLPC,
 ];
 
 const eveningJobs2 = [
   sendFinalMonthlyReportToGoogleSheetsHS,
+];
+
+const morningJobs3 = [
+  sendFinalWeeklyReportToGoogleSheetsMIV,
+  sendFinalWeeklyReportToGoogleSheetsHS,
+  sendFinalWeeklyReportToGoogleSheetsLPC,
 ];
 
 schedule.scheduleJob(rule1, () => {
@@ -125,6 +133,10 @@ schedule.scheduleJob(rule3, () => {
 
 schedule.scheduleJob(rule4, () => {
   executeConcurrentJobs(eveningJobs2, "Evening2");
+});
+
+schedule.scheduleJob(rule5, () => {
+  executeConcurrentJobs(morningJobs3, "Morning3");
 });
 
 // schedule.scheduleJob('* * * * *', () => {
