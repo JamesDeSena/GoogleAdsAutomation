@@ -172,24 +172,29 @@ async function getAmountGoogleHSCampaigns() {
   const endDate = formatDateUTC(yesterday);
 
   const campaigns = [
-    "MKTHeights",
-    "Gilbert",
-    "Scottsdale",
-    "Phoenix",
-    "Montrose",
-    "Uptown",
-    "RiceVillage",
-    "14thSt",
-    "Mosaic",
-    "Pmax",
+    "Brand",
     "NB",
-    "GDN",
+    "Pmax",
+    "PmaxBrand",
+    "PmaxNB",
   ];
 
   try {
     let totalCosts = {};
 
     for (let campaignName of campaigns) {
+      let whereClause = `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+
+      if (campaignName === "PmaxBrand") {
+        whereClause += ` AND campaign.name LIKE '%Pmax%'`;
+        whereClause += ` AND campaign.name LIKE '%Brand%'`;
+      } else if (campaignName === "PmaxNB") {
+        whereClause += ` AND campaign.name LIKE '%Pmax%'`;
+        whereClause += ` AND campaign.name LIKE '%NB%'`;
+      } else {
+        whereClause += ` AND campaign.name LIKE '%${campaignName}%'`;
+      }
+
       const metricsQuery = `
         SELECT
           campaign.name,
@@ -198,8 +203,7 @@ async function getAmountGoogleHSCampaigns() {
         FROM
           campaign
         WHERE
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND campaign.name LIKE '%${campaignName}%'
+          ${whereClause}
         ORDER BY
           segments.date DESC
       `;
@@ -218,7 +222,8 @@ async function getAmountGoogleHSCampaigns() {
 
     return totalCosts;
   } catch (error) {
-    throw new Error("Error fetching Google Ads campaigns data");
+    console.error("Error fetching Google Ads campaigns data:", error.message);
+    throw new Error(`Error fetching Google Ads campaigns data: ${error.message}`);
   }
 };
 
@@ -365,7 +370,7 @@ async function getAllMetrics() {
     saveMetricsToFile(metrics);
     return metrics;
   } catch (error) {
-    console.error("Error fetching all data:", error.message);
+    console.error("Error fetching all data:", error);
     throw new Error("Error fetching all data");
   }
 };
@@ -402,19 +407,11 @@ const sendPacingReportToGoogleSheets = async () => {
       ["LP+C", "Bing", dateCST, datePST, record.data.BingLPC],
       ["The Vault", "Google", dateCST, datePST, record.data.GoogleVault],
       ["The Vault", "Bing", dateCST, datePST, record.data.BingVault],
-      ["Hi, Skin", "Houston_MKTHeights", dateCST, datePST, record.data.MKTHeights],
-      ["Hi, Skin", "Gilbert", dateCST, datePST, record.data.Gilbert],
-      ["Hi, Skin", "Scottsdale", dateCST, datePST, record.data.Scottsdale],
-      ["Hi, Skin", "Phoenix", dateCST, datePST, record.data.Phoenix],
-      ["Hi, Skin", "Houston_Montrose", dateCST, datePST, record.data.Montrose],
-      ["Hi, Skin", "Houston_UptownPark", dateCST, datePST, record.data.Uptown],
-      ["Hi, Skin", "Rice Village", dateCST, datePST, record.data.RiceVillage],
-      ["Hi, Skin", "DC", dateCST, datePST, record.data["14thSt"]],
-      ["Hi, Skin", "Mosaic", dateCST, datePST, record.data.Mosaic],
-      ["Hi, Skin", "Pmax", dateCST, datePST, record.data.Pmax],
+      ["Hi, Skin", "Brand", dateCST, datePST, record.data.Brand],
       ["Hi, Skin", "NB", dateCST, datePST, record.data.NB],
-      ["Hi, Skin", "GDN", dateCST, datePST, record.data.GDN],
-      ["Hi, Skin", "Bing", dateCST, datePST, record.data.BingHS],
+      ["Hi, Skin", "Pmax", dateCST, datePST, record.data.Pmax],
+      ["Hi, Skin", "Pmax Brand", dateCST, datePST, record.data.PmaxBrand],
+      ["Hi, Skin", "Pmax NB", dateCST, datePST, record.data.PmaxNB],
       ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
       ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
@@ -571,9 +568,7 @@ const sendSubPacingReport = async (req, res) => {
 };
 
 module.exports = {
-  getAmountGoogleLPC,
   getAllMetrics,
-  sendLPCBudgettoGoogleSheets,
   sendPacingReportToGoogleSheets,
   sendSubPacingReport,
 };

@@ -244,6 +244,8 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     const weeks = { CA: {}, AZ: {} };
     const nopeStagesCA = new Set(["80193", "113690", "21589"]);
     const nopeStagesAZ = new Set(["111597", "111596"]);
+    const eventLikeStagesCA = new Set(["21590", "37830", "21574", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]);
+    const eventLikeStagesAZ = new Set(["111631", "126229", "111632", "111633", "111634", "111635", "111636"]);
 
     const formatDate = (date) =>
       `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -288,11 +290,32 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       }
     });
 
+    campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
+      const createdDate = processDate(created_at);
+      if (!createdDate || createdDate > today) return;
+    
+      const region = jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
+      if (!region) return;
+    
+      const { label } = processWeek(createdDate);
+      if (!weeks[region][label]) {
+        weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
+      }
+    
+      if (
+        stage_id &&
+        ((region === "CA" && eventLikeStagesCA.has(stage_id)) ||
+         (region === "AZ" && eventLikeStagesAZ.has(stage_id)))
+      ) {
+        weeks[region][label][4]++;
+      }
+    });
+
     events.forEach(({ event_id, event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
     
-      const region = jurisdiction?.toLowerCase() === "AZ - Strategy Sessions" ? "AZ" : "CA";
+      const region = jurisdiction === "AZ - Strategy Session" ? "AZ" : "CA";
       if (!region) return;
     
       const { label } = processWeek(eventDate);
@@ -342,14 +365,18 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
         const existingRows = existingData.data.values || [];
         const existingWeeks = new Map(
-          existingRows.map((row, index) => [row[0], index + 1]) // Store week => row index
+          existingRows.map((row, index) => {
+            const weekLabel = row[0]?.trim();
+            return [weekLabel, index];
+          })
         );
 
         const batchUpdates = [];
         const newValues = [];
 
         sortedWeeks.forEach((weekData) => {
-          const weekLabel = weekData[0];
+          const weekLabel = weekData[0].trim();
+    
           if (existingWeeks.has(weekLabel)) {
             const rowIndex = existingWeeks.get(weekLabel);
             batchUpdates.push({
