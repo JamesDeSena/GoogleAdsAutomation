@@ -174,7 +174,7 @@ async function getAmountGoogleHSCampaigns() {
   const campaigns = [
     "Brand",
     "NB",
-    "Pmax",
+    // "Pmax",
     "PmaxBrand",
     "PmaxNB",
   ];
@@ -409,7 +409,7 @@ const sendPacingReportToGoogleSheets = async () => {
       ["The Vault", "Bing", dateCST, datePST, record.data.BingVault],
       ["Hi, Skin", "Brand", dateCST, datePST, record.data.Brand],
       ["Hi, Skin", "NB", dateCST, datePST, record.data.NB],
-      ["Hi, Skin", "Pmax", dateCST, datePST, record.data.Pmax],
+      // ["Hi, Skin", "Pmax", dateCST, datePST, record.data.Pmax],
       ["Hi, Skin", "Pmax Brand", dateCST, datePST, record.data.PmaxBrand],
       ["Hi, Skin", "Pmax NB", dateCST, datePST, record.data.PmaxNB],
       ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
