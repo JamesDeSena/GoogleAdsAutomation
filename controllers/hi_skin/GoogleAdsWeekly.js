@@ -557,8 +557,8 @@ const createFetchFunction = (campaignNameFilter, reportName, brandNBFilter = "")
 };
 
 const fetchFunctions = {
-  fetchReportDataWeeklyHSBrand: createFetchFunction("Brand", "Brand"),
-  fetchReportDataWeeklyHSNB: createFetchFunction("NB", "NB"),
+  fetchReportDataWeeklyHSBrand: createFetchFunction("Brand", "Brand", "Search"),
+  fetchReportDataWeeklyHSNB: createFetchFunction("NB", "NB", "Search"),
   fetchReportDataWeeklyHSGilbert: createFetchFunction("Gilbert", "Gilbert"),
   fetchReportDataWeeklyHSGilbertBrand: createFetchFunction("Gilbert", "Gilbert", "Brand"),
   fetchReportDataWeeklyHSGilbertNB: createFetchFunction("Gilbert", "Gilbert", "NB"),
