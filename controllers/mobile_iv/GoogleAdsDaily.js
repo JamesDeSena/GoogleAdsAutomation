@@ -140,7 +140,6 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
   const dataRanges = {
     Phoenix: 'AZ Phoenix Bookings Data!A2:K',
     Tucson: 'AZ Tucson Bookings Data!A2:K',
-    AZ: 'AZ Bookings Data!A2:K',
     LV: 'LV Bookings Data!A2:K',
     NY: 'NY Bookings Data!A2:K',
   };
@@ -162,9 +161,8 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     ]);
 
     const sheetsData = {
-      [dataRanges.Phoenix]: azData[0] || [],
+      [dataRanges.Phoenix]: allAZData[0] || [],
       [dataRanges.Tucson]: azData[1] || [],
-      [dataRanges.AZ]: allAZData[0] || [],
       [dataRanges.LV]: lvData[0] || [],
       [dataRanges.NY]: nyData[0] || [],
     };
