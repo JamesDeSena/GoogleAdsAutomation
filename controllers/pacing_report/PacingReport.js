@@ -472,61 +472,6 @@ const getStoredMetrics = () => {
   }
 };
 
-const sendLPCBudgettoGoogleSheets = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_LPC;
-  const range = 'Monthly Ad Spend!A2:E';
-
-  try {
-    const record = getStoredMetrics();
-    const currentDate = new Date();
-    const currentMonth = currentDate.toLocaleString('en-US', { month: 'short' });
-    const currentYear = currentDate.getFullYear() % 100;
-    const currentMonthYear = `${currentMonth}-${currentYear}`;
-
-    const getSheetData = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range,
-    });
-
-    const rows = getSheetData.data.values || [];
-    let rowIndexToUpdate = -1;
-
-    rows.forEach((row, index) => {
-      if (row[0] === currentMonthYear) {
-        rowIndexToUpdate = index + 2;
-      }
-    });
-
-    if (rowIndexToUpdate === -1) {
-      rowIndexToUpdate = rows.length + 2;
-    }
-
-    const updateRange = `Monthly Ad Spend!A${rowIndexToUpdate}:C${rowIndexToUpdate}`;
-    const resource = {
-      values: [
-        [currentMonthYear, record.data.GoogleLPC, record.data.BingLPC],
-      ],
-    };
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: updateRange,
-      valueInputOption: 'RAW',
-      resource,
-    });
-
-    console.log("Data updated successfully in LPC Google Sheets.");
-  } catch (error) {
-    console.error("Error updating data in LPC Google Sheets:", error);
-  }
-};
-
 const sendTWtoGoogleSheets = async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -559,7 +504,6 @@ const sendTWtoGoogleSheets = async (req, res) => {
 
 const sendSubPacingReport = async (req, res) => {
   try {
-    await sendLPCBudgettoGoogleSheets(req, res);
     await sendTWtoGoogleSheets(req, res);
     console.log("LPC Budget and TW sent to Google Sheets successfully");
   } catch (error) {

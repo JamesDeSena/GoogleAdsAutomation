@@ -16,7 +16,7 @@ const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendPacingReportToGoogleSheets, sendSubPacingReport } = require('./controllers/pacing_report/PacingReport');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
-const { runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
+const { sendLPCBudgettoGoogleSheets, runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
 const { sendFinalWeeklyReportToGoogleSheetsLPC } = require('./controllers/lpc/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
@@ -102,6 +102,7 @@ const eveningJobs = [
 ];
 
 const morningJobs2 = [
+  sendLPCBudgettoGoogleSheets,
   runDailyExportAndReport,
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendFinalMonthlyReportToGoogleSheetsHS,
@@ -110,6 +111,7 @@ const morningJobs2 = [
 ];
 
 const eveningJobs2 = [
+  sendLPCBudgettoGoogleSheets,
   sendFinalMonthlyReportToGoogleSheetsHS,
 ];
 

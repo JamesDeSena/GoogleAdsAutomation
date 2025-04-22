@@ -6,6 +6,7 @@ const router = express.Router();
 // } = require('../controllers/hi_skin/GoogleAdsDaily');
 
 const { 
+  sendLPCBudgettoGoogleSheets,
   getCampaigns,
   // dailyExport,
   // dailyReport,
