@@ -38,7 +38,8 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
   const currentDay = new Date(previousLast);
   currentDay.setDate(previousLast.getDate() + 6);
 
-  const startDate = '2024-11-11'; //previousFriday 2024-09-13 / 11-11
+  const startDate = '2025-04-14';
+  // const startDate = '2024-11-11';
   // const fixedEndDate = '2024-11-07'; // currentDay
 
   const endDate = currentDay; //new Date(fixedEndDate); //currentDay;
@@ -101,7 +102,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
       campaign
     WHERE 
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND segments.conversion_action_name IN ('Calls from Ads - Local SEO', 'Book Now Form Local SEO', 'Phone No. Click Local SEO')
+      AND segments.conversion_action_name IN ('MobileIVDrip.com Book Now Confirmed', 'MobileIVDrip.com Click - Call Now Button')
     ORDER BY 
       segments.date DESC
   `;
@@ -125,11 +126,9 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     const conversionBatchResponse = await customer.query(conversionQuery);
     conversionBatchResponse.forEach((conversion) => {
       const conversionValue = conversion.metrics.all_conversions || 0;
-      if (conversion.segments.conversion_action_name === "Calls from Ads - Local SEO") {
-        aggregatedData.calls += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Book Now Form Local SEO") {
+      if (conversion.segments.conversion_action_name === "MobileIVDrip.com Book Now Confirmed") {
         aggregatedData.books += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Phone No. Click Local SEO") {
+      } else if (conversion.segments.conversion_action_name === "MobileIVDrip.com Click - Call Now Button") {
         aggregatedData.phone += conversionValue;
       }
     });
@@ -200,9 +199,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    AZLive: 'AZ Weekly!A2:U',
-    LVLive: 'LV Weekly!A2:S',
-    NYCLive: 'NYC Weekly!A2:S',
+    AZLive: 'AZ Weekly!A2:T',
+    LVLive: 'LV Weekly!A2:R',
+    NYCLive: 'NYC Weekly!A2:R',
   };
 
   try {
@@ -301,9 +300,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance(lastRecord.calls, secondToLastRecord.calls)),
-        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
-        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
+        "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
+        "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
       });
     
       records.push(baseRecord);
@@ -411,9 +409,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
         "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
-        "Calls from Ads - Local SEO": formatPercentage(calculateWoWVariance((previousRecord.calls + secondToPreviousRecord.calls), (lastRecord.calls + secondToLastRecord.calls))),
-        "Book Now Form Local SEO": formatPercentage(calculateWoWVariance((previousRecord.books + secondToPreviousRecord.books), (lastRecord.books + secondToLastRecord.books))),
-        "Phone No. Click Local SEO": formatPercentage(calculateWoWVariance((previousRecord.phone + secondToPreviousRecord.phone), (lastRecord.phone + secondToLastRecord.phone))),
+        "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateWoWVariance((previousRecord.books + secondToPreviousRecord.books), (lastRecord.books + secondToLastRecord.books))),
+        "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateWoWVariance((previousRecord.phone + secondToPreviousRecord.phone), (lastRecord.phone + secondToLastRecord.phone))),
       });
     
       records.push(baseRecord);
@@ -466,9 +463,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "Calls from Ads - Local SEO": formatNumber(record.calls),
-          "Book Now Form Local SEO": formatNumber(record.books),
-          "Phone No. Click Local SEO": formatNumber(record.phone),
+          "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
+          "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
         });
     
         records.push(baseRecord);
@@ -527,9 +523,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
-            "Book Now Form Local SEO": "Book Now Form Local SEO",
-            "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            "MobileIVDrip.com Book Now Confirmed": "MobileIVDrip.com Book Now Confirmed",
+            "MobileIVDrip.com Click - Call Now Button": "MobileIVDrip.com Click - Call Now Button",
           });
 
           finalRecords.push(baseHeader);
@@ -574,8 +569,8 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         record["Cost Per Conv"],
         record["Conv. Rate"],
         record["Calls from Ads - Local SEO"],
-        record["Book Now Form Local SEO"],
-        record["Phone No. Click Local SEO"]
+        record["MobileIVDrip.com Book Now Confirmed"],
+        record["MobileIVDrip.com Click - Call Now Button"]
       );
       
       return baseData;

@@ -134,8 +134,9 @@ date.json
 
 #tokens
 token.json
+adCosts.json
 metrics.json
 serviceToken.json
 
 #csv
-.csv
+report.csv

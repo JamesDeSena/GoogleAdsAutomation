@@ -35,7 +35,7 @@ const generateMonthlyDateRanges = (startDate, endDate) => {
 
 const getOrGenerateDateRanges = () => {
   const today = new Date();
-  const startDate = '2024-12';
+  const startDate = '2025-04';
   const endDate = today; 
 
   if (!storedDateRanges || new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate) {
@@ -93,7 +93,7 @@ const aggregateDataForMonth = async (customer, startDate, endDate ) => {
       campaign
     WHERE 
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND segments.conversion_action_name IN ('Calls from Ads - Local SEO', 'Book Now Form Local SEO', 'Phone No. Click Local SEO')
+      AND segments.conversion_action_name IN ('MobileIVDrip.com Book Now Confirmed', 'MobileIVDrip.com Click - Call Now Button')
     ORDER BY 
       segments.date DESC
   `;
@@ -117,11 +117,9 @@ const aggregateDataForMonth = async (customer, startDate, endDate ) => {
     const conversionBatchResponse = await customer.query(conversionQuery);
     conversionBatchResponse.forEach((conversion) => {
       const conversionValue = conversion.metrics.all_conversions || 0;
-      if (conversion.segments.conversion_action_name === "Calls from Ads - Local SEO") {
-        aggregatedData.calls += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Book Now Form Local SEO") {
+      if (conversion.segments.conversion_action_name === "MobileIVDrip.com Book Now Confirmed") {
         aggregatedData.books += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Phone No. Click Local SEO") {
+      } else if (conversion.segments.conversion_action_name === "MobileIVDrip.com Click - Call Now Button") {
         aggregatedData.phone += conversionValue;
       }
     });
@@ -192,7 +190,7 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    Monthly: 'Monthly View!A2:T',
+    Monthly: 'Monthly View!A2:S',
   };
 
   try {
@@ -298,9 +296,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
           "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-          "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
-          "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
-          "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
+          "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         };
 
         records.push(baseRecord);
@@ -327,8 +324,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           // "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           // "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
           // "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
-          // "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
-          // "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
+          // "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          // "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         };
 
         Object.assign(baseRecord, {
@@ -375,8 +372,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
           "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
-          "Book Now Form Local SEO": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
-          "Phone No. Click Local SEO": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
+          "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
+          "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         });
 
         records.push(baseRecord);
@@ -406,8 +403,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
             "Calls from Ads - Local SEO": formatNumber(record.calls),
-            "Book Now Form Local SEO": formatNumber(record.books),
-            "Phone No. Click Local SEO": formatNumber(record.phone),
+            "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
+            "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           };
       
           records.push(baseRecord);
@@ -435,8 +432,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             // "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             // "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
             // "Calls from Ads - Local SEO": formatNumber(record.calls),
-            // "Book Now Form Local SEO": formatNumber(record.books),
-            // "Phone No. Click Local SEO": formatNumber(record.phone),
+            // "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
+            // "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           };
           
           Object.assign(baseRecord, {
@@ -465,8 +462,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
             "Calls from Ads - Local SEO": formatNumber(record.calls),
-            "Book Now Form Local SEO": formatNumber(record.books),
-            "Phone No. Click Local SEO": formatNumber(record.phone),
+            "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
+            "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           });
       
           records.push(baseRecord);
@@ -514,8 +511,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
             "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
-            "Book Now Form Local SEO": "Book Now Form Local SEO",
-            "Phone No. Click Local SEO": "Phone No. Click Local SEO",
+            "MobileIVDrip.com Book Now Confirmed": "MobileIVDrip.com Book Now Confirmed",
+            "MobileIVDrip.com Click - Call Now Button": "MobileIVDrip.com Click - Call Now Button",
           };
 
           finalRecords.push(baseHeader);
@@ -551,8 +548,8 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
         record["Cost Per Conv"],
         record["Conv. Rate"],
         record["Calls from Ads - Local SEO"],
-        record["Book Now Form Local SEO"],
-        record["Phone No. Click Local SEO"]
+        record["MobileIVDrip.com Book Now Confirmed"],
+        record["MobileIVDrip.com Click - Call Now Button"]
       ];
       
       return baseData;
