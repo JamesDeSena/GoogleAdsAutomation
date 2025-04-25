@@ -568,7 +568,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-        record["Calls from Ads - Local SEO"],
         record["MobileIVDrip.com Book Now Confirmed"],
         record["MobileIVDrip.com Click - Call Now Button"]
       );
