@@ -555,8 +555,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
       Monthly: sheetData,
     };    
 
-    console.log(dataToSend)
-
     const formatSheets = async (sheetName, data) => {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
