@@ -461,7 +461,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": formatNumber(record.conversions),
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-            "Calls from Ads - Local SEO": formatNumber(record.calls),
             "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
             "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           });
