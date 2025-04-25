@@ -323,7 +323,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           // "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
           // "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           // "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-          // "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
           // "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
           // "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         };
@@ -371,7 +370,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatPercentage(calculateMoMVariance(lastRecord.conversions, secondToLastRecord.conversions)),
           "Cost Per Conv": formatPercentage(calculateMoMVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
           "Conv. Rate": formatPercentage(calculateMoMVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-          "Calls from Ads - Local SEO": formatPercentage(calculateMoMVariance(lastRecord.calls, secondToLastRecord.calls)),
           "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateMoMVariance(lastRecord.books, secondToLastRecord.books)),
           "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateMoMVariance(lastRecord.phone, secondToLastRecord.phone)),
         });
@@ -402,7 +400,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": formatNumber(record.conversions),
             "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-            "Calls from Ads - Local SEO": formatNumber(record.calls),
             "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
             "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           };
@@ -431,7 +428,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             // "Conversion": formatNumber(record.conversions),
             // "Cost Per Conv": formatCurrency(record.cost / record.conversions),
             // "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-            // "Calls from Ads - Local SEO": formatNumber(record.calls),
             // "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
             // "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
           };
@@ -509,7 +505,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "Calls from Ads - Local SEO": "Calls from Ads - Local SEO",
             "MobileIVDrip.com Book Now Confirmed": "MobileIVDrip.com Book Now Confirmed",
             "MobileIVDrip.com Click - Call Now Button": "MobileIVDrip.com Click - Call Now Button",
           };
@@ -546,7 +541,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
-        record["Calls from Ads - Local SEO"],
         record["MobileIVDrip.com Book Now Confirmed"],
         record["MobileIVDrip.com Click - Call Now Button"]
       ];
