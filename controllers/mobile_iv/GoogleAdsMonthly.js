@@ -35,7 +35,7 @@ const generateMonthlyDateRanges = (startDate, endDate) => {
 
 const getOrGenerateDateRanges = () => {
   const today = new Date();
-  const startDate = '2025-04';
+  const startDate = '2024-12';
   const endDate = today; 
 
   if (!storedDateRanges || new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate) {
@@ -555,12 +555,9 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
       Monthly: sheetData,
     };    
 
+    console.log(dataToSend)
+
     const formatSheets = async (sheetName, data) => {
-      await sheets.spreadsheets.values.clear({
-        spreadsheetId,
-        range: dataRanges[sheetName],
-      });
-    
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: dataRanges[sheetName],
@@ -580,11 +577,6 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
                   endRowIndex: data.length + 1,
                   startColumnIndex: 0,
                   endColumnIndex: 6,
-                },
-                cell: {
-                  userEnteredFormat: {
-                    horizontalAlignment: "RIGHT",
-                  },
                 },
                 fields: "userEnteredFormat.horizontalAlignment",
               },

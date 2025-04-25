@@ -38,8 +38,8 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
   const currentDay = new Date(previousLast);
   currentDay.setDate(previousLast.getDate() + 6);
 
-  const startDate = '2025-04-14';
-  // const startDate = '2024-11-11';
+  // const startDate = '2025-04-14';
+  const startDate = '2024-11-11';
   // const fixedEndDate = '2024-11-07'; // currentDay
 
   const endDate = currentDay; //new Date(fixedEndDate); //currentDay;

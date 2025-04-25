@@ -81,7 +81,7 @@ router.get('/lpc/report-daily', async (req, res) => {
   }
 });
 
-router.get('/lpc/report-monthly', async (req, res) => {
+router.get('/lpc/report-month', async (req, res) => {
   try {
     await sendLPCMonthlyReport(req, res);
     res.status(200).send("Process completed successfully.");
