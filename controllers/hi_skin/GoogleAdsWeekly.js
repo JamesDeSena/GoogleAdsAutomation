@@ -3,10 +3,14 @@ const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredRefreshToken } = require("../GoogleAuth");
 const { getStoredAccessToken } = require("../BingAuth");
+
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const { execSync } = require("child_process");
+const AdmZip = require("adm-zip");
+
+const csvFilePath = path.join(__dirname, 'report.csv');
 
 let storedDateRanges = null;
 
@@ -71,6 +75,11 @@ async function generateHSBing() {
     return;
   }
 
+  const today = new Date();
+  const day = today.getDate();
+  const month = today.getMonth() + 1;
+  const year = today.getFullYear();
+
   const requestBody = `
     <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
       <s:Header xmlns="https://bingads.microsoft.com/Reporting/v13">
@@ -102,13 +111,22 @@ async function generateHSBing() {
                   <a:CampaignPerformanceReportColumn>AllConversions</a:CampaignPerformanceReportColumn>
                 </a:Columns>
                 <a:Scope>
-                <a:AccountIds xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                  <a:AccountIds xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
                     <b:long>${process.env.BING_ADS_ACCOUNT_ID_HS}</b:long>
-                </a:AccountIds>
+                  </a:AccountIds>
                 </a:Scope>
                 <a:Time>
-                <a:PredefinedTime>ThisMonth</a:PredefinedTime>
-                <a:ReportTimeZone>PacificTimeUSCanadaTijuana</a:ReportTimeZone>
+                  <a:CustomDateRangeEnd>
+                    <a:Day>${day}</a:Day>
+                    <a:Month>${month}</a:Month>
+                    <a:Year>${year}</a:Year>
+                  </a:CustomDateRangeEnd>
+                  <a:CustomDateRangeStart>
+                    <a:Day>11</a:Day>
+                    <a:Month>11</a:Month>
+                    <a:Year>2024</a:Year>
+                  </a:CustomDateRangeStart>
+                  <a:ReportTimeZone>PacificTimeUSCanadaTijuana</a:ReportTimeZone>
                 </a:Time>
             </ReportRequest>
         </SubmitGenerateReportRequest>
@@ -163,33 +181,52 @@ async function pollingHSBing() {
     </s:Envelope>
   `;
 
-  try {
-    const response = await axios.post(
-      "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "text/xml;charset=utf-8",
-          SOAPAction: "PollGenerateReport",
-        },
-        timeout: 10000,
-      }
-    );
+  let retries = 5;
+  let reportUrl = null;
 
-    let match = response.data.match(/<ReportDownloadUrl>(.*?)<\/ReportDownloadUrl>/)?.[1];
-    let reportUrl = match.replace(/&amp;/g, "&");
-    return reportUrl;
-  } catch (error) {
-    console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
-    throw error;
+  while (retries > 0 && !reportUrl) {
+    try {
+      const response = await axios.post(
+        "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "text/xml;charset=utf-8",
+            SOAPAction: "PollGenerateReport",
+          },
+          timeout: 10000,
+        }
+      );
+
+      let match = response.data.match(/<ReportDownloadUrl>(.*?)<\/ReportDownloadUrl>/)?.[1];
+      
+      if (match) {
+        reportUrl = match.replace(/&amp;/g, "&");
+        return reportUrl;
+      }
+
+      console.error("ReportDownloadUrl not found, retrying...");
+      retries -= 1;
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before retrying
+
+    } catch (error) {
+      console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
+      retries -= 1;
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before retrying
+    }
   }
+
+  throw new Error("Failed to retrieve report URL after multiple attempts.");
 };
 
 async function downloadAndExtractHSBing() {
   const url = await pollingHSBing();
   if (!url) return;
 
-  const zip = "/tmp/report.zip", dir = "/tmp/bing_report", csv = "report.csv";
+  const zip = path.join(__dirname, 'report.zip');
+  const dir = path.join(__dirname, 'bing_report');
+  const csv = csvFilePath
+
   fs.mkdirSync(dir, { recursive: true });
 
   await new Promise((res, rej) =>
@@ -197,8 +234,8 @@ async function downloadAndExtractHSBing() {
   );
 
   if (process.platform === "win32") {
-    const AdmZip = require("adm-zip");
-    new AdmZip(zip).extractAllTo(dir, true);
+    const zipFile = new AdmZip(zip);
+    zipFile.extractAllTo(dir, true);
   } else {
     execSync(`unzip ${zip} -d ${dir}`);
   }
@@ -211,6 +248,79 @@ async function downloadAndExtractHSBing() {
 
   console.log("Saved CSV:", csv);
   return csv;
+};
+
+const aggregateWeeklyDataFromCSV = async () => {
+  const csv = csvFilePath;
+
+  if (!fs.existsSync(csv)) {
+    await downloadAndExtractHSBing();
+  }
+
+  const fileContent = fs.readFileSync(csv, 'utf-8');
+  const lines = fileContent.trim().split('\n');
+
+  const weeklyData = {};
+  const weekRanges = getOrGenerateDateRanges();
+
+  weekRanges.forEach(({ start, end }) => {
+    const key = `${start} - ${end}`;
+    weeklyData[key] = {
+      date: key,
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      step1Value: 0,
+      step5Value: 0,
+      step6Value: 0,
+      bookingConfirmed: 0,
+      purchase: 0,
+    };
+  });
+
+  const parseDate = (dateStr) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  lines.slice(1).forEach(line => {
+    const values = line.split('","').map(v => v.replace(/^"|"$/g, ''));
+    if (values.length < 8) return;
+
+    const [timePeriod, campaignName, impressions, clicks, cost, goal] = values;
+
+    const date = parseDate(timePeriod);
+    const matchingWeek = weekRanges.find(({ start, end }) => {
+      const startDate = parseDate(start);
+      const endDate = parseDate(end);
+      return date >= startDate && date <= endDate;
+    });
+
+    if (!matchingWeek) return;
+
+    const key = `${matchingWeek.start} - ${matchingWeek.end}`;
+    const entry = weeklyData[key];
+
+    entry.impressions += parseInt(impressions) || 0;
+    entry.clicks += parseInt(clicks) || 0;
+    entry.cost += parseFloat(cost) || 0;
+
+    const normalizedGoal = (goal || '').trim().toLowerCase();
+    if (normalizedGoal === 'booking confirmed') {
+      entry.bookingConfirmed += 1;
+    } else if (normalizedGoal === 'purchase') {
+      entry.purchase += 1;
+    }
+  });
+
+  const result = Object.values(weeklyData).sort((a, b) => {
+    const [startA] = a.date.split(' - ');
+    const [startB] = a.date.split(' - ');
+    return new Date(startA) - new Date(startB);
+  });
+
+  console.log(result);
+  return result;
 };
 
 const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
@@ -658,7 +768,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const pmaxDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPmaxBrand(req, res, dateRanges); await delay(500);
     const pmaxDataNB = await fetchFunctions.fetchReportDataWeeklyHSPmaxNB(req, res, dateRanges); await delay(500);
     const shoppingData = await fetchFunctions.fetchReportDataWeeklyHSShopping(req, res, dateRanges); await delay(500);
-    const bingData = await fetchFunctions.fetchReportDataWeeklyHSBing(req, res, dateRanges); await delay(500);
+    const bingData = await aggregateWeeklyDataFromCSV(); await delay(500);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
@@ -971,6 +1081,7 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 
 module.exports = {
   downloadAndExtractHSBing,
+  aggregateWeeklyDataFromCSV,
   fetchReportDataWeeklyCampaignHS,
   fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,

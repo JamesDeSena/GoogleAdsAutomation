@@ -1,14 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-// const {
-//   fetchReportDataDailyHS
-// } = require('../controllers/hi_skin/GoogleAdsDaily');
-
 const { 
   getCampaigns,
-  // dailyExport,
-  // dailyReport,
   runDailyExportAndReport,
 } = require("../controllers/lpc/DailyFetch");
 
@@ -27,6 +21,7 @@ const {
 
 const {
   downloadAndExtractHSBing,
+  aggregateWeeklyDataFromCSV,
   fetchReportDataWeeklyCampaignHS,
   fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
@@ -46,7 +41,6 @@ const {
 const {
   // executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
-  // sendJaneToGoogleSheetsMIV,
   // sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
 
@@ -55,21 +49,6 @@ const {
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
-
-// const {
-//   fetchReportDataDaily
-// } = require('../controllers/wall_blush/GoogleAdsDaily');
-
-// const {
-//   fetchReportDataBatch
-// } = require('../controllers/wall_blush/GoogleAdsBatch');
-
-// router.get('/report', fetchReportDataDaily);
-
-// router.get('/report-week', fetchReportDataWeekly);
-// router.get('/report-brand', fetchReportDataWeeklyBrand);
-// router.get('/report-nb', fetchReportDataWeeklyNB);
-// router.get('/report-final', sendFinalReportToAirtable);
 
 router.get('/lpc/report-daily', async (req, res) => {
   try {
@@ -154,7 +133,7 @@ router.get('/mobile_iv/report-month/:date?', async (req, res) => {
 
 // router.get("/test", async (req, res) => {
 //   try {
-//     await downloadAndExtractLPCBing();
+//     await downloadAndExtractHSBing();
 //     res.status(200).send("Process completed successfully.");
 //   } catch (error) {
 //     console.error("Error in /test route:", error);
