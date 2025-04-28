@@ -319,7 +319,6 @@ const aggregateWeeklyDataFromCSV = async () => {
     return new Date(startA) - new Date(startB);
   });
 
-  console.log(result);
   return result;
 };
 
