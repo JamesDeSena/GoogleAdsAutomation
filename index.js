@@ -118,8 +118,8 @@ const eveningJobs2 = [
 
 const morningJobs3 = [
   sendFinalWeeklyReportToGoogleSheetsMIV,
-  sendFinalWeeklyReportToGoogleSheetsHS,
   sendFinalWeeklyReportToGoogleSheetsLPC,
+  sendFinalWeeklyReportToGoogleSheetsHS,
 ];
 
 schedule.scheduleJob(rule1, () => {

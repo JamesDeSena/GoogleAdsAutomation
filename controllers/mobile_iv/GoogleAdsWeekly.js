@@ -199,9 +199,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    AZLive: 'AZ Weekly!A2:T',
-    LVLive: 'LV Weekly!A2:R',
-    NYCLive: 'NYC Weekly!A2:R',
+    AZLive: 'AZ Weekly!A2:U',
+    LVLive: 'LV Weekly!A2:S',
+    NYCLive: 'NYC Weekly!A2:S',
   };
 
   try {
@@ -242,9 +242,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Cost": formatPercentage(calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost)),
         "CPC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
         "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
-        // "Booking Total": formatPercentage(calculateWoWVariance(bookingLastRecord.data.count2, bookingSecondToLastRecord.data.count2)),
-        // "CAC": formatPercentage(calculateWoWVariance(lastRecord.cost /(bookingLastRecord.data.count2 || 0), secondToLastRecord.cost (bookingSecondToLastRecord.data.count2 || 0))),
-        // "Appt Conv Rate":formatPercentage(calculateWoWVariance((bookingLastRecord.data.count2 || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks.count2)),
       };
 
       Object.assign(baseRecord, {
@@ -286,6 +283,15 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           : formatPercentage(calculateWoWVariance(
               lastRecord.cost / (bookingLastRecord.data.count1 || 0),
               secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0)
+            )),
+        "New Requests Conv Rate": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              ((bookingLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingLastRecordAZ.data?.Tucson?.count1 || 0)) / lastRecord.clicks,
+              ((bookingSecondToLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count1 || 0)) / secondToLastRecord.clicks
+            ))
+          : formatPercentage(calculateWoWVariance(
+              (bookingLastRecord.data.count1 || 0) / lastRecord.clicks,
+              (bookingSecondToLastRecord.data.count1 || 0) / secondToLastRecord.clicks
             )),
       });
 
@@ -329,9 +335,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Cost": formatPercentage(calculateWoWVariance((previousRecord.cost + secondToPreviousRecord.cost), (lastRecord.cost + secondToLastRecord.cost))),
         "CPC": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.clicks) + (secondToPreviousRecord.cost / secondToPreviousRecord.clicks)), ((lastRecord.cost / lastRecord.clicks) + ( secondToLastRecord.cost / secondToLastRecord.clicks)))),
         "CTR": formatPercentage(calculateWoWVariance(((previousRecord.clicks / previousRecord.impressions) + (secondToPreviousRecord.clicks / secondToPreviousRecord.impressions)), ((lastRecord.clicks / lastRecord.impressions) + (secondToLastRecord.clicks / secondToLastRecord.impressions)))),
-        // "Booking Total": formatPercentage(calculateWoWVariance(bookingLastRecord.data.count2, bookingSecondToLastRecord.data.count2)),
-        // "CAC": formatPercentage(calculateWoWVariance(lastRecord.cost /(bookingLastRecord.data.count2 || 0), secondToLastRecord.cost (bookingSecondToLastRecord.data.count2 || 0))),
-        // "Appt Conv Rate":formatPercentage(calculateWoWVariance((bookingLastRecord.data.count2 || 0) / lastRecord.clicks,(bookingSecondToLastRecord.data.count2 || 0) / secondToLastRecord.clicks.count2)),
       };
 
       Object.assign(baseRecord, {
@@ -390,6 +393,17 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
               ((previousRecord.cost / (bookingPreviousRecord.data.count1 || 0)) + (secondToPreviousRecord.cost / (bookingSecondToPreviousRecord.data.count1 || 0))),
               ((lastRecord.cost / (bookingLastRecord.data.count1 || 0)) + (secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0)))
             )),
+        "New Requests Conv Rate": filter === "AZ"
+          ? formatPercentage(calculateWoWVariance(
+              ((((bookingPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingPreviousRecordAZ.data?.Tucson?.count1 || 0)) / previousRecord.clicks) + 
+              (((bookingSecondToPreviousRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToPreviousRecordAZ.data?.Tucson?.count1 || 0)) / secondToPreviousRecord.clicks)),
+              ((((bookingLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingLastRecordAZ.data?.Tucson?.count1 || 0)) / lastRecord.clicks) + 
+              (((bookingSecondToLastRecordAZ.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecordAZ.data?.Tucson?.count1 || 0)) / secondToLastRecord.clicks))
+            ))
+          : formatPercentage(calculateWoWVariance(
+              (((bookingPreviousRecord.data.count1 || 0) / previousRecord.clicks) + ((bookingSecondToPreviousRecord.data.count1 || 0)) / secondToPreviousRecord.clicks),
+              (((bookingLastRecord.data.count1 || 0) / lastRecord.clicks) + ((bookingSecondToLastRecord.data.count1 || 0)) / secondToLastRecord.clicks)
+            )),
       });
 
       if (filter === "AZ") {
@@ -429,9 +443,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Cost": formatCurrency(record.cost),
           "CPC": formatCurrency(record.cost / record.clicks),
           "CTR": formatPercentage((record.clicks / record.impressions) * 100),
-          // "Booking Total": formatNumber(bookingRecord.data.count2 || 0),
-          // "CAC": formatCurrency(record.cost / (bookingRecord.data.count2 || 0) || 0),
-          // "Appt Conv Rate": formatPercentage(((bookingRecord.data.count2 || 0) / record.clicks) * 100 || 0),
         };
 
         Object.assign(baseRecord, {
@@ -450,6 +461,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "New Requests CAC": filter === "AZ"
             ? formatCurrency(record.cost / ((bookingRecordAZ.data?.Phoenix?.count1 || 0) + (bookingRecordAZ.data?.Tucson?.count1 || 0)) || 0) 
             : formatCurrency(record.cost / (bookingRecord.data.count1 || 0) || 0),
+          "New Requests Conv Rate": filter === "AZ"
+            ? formatPercentage((((bookingRecordAZ.data?.Phoenix?.count1 || 0) + (bookingRecordAZ.data?.Tucson?.count1 || 0)) / record.clicks) * 100 || 0) 
+            : formatPercentage(((bookingRecord.data.count1 || 0) / record.clicks) * 100 || 0),
         });
     
         if (filter === "AZ") {
@@ -510,6 +524,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Appt Conv Rate": "Appt Conv Rate",
             "New Requests": "New Requests",
             "New Requests CAC": "New Requests CAC",
+            "New Requests Conv Rate": "New Requests Conv Rate",
           };    
     
           if (record.Filter.trim().toUpperCase() === "AZ") {
@@ -555,6 +570,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         record["Appt Conv Rate"],
         record["New Requests"],
         record["New Requests CAC"],
+        record["New Requests Conv Rate"],
       ];
     
       if (record.Filter === "AZ") {
