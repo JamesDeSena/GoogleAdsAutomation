@@ -16,7 +16,7 @@ const pingRenderApp = () => {
 
 setInterval(() => {
   pingRenderApp();
-}, 5 * 60 * 1000);
+}, 12 * 60 * 1000);
 
 module.exports = {
   pingRenderApp,
