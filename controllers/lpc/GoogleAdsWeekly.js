@@ -350,6 +350,67 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       });
     });
 
+    const calculateVariance = (current, previous) => {
+      if (previous === 0 || isNaN(current) || isNaN(previous)) return 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    const formatPercentage = (value) =>
+      isNaN(value) || !isFinite(value) ? "0.00%" : `${value.toFixed(2)}%`;
+
+    const addWoWRow = (records) => {
+      if (records.length < 3) return;
+
+      const lastWeek = records[records.length - 2];
+      const twoWeeksAgo = records[records.length - 3];
+
+      const row = [
+        "WoW Variance %",
+        formatPercentage(calculateVariance(lastWeek[1], twoWeeksAgo[1])), // MQL
+        formatPercentage(calculateVariance(lastWeek[2], twoWeeksAgo[2])), // Nopes
+        formatPercentage(calculateVariance(lastWeek[3], twoWeeksAgo[3])), // SQL
+        formatPercentage(calculateVariance(lastWeek[4], twoWeeksAgo[4])), // SS
+        formatPercentage(calculateVariance(lastWeek[5], twoWeeksAgo[5])), // Cost
+        formatPercentage(calculateVariance(lastWeek[6], twoWeeksAgo[6])), // Clicks
+      ];
+
+      records.push(row);
+    };
+
+    const addBiWeeklyRow = (records) => {
+      if (records.length < 6) return;
+
+      const last2Weeks = [records[records.length - 3], records[records.length - 4]];
+      const prev2Weeks = [records[records.length - 5], records[records.length - 6]];
+
+      const averageMetric = (index, weeks) =>
+        weeks.reduce((sum, row) => sum + (parseFloat(row[index]) || 0), 0) / weeks.length;
+
+      const row = [
+        "Biweekly Variance %",
+        formatPercentage(calculateVariance(
+          averageMetric(1, last2Weeks), averageMetric(1, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(2, last2Weeks), averageMetric(2, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(3, last2Weeks), averageMetric(3, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(4, last2Weeks), averageMetric(4, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(5, last2Weeks), averageMetric(5, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(6, last2Weeks), averageMetric(6, prev2Weeks)
+        )),
+      ];
+
+      records.push(row);
+    };
+
     await Promise.all(
       Object.entries(weeks).map(async ([region, data]) => {
         console.log(`Processing region: ${region}`);
@@ -357,6 +418,11 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         const sortedWeeks = Object.values(data).sort(
           (a, b) => new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0])
         );
+
+        if (sortedWeeks.length >= 5) {
+          addWoWRow(sortedWeeks);
+          addBiWeeklyRow(sortedWeeks);
+        }
 
         const existingData = await sheets.spreadsheets.values.get({
           spreadsheetId,
