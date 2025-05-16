@@ -242,19 +242,23 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     const startDate = new Date("2021-10-03");
     const today = new Date();
     const weeks = { CA: {}, AZ: {} };
-    const nopeStagesCA = new Set(["80193", "113690", "21589"]);
-    const nopeStagesAZ = new Set(["111597", "111596"]);
-    const eventLikeStagesCA = new Set(["21590", "37830", "21574", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]);
-    const eventLikeStagesAZ = new Set(["111631", "126229", "111632", "111633", "111634", "111635", "111636"]);
+
+    const nopeStages = {
+      CA: new Set(["80193", "113690", "21589"]),
+      AZ: new Set(["111597", "111596"]),
+    };
+
+    const eventLikeStages = {
+      CA: new Set(["21590", "37830", "21574", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]),
+      AZ: new Set(["111631", "126229", "111632", "111633", "111634", "111635", "111636"]),
+    };
 
     const formatDate = (date) =>
       `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
     const processDate = (date) => {
       if (!date) return null;
-      const parsedDate = new Date(
-        new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-      );
+      const parsedDate = new Date(new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
       return parsedDate < startDate ? null : parsedDate;
     };
 
@@ -269,86 +273,73 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       };
     };
 
+    // Unified handler for campaigns
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
       if (!createdDate || createdDate > today) return;
-    
+
       const region = jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
-      if (!region) return;
-    
       const { label } = processWeek(createdDate);
-      if (!weeks[region][label]) {
-        weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
-      }
-    
-      weeks[region][label][1]++;
-      if (
-        stage_id &&
-        ((region === "CA" && nopeStagesCA.has(stage_id)) || (region === "AZ" && nopeStagesAZ.has(stage_id)))
-      ) {
-        weeks[region][label][2]++;
-      }
+
+      if (!weeks[region][label]) weeks[region][label] = [label, 0, 0, 0, 0, 0, 0, 0, 0];
+
+      weeks[region][label][1]++; // Total forms
+      if (nopeStages[region].has(stage_id)) weeks[region][label][2]++; // No shows
+      if (eventLikeStages[region].has(stage_id)) weeks[region][label][4]++; // Event-like
     });
 
-    campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
-      const createdDate = processDate(created_at);
-      if (!createdDate || createdDate > today) return;
-    
-      const region = jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
-      if (!region) return;
-    
-      const { label } = processWeek(createdDate);
-      if (!weeks[region][label]) {
-        weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
-      }
-    
-      if (
-        stage_id &&
-        ((region === "CA" && eventLikeStagesCA.has(stage_id)) ||
-         (region === "AZ" && eventLikeStagesAZ.has(stage_id)))
-      ) {
-        weeks[region][label][4]++;
-      }
-    });
-
-    events.forEach(({ event_id, event_start, jurisdiction }) => {
+    // Unified handler for events
+    events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
-    
-      const region = jurisdiction === "AZ - Strategy Session" ? "AZ" : "CA";
-      if (!region) return;
-    
-      const { label } = processWeek(eventDate);
-      if (!weeks[region][label]) {
-        weeks[region][label] = [label, 0, 0, 0, 0, 0, 0];
-      }
-    
-      weeks[region][label][4]++;
-    });    
 
-    if (Array.isArray(caData)) {
-      caData.forEach(({ date, clicks, cost }) => {
-        if (weeks["CA"][date]) {
-          weeks["CA"][date][5] = cost;
-          weeks["CA"][date][6] = clicks;
+      const region = jurisdiction === "AZ - Strategy Session" ? "AZ" : "CA";
+      const { label } = processWeek(eventDate);
+
+      if (!weeks[region][label]) weeks[region][label] = [label, 0, 0, 0, 0, 0, 0, 0, 0];
+      weeks[region][label][4]++; // Event-like
+    });
+
+    // Cost and clicks
+    const applyLPCData = (data, region) => {
+      data.forEach(({ date, clicks, cost }) => {
+        if (weeks[region][date]) {
+          weeks[region][date][5] = cost;  // Cost
+          weeks[region][date][6] = clicks; // Clicks
         }
       });
-    }
-    
-    if (Array.isArray(azData)) {
-      azData.forEach(({ date, clicks, cost }) => {
-        if (weeks["AZ"][date]) {
-          weeks["AZ"][date][5] = cost;
-          weeks["AZ"][date][6] = clicks;
-        }
-      });
-    }    
-    
+    };
+
+    if (Array.isArray(caData)) applyLPCData(caData, "CA");
+    if (Array.isArray(azData)) applyLPCData(azData, "AZ");
+
+    // Calculations and final touches
     Object.keys(weeks).forEach((region) => {
       Object.values(weeks[region]).forEach((week) => {
-        week[3] = week[1] - week[2];
+        const totalForms = week[1];
+        const noShows = week[2];
+        const confirmed = totalForms - noShows;
+        const cost = parseFloat(week[5]) || 0;
+        const clicks = parseFloat(week[6]) || 0;
+
+        week[3] = confirmed;
+        week[7] = confirmed > 0 ? cost / confirmed : 0; // Cost per confirmed
+        week[8] = clicks > 0 ? ((totalForms / clicks) * 100) : 0; // Form-to-click rate
       });
     });
+
+    // Column type signs (add to metadata/output if needed)
+    const columnSigns = [
+      "date",      // 0: week label
+      "number",    // 1: total forms
+      "number",    // 2: no shows
+      "number",    // 3: confirmed
+      "number",    // 4: event-like
+      "currency",  // 5: cost (USD)
+      "number",    // 6: clicks
+      "currency",  // 7: cost per confirmed
+      "percent",   // 8: form-to-click rate
+    ];
 
     const calculateVariance = (current, previous) => {
       if (previous === 0 || isNaN(current) || isNaN(previous)) return 0;
@@ -366,12 +357,14 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       const row = [
         "WoW Variance %",
-        formatPercentage(calculateVariance(lastWeek[1], twoWeeksAgo[1])), // MQL
-        formatPercentage(calculateVariance(lastWeek[2], twoWeeksAgo[2])), // Nopes
-        formatPercentage(calculateVariance(lastWeek[3], twoWeeksAgo[3])), // SQL
-        formatPercentage(calculateVariance(lastWeek[4], twoWeeksAgo[4])), // SS
-        formatPercentage(calculateVariance(lastWeek[5], twoWeeksAgo[5])), // Cost
-        formatPercentage(calculateVariance(lastWeek[6], twoWeeksAgo[6])), // Clicks
+        formatPercentage(calculateVariance(lastWeek[1], twoWeeksAgo[1])),
+        formatPercentage(calculateVariance(lastWeek[2], twoWeeksAgo[2])),
+        formatPercentage(calculateVariance(lastWeek[3], twoWeeksAgo[3])),
+        formatPercentage(calculateVariance(lastWeek[4], twoWeeksAgo[4])),
+        formatPercentage(calculateVariance(lastWeek[5], twoWeeksAgo[5])),
+        formatPercentage(calculateVariance(lastWeek[6], twoWeeksAgo[6])),
+        formatPercentage(calculateVariance(lastWeek[7], twoWeeksAgo[7])),
+        formatPercentage(calculateVariance(lastWeek[8], twoWeeksAgo[8])),
       ];
 
       records.push(row);
@@ -405,6 +398,12 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         )),
         formatPercentage(calculateVariance(
           averageMetric(6, last2Weeks), averageMetric(6, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(7, last2Weeks), averageMetric(7, prev2Weeks)
+        )),
+        formatPercentage(calculateVariance(
+          averageMetric(8, last2Weeks), averageMetric(8, prev2Weeks)
         )),
       ];
 
@@ -446,7 +445,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
           if (existingWeeks.has(weekLabel)) {
             const rowIndex = existingWeeks.get(weekLabel);
             batchUpdates.push({
-              range: `${dataRanges[region]}!A${rowIndex + 1}:G${rowIndex + 1}`,
+              range: `${dataRanges[region]}!A${rowIndex + 1}:I${rowIndex + 1}`,
               values: [weekData],
             });
           } else {
@@ -472,7 +471,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
           if (newValues.length > 0) {
             await sheets.spreadsheets.values.append({
               spreadsheetId,
-              range: `${dataRanges[region]}!A2:G`,
+              range: `${dataRanges[region]}!A2:I`,
               valueInputOption: "RAW",
               insertDataOption: "INSERT_ROWS",
               resource: { values: newValues },
