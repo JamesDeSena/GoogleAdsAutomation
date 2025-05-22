@@ -324,7 +324,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
         week[3] = confirmed;
         week[7] = confirmed > 0 ? cost / confirmed : 0; // Cost per confirmed
-        week[8] = clicks > 0 ? ((totalForms / clicks) * 100) : 0; // Form-to-click rate
+        week[8] = clicks > 0 ? (totalForms / clicks) : 0; // Form-to-click rate
       });
     });
 
