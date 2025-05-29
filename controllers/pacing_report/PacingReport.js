@@ -174,7 +174,6 @@ async function getAmountGoogleHSCampaigns() {
   const campaigns = [
     "Brand",
     "NB",
-    // "Pmax",
     "PmaxBrand",
     "PmaxNB",
   ];
@@ -182,17 +181,19 @@ async function getAmountGoogleHSCampaigns() {
   try {
     let totalCosts = {};
 
-    for (let campaignName of campaigns) {
+    const campaignFilters = {
+      PmaxBrand: ["%Pmax%", "%Brand%"],
+      PmaxNB: ["%Pmax%", "%NB%"],
+      Brand: ["%Brand%", "%Search%"],
+      NB: ["%NB%"],
+    };
+
+    for (const campaignName of campaigns) {
       let whereClause = `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
 
-      if (campaignName === "PmaxBrand") {
-        whereClause += ` AND campaign.name LIKE '%Pmax%'`;
-        whereClause += ` AND campaign.name LIKE '%Brand%'`;
-      } else if (campaignName === "PmaxNB") {
-        whereClause += ` AND campaign.name LIKE '%Pmax%'`;
-        whereClause += ` AND campaign.name LIKE '%NB%'`;
-      } else {
-        whereClause += ` AND campaign.name LIKE '%${campaignName}%'`;
+      const filters = campaignFilters[campaignName] || [`%${campaignName}%`];
+      for (let filter of filters) {
+        whereClause += ` AND campaign.name LIKE '${filter}'`;
       }
 
       const metricsQuery = `
