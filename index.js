@@ -8,6 +8,7 @@ const app = express();
 
 // ConnectDB();
 
+require("./utils/highlightIO");
 require("./utils/slackNotifier")
 
 const googleRoutes = require('./routes/GoogleRoutes');
@@ -23,6 +24,8 @@ const { sendLPCMonthlyReport } = require('./controllers/lpc/GoogleAdsMonthly');
 const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
+
+const { highlightErrorHandler, highlightJobErrorHandler } = require('./utils/highlightIO');
 
 app.use(express.json());
 
@@ -55,17 +58,37 @@ app.use("/", (req, res) => {
   res.sendStatus(200);
 });
 
-pingRenderApp();
+app.use(highlightErrorHandler);
 
 const executeConcurrentJobs = async (jobs, jobName) => {
   console.log(`Executing ${jobName} jobs concurrently.`);
   try {
-    await Promise.all(jobs.map(job => job()));
+    await Promise.all(jobs.map(job => async () => {
+        try {
+            await job();
+        } catch (error) {
+            console.error(`Error in individual ${jobName} job:`, error);
+            highlightJobErrorHandler(error, { jobName: jobName, jobFunction: job.name || 'anonymous' });
+            throw error;
+        }
+    }).map(fn => fn()));
     console.log(`${jobName} jobs completed successfully.`);
   } catch (error) {
     console.error(`Error in ${jobName} jobs:`, error);
   }
 };
+
+pingRenderApp();
+
+// const executeConcurrentJobs = async (jobs, jobName) => {
+//   console.log(`Executing ${jobName} jobs concurrently.`);
+//   try {
+//     await Promise.all(jobs.map(job => job()));
+//     console.log(`${jobName} jobs completed successfully.`);
+//   } catch (error) {
+//     console.error(`Error in ${jobName} jobs:`, error);
+//   }
+// };
 
 const rule1 = new schedule.RecurrenceRule();
 rule1.hour = 7;
