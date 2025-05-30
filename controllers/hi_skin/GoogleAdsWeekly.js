@@ -713,6 +713,62 @@ const executeSpecificFetchFunctionHS = async (req, res, dateRanges) => {
   }
 };
 
+let lastApiCallTime = 0;
+const MIN_DELAY_BETWEEN_CALLS_MS = 3000;
+
+const createThrottledFetch = (fetchFn) => async (...args) => {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastApiCallTime;
+  const delayNeeded = MIN_DELAY_BETWEEN_CALLS_MS - timeSinceLastCall;
+
+  if (delayNeeded > 0) {
+    console.log(`Throttling: Waiting for ${delayNeeded}ms before calling ${fetchFn.name || 'a function'}.`);
+    await new Promise(resolve => setTimeout(resolve, delayNeeded));
+  }
+
+  lastApiCallTime = Date.now();
+  return fetchFn(...args);
+};
+
+const throttledFetchFunctions = {
+    weeklyCampaignData: createThrottledFetch(fetchReportDataWeeklyCampaignHS),
+    weeklySearchData: createThrottledFetch(fetchReportDataWeeklySearchHS),
+    brandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSBrand),
+    noBrandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSNB),
+    gilbertData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSGilbert),
+    gilbertDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSGilbertBrand),
+    gilbertDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSGilbertNB),
+    mktData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMKT),
+    mktDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMKTBrand),
+    mktDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMKTNB),
+    phoenixData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPhoenix),
+    phoenixDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPhoenixBrand),
+    phoenixDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPhoenixNB),
+    scottsdaleData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSScottsdale),
+    scottsdaleDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSScottsdaleBrand),
+    scottsdaleDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSScottsdaleNB),
+    uptownParkData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSUptownPark),
+    uptownParkDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSUptownParkBrand),
+    uptownParkDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSUptownParkNB),
+    montroseData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMontrose),
+    montroseDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMontroseBrand),
+    montroseDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMontroseNB),
+    riceVillageData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSRiceVillage),
+    riceVillageDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSRiceVillageBrand),
+    riceVillageDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSRiceVillageNB),
+    mosaicData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMosaic),
+    mosaicDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMosaicBrand),
+    mosaicDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSMosaicNB),
+    fourteenthStData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHS14thSt),
+    fourteenthStDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHS14thStBrand),
+    fourteenthStDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHS14thStNB),
+    pmaxData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPmax),
+    pmaxDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPmaxBrand),
+    pmaxDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPmaxNB),
+    shoppingData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSShopping),
+    bingData: createThrottledFetch(aggregateWeeklyDataFromCSV),
+};
+
 const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
@@ -730,44 +786,81 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const {
+        weeklyCampaignData: throttledWeeklyCampaignDataFetch,
+        weeklySearchData: throttledWeeklySearchDataFetch,
+        brandData: throttledBrandDataFetch,
+        noBrandData: throttledNoBrandDataFetch,
+        gilbertData: throttledGilbertDataFetch,
+        gilbertDataBrand: throttledGilbertDataBrandFetch,
+        gilbertDataNB: throttledGilbertDataNBFetch,
+        mktData: throttledMktDataFetch,
+        mktDataBrand: throttledMktDataBrandFetch,
+        mktDataNB: throttledMktDataNBFetch,
+        phoenixData: throttledPhoenixDataFetch,
+        phoenixDataBrand: throttledPhoenixDataBrandFetch,
+        phoenixDataNB: throttledPhoenixDataNBFetch,
+        scottsdaleData: throttledScottsdaleDataFetch,
+        scottsdaleDataBrand: throttledScottsdaleDataBrandFetch,
+        scottsdaleDataNB: throttledScottsdaleDataNBFetch,
+        uptownParkData: throttledUptownParkDataFetch,
+        uptownParkDataBrand: throttledUptownParkDataBrandFetch,
+        uptownParkDataNB: throttledUptownParkDataNBFetch,
+        montroseData: throttledMontroseDataFetch,
+        montroseDataBrand: throttledMontroseDataBrandFetch,
+        montroseDataNB: throttledMontroseDataNBFetch,
+        riceVillageData: throttledRiceVillageDataFetch,
+        riceVillageDataBrand: throttledRiceVillageDataBrandFetch,
+        riceVillageDataNB: throttledRiceVillageDataNBFetch,
+        mosaicData: throttledMosaicDataFetch,
+        mosaicDataBrand: throttledMosaicDataBrandFetch,
+        mosaicDataNB: throttledMosaicDataNBFetch,
+        fourteenthStData: throttledFourteenthStDataFetch,
+        fourteenthStDataBrand: throttledFourteenthStDataBrandFetch,
+        fourteenthStDataNB: throttledFourteenthStDataNBFetch,
+        pmaxData: throttledPmaxDataFetch,
+        pmaxDataBrand: throttledPmaxDataBrandFetch,
+        pmaxDataNB: throttledPmaxDataNBFetch,
+        shoppingData: throttledShoppingDataFetch,
+        bingData: throttledBingDataFetch,
+    } = throttledFetchFunctions;
 
-    const weeklyCampaignData = await fetchReportDataWeeklyCampaignHS(dateRanges); await delay(500);
-    const weeklySearchData = await fetchReportDataWeeklySearchHS(dateRanges); await delay(500);
-    const brandData = await fetchFunctions.fetchReportDataWeeklyHSBrand(req, res, dateRanges); await delay(500);
-    const noBrandData = await fetchFunctions.fetchReportDataWeeklyHSNB(req, res, dateRanges); await delay(500);
-    const gilbertData = await fetchFunctions.fetchReportDataWeeklyHSGilbert(req, res, dateRanges); await delay(500);
-    const gilbertDataBrand = await fetchFunctions.fetchReportDataWeeklyHSGilbertBrand(req, res, dateRanges); await delay(500);
-    const gilbertDataNB = await fetchFunctions.fetchReportDataWeeklyHSGilbertNB(req, res, dateRanges); await delay(500);
-    const mktData = await fetchFunctions.fetchReportDataWeeklyHSMKT(req, res, dateRanges); await delay(500);
-    const mktDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMKTBrand(req, res, dateRanges); await delay(500);
-    const mktDataNB = await fetchFunctions.fetchReportDataWeeklyHSMKTNB(req, res, dateRanges); await delay(500);
-    const phoenixData = await fetchFunctions.fetchReportDataWeeklyHSPhoenix(req, res, dateRanges); await delay(500);
-    const phoenixDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPhoenixBrand(req, res, dateRanges); await delay(500);
-    const phoenixDataNB = await fetchFunctions.fetchReportDataWeeklyHSPhoenixNB(req, res, dateRanges); await delay(500);
-    const scottsdaleData = await fetchFunctions.fetchReportDataWeeklyHSScottsdale(req, res, dateRanges); await delay(500);
-    const scottsdaleDataBrand = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleBrand(req, res, dateRanges); await delay(500);
-    const scottsdaleDataNB = await fetchFunctions.fetchReportDataWeeklyHSScottsdaleNB(req, res, dateRanges); await delay(500);
-    const uptownParkData = await fetchFunctions.fetchReportDataWeeklyHSUptownPark(req, res, dateRanges); await delay(500);
-    const uptownParkDataBrand = await fetchFunctions.fetchReportDataWeeklyHSUptownParkBrand(req, res, dateRanges); await delay(500);
-    const uptownParkDataNB = await fetchFunctions.fetchReportDataWeeklyHSUptownParkNB(req, res, dateRanges); await delay(500);
-    const montroseData = await fetchFunctions.fetchReportDataWeeklyHSMontrose(req, res, dateRanges); await delay(500);
-    const montroseDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMontroseBrand(req, res, dateRanges); await delay(500);
-    const montroseDataNB = await fetchFunctions.fetchReportDataWeeklyHSMontroseNB(req, res, dateRanges); await delay(500);
-    const riceVillageData = await fetchFunctions.fetchReportDataWeeklyHSRiceVillage(req, res, dateRanges); await delay(500);
-    const riceVillageDataBrand = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageBrand(req, res, dateRanges); await delay(500);
-    const riceVillageDataNB = await fetchFunctions.fetchReportDataWeeklyHSRiceVillageNB(req, res, dateRanges); await delay(500);
-    const mosaicData = await fetchFunctions.fetchReportDataWeeklyHSMosaic(req, res, dateRanges); await delay(500);
-    const mosaicDataBrand = await fetchFunctions.fetchReportDataWeeklyHSMosaicBrand(req, res, dateRanges); await delay(500);
-    const mosaicDataNB = await fetchFunctions.fetchReportDataWeeklyHSMosaicNB(req, res, dateRanges); await delay(500);
-    const fourteenthStData = await fetchFunctions.fetchReportDataWeeklyHS14thSt(req, res, dateRanges); await delay(500);
-    const fourteenthStDataBrand = await fetchFunctions.fetchReportDataWeeklyHS14thStBrand(req, res, dateRanges); await delay(500);
-    const fourteenthStDataNB = await fetchFunctions.fetchReportDataWeeklyHS14thStNB(req, res, dateRanges); await delay(500);
-    const pmaxData = await fetchFunctions.fetchReportDataWeeklyHSPmax(req, res, dateRanges); await delay(500);
-    const pmaxDataBrand = await fetchFunctions.fetchReportDataWeeklyHSPmaxBrand(req, res, dateRanges); await delay(500);
-    const pmaxDataNB = await fetchFunctions.fetchReportDataWeeklyHSPmaxNB(req, res, dateRanges); await delay(500);
-    const shoppingData = await fetchFunctions.fetchReportDataWeeklyHSShopping(req, res, dateRanges); await delay(500);
-    const bingData = await aggregateWeeklyDataFromCSV(); await delay(500);
+    const weeklyCampaignData = await throttledWeeklyCampaignDataFetch(dateRanges);
+    const weeklySearchData = await throttledWeeklySearchDataFetch(dateRanges);
+    const brandData = await throttledBrandDataFetch(req, res, dateRanges);
+    const noBrandData = await throttledNoBrandDataFetch(req, res, dateRanges);
+    const gilbertData = await throttledGilbertDataFetch(req, res, dateRanges);
+    const gilbertDataBrand = await throttledGilbertDataBrandFetch(req, res, dateRanges);
+    const gilbertDataNB = await throttledGilbertDataNBFetch(req, res, dateRanges);
+    const mktData = await throttledMktDataFetch(req, res, dateRanges);
+    const mktDataBrand = await throttledMktDataBrandFetch(req, res, dateRanges);
+    const mktDataNB = await throttledMktDataNBFetch(req, res, dateRanges);
+    const phoenixData = await throttledPhoenixDataFetch(req, res, dateRanges);
+    const phoenixDataBrand = await throttledPhoenixDataBrandFetch(req, res, dateRanges);
+    const phoenixDataNB = await throttledPhoenixDataNBFetch(req, res, dateRanges);
+    const scottsdaleData = await throttledScottsdaleDataFetch(req, res, dateRanges);
+    const scottsdaleDataBrand = await throttledScottsdaleDataBrandFetch(req, res, dateRanges);
+    const scottsdaleDataNB = await throttledScottsdaleDataNBFetch(req, res, dateRanges);
+    const uptownParkData = await throttledUptownParkDataFetch(req, res, dateRanges);
+    const uptownParkDataBrand = await throttledUptownParkDataBrandFetch(req, res, dateRanges);
+    const uptownParkDataNB = await throttledUptownParkDataNBFetch(req, res, dateRanges);
+    const montroseData = await throttledMontroseDataFetch(req, res, dateRanges);
+    const montroseDataBrand = await throttledMontroseDataBrandFetch(req, res, dateRanges);
+    const montroseDataNB = await throttledMontroseDataNBFetch(req, res, dateRanges);
+    const riceVillageData = await throttledRiceVillageDataFetch(req, res, dateRanges);
+    const riceVillageDataBrand = await throttledRiceVillageDataBrandFetch(req, res, dateRanges);
+    const riceVillageDataNB = await throttledRiceVillageDataNBFetch(req, res, dateRanges);
+    const mosaicData = await throttledMosaicDataFetch(req, res, dateRanges);
+    const mosaicDataBrand = await throttledMosaicDataBrandFetch(req, res, dateRanges);
+    const mosaicDataNB = await throttledMosaicDataNBFetch(req, res, dateRanges);
+    const fourteenthStData = await throttledFourteenthStDataFetch(req, res, dateRanges);
+    const fourteenthStDataBrand = await throttledFourteenthStDataBrandFetch(req, res, dateRanges);
+    const fourteenthStDataNB = await throttledFourteenthStDataNBFetch(req, res, dateRanges);
+    const pmaxData = await throttledPmaxDataFetch(req, res, dateRanges);
+    const pmaxDataBrand = await throttledPmaxDataBrandFetch(req, res, dateRanges);
+    const pmaxDataNB = await throttledPmaxDataNBFetch(req, res, dateRanges);
+    const shoppingData = await throttledShoppingDataFetch(req, res, dateRanges);
+    const bingData = await throttledBingDataFetch();
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
