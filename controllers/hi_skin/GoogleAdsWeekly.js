@@ -714,7 +714,7 @@ const executeSpecificFetchFunctionHS = async (req, res, dateRanges) => {
 };
 
 let lastApiCallTime = 0;
-const MIN_DELAY_BETWEEN_CALLS_MS = 3000;
+const MIN_DELAY_BETWEEN_CALLS_MS = 5000;
 
 const createThrottledFetch = (fetchFn) => async (...args) => {
   const now = Date.now();
