@@ -24,7 +24,7 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
 
     currentStartDate.setDate(currentStartDate.getDate() + 7);
   }
-
+  console.log(dateRanges)
   return dateRanges;
 };
 
@@ -236,7 +236,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
   try {
     const { campaigns, events } = await getRawCampaigns();
     const caData = await fetchAndAggregateLPCData("%CA%");
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     const azData = await fetchAndAggregateLPCData("%AZ%");
 
     const startDate = new Date("2021-10-03");
