@@ -148,30 +148,37 @@ async function pollingLPCBing() {
     return;
   }
 
-  const key = await generateLPCBing();
-
-  const requestBody = `
-    <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
-      <s:Header xmlns="https://bingads.microsoft.com/Reporting/v13">
-        <Action mustUnderstand="1">SubmitGenerateReport</Action>
-        <AuthenticationToken>${token.accessToken_Bing}</AuthenticationToken>
-        <CustomerAccountId>${process.env.BING_ADS_ACCOUNT_ID_LPC}</CustomerAccountId>
-        <CustomerId>${process.env.BING_ADS_CID}</CustomerId>
-        <DeveloperToken>${process.env.BING_ADS_DEVELOPER_TOKEN}</DeveloperToken>
-      </s:Header>
-      <s:Body>
-        <PollGenerateReportRequest xmlns="https://bingads.microsoft.com/Reporting/v13">
-          <ReportRequestId>${key}</ReportRequestId>
-        </PollGenerateReportRequest>
-      </s:Body>
-    </s:Envelope>
-  `;
-
   let retries = 5;
   let reportUrl = null;
 
   while (retries > 0 && !reportUrl) {
+    let key;
     try {
+      key = await generateLPCBing();
+      if (!key) {
+        console.error("Failed to generate LPCBing key, retrying...");
+        retries -= 1;
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        continue;
+      }
+
+      const requestBody = `
+        <s:Envelope xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+          <s:Header xmlns="https://bingads.microsoft.com/Reporting/v13">
+            <Action mustUnderstand="1">SubmitGenerateReport</Action>
+            <AuthenticationToken>${token.accessToken_Bing}</AuthenticationToken>
+            <CustomerAccountId>${process.env.BING_ADS_ACCOUNT_ID_LPC}</CustomerAccountId>
+            <CustomerId>${process.env.BING_ADS_CID}</CustomerId>
+            <DeveloperToken>${process.env.BING_ADS_DEVELOPER_TOKEN}</DeveloperToken>
+          </s:Header>
+          <s:Body>
+            <PollGenerateReportRequest xmlns="https://bingads.microsoft.com/Reporting/v13">
+              <ReportRequestId>${key}</ReportRequestId>
+            </PollGenerateReportRequest>
+          </s:Body>
+        </s:Envelope>
+      `;
+
       const response = await axios.post(
         "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
         requestBody,
@@ -193,12 +200,12 @@ async function pollingLPCBing() {
 
       console.error("ReportDownloadUrl not found, retrying...");
       retries -= 1;
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
     } catch (error) {
       console.error("Error fetching Bing data:", error.response ? error.response.data : error.message);
       retries -= 1;
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
 
@@ -694,6 +701,7 @@ const sendLPCMonthlyReport = async (req, res) => {
 };
 
 module.exports = {
+  generateLPCBing,
   fetchAndSaveAdCosts,
   executeSpecificFetchFunctionLPC,
   sendLPCDetailedBudgettoGoogleSheets,
