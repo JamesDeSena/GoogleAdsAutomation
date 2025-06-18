@@ -24,7 +24,7 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
 
     currentStartDate.setDate(currentStartDate.getDate() + 7);
   }
-  console.log(dateRanges)
+  
   return dateRanges;
 };
 
