@@ -327,6 +327,17 @@ async function getAmountGoogleTWCampaigns() {
   }
 };
 
+async function getAmountGoogleGC() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_GC
+    );
+    return { GoogleGuardian: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads Vault data");
+  }
+};
+
 async function getAmountBingTotal() {
   try {
     const BingLPC = await getAmountBing(
@@ -354,6 +365,7 @@ async function getAllMetrics() {
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
     const googleTW = await getAmountGoogleTWCampaigns();
+    const googleGC = await getAmountGoogleGC();
     
     const metrics = {
       data: {
@@ -365,6 +377,7 @@ async function getAllMetrics() {
         ...googleDripLV,
         ...googleDripNYC,
         ...googleTW,
+        ...googleGC,
       },
     };
 
@@ -417,7 +430,8 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
       ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
-      ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube]
+      ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
+      ["Google Guardian", "Google", dateCST, datePST, record.data.GoogleGuardian]
     ];
 
     const existingData = await sheets.spreadsheets.values.get({
