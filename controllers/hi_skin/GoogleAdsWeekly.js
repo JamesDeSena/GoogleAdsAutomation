@@ -877,14 +877,14 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
         "Impr.": formatPercentage(calculateWoWVariance(lastRecord.impressions, secondToLastRecord.impressions)),
         'Clicks': formatPercentage(calculateWoWVariance(lastRecord.clicks, secondToLastRecord.clicks)),
         'Cost': formatPercentage(calculateWoWVariance(lastRecord.cost, secondToLastRecord.cost)),
+        "CPC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
+        "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
         "Booking Confirmed": formatPercentage(calculateWoWVariance(lastRecord.bookingConfirmed, secondToLastRecord.bookingConfirmed)),
         "Booking CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.bookingConfirmed, secondToLastRecord.cost / secondToLastRecord.bookingConfirmed)),
         "Booking Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.bookingConfirmed / lastRecord.clicks, secondToLastRecord.bookingConfirmed / secondToLastRecord.clicks)),
         "Book Now - Step 1: Locations": formatPercentage(calculateWoWVariance(lastRecord.step1Value, secondToLastRecord.step1Value)),
         "Book Now - Step 5: Confirm Booking": formatPercentage(calculateWoWVariance(lastRecord.step5Value, secondToLastRecord.step5Value)),
         "Book Now - Step 6: Booking Confirmation": formatPercentage(calculateWoWVariance(lastRecord.step6Value, secondToLastRecord.step6Value)),
-        "CPC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.clicks, secondToLastRecord.cost / secondToLastRecord.clicks)),
-        "CTR": formatPercentage(calculateWoWVariance(lastRecord.clicks / lastRecord.impressions, secondToLastRecord.clicks / secondToLastRecord.impressions)),
         "Step 1 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step1Value, secondToLastRecord.cost / secondToLastRecord.step1Value)),
         "Step 5 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step5Value, secondToLastRecord.cost / secondToLastRecord.step5Value)),
         "Step 6 CAC": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.step6Value, secondToLastRecord.cost / secondToLastRecord.step6Value)),
@@ -892,6 +892,68 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
         "Step 5 Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.step5Value / lastRecord.clicks, secondToLastRecord.step5Value / secondToLastRecord.clicks)),
         "Step 6 Conv Rate": formatPercentage(calculateWoWVariance(lastRecord.step6Value / lastRecord.clicks, secondToLastRecord.step6Value / secondToLastRecord.clicks)),
         "Purchase": formatPercentage(calculateWoWVariance(lastRecord.purchase, secondToLastRecord.purchase)),
+      });
+    };
+
+    const addBiWeeklyVariance = (previousRecord, secondToPreviousRecord, lastRecord, secondToLastRecord, filter, filter2) => {
+      records.push({
+        Week: "Biweekly Variance %",
+        Filter: filter,
+        Filter2: filter2,
+        "Impr.": formatPercentage(calculateWoWVariance(
+          previousRecord.impressions + secondToPreviousRecord.impressions, 
+          lastRecord.impressions + secondToLastRecord.impressions)),
+        "Clicks": formatPercentage(calculateWoWVariance(
+          previousRecord.clicks + secondToPreviousRecord.clicks,
+          lastRecord.clicks + secondToLastRecord.clicks)),
+        "Cost": formatPercentage(calculateWoWVariance(
+          previousRecord.cost + secondToPreviousRecord.cost, 
+          lastRecord.cost + secondToLastRecord.cost)),
+        "CPC": formatPercentage(calculateWoWVariance(
+          (previousRecord.cost + secondToPreviousRecord.cost) / (previousRecord.clicks + secondToPreviousRecord.clicks), 
+          (lastRecord.cost + secondToLastRecord.cost) / (lastRecord.clicks + secondToLastRecord.clicks))),
+        "CTR": formatPercentage(calculateWoWVariance(
+          (previousRecord.clicks + secondToPreviousRecord.clicks) / (previousRecord.impressions + secondToPreviousRecord.impressions), 
+          (lastRecord.clicks + secondToLastRecord.clicks) / (lastRecord.impressions + secondToLastRecord.impressions))),
+        "Booking Confirmed": formatPercentage(calculateWoWVariance(
+          previousRecord.bookingConfirmed + secondToPreviousRecord.bookingConfirmed,
+          lastRecord.bookingConfirmed + secondToLastRecord.bookingConfirmed)),
+        "Booking CAC": formatPercentage(calculateWoWVariance(
+          (previousRecord.cost + secondToPreviousRecord.cost) / (previousRecord.bookingConfirmed + secondToPreviousRecord.bookingConfirmed),
+          (lastRecord.cost + secondToLastRecord.cost) / (lastRecord.bookingConfirmed + secondToLastRecord.bookingConfirmed))),
+        "Booking Conv Rate": formatPercentage(calculateWoWVariance(
+          (previousRecord.bookingConfirmed + secondToPreviousRecord.bookingConfirmed) / (previousRecord.clicks + secondToPreviousRecord.clicks),
+          (lastRecord.bookingConfirmed + secondToLastRecord.bookingConfirmed) / (lastRecord.clicks + secondToLastRecord.clicks))),
+        "Book Now - Step 1: Locations": formatPercentage(calculateWoWVariance(
+          previousRecord.step1Value + secondToPreviousRecord.step1Value,
+          lastRecord.step1Value + secondToLastRecord.step1Value)),
+        "Book Now - Step 5: Confirm Booking": formatPercentage(calculateWoWVariance(
+          previousRecord.step5Value + secondToPreviousRecord.step5Value,
+          lastRecord.step5Value + secondToLastRecord.step5Value)),
+        "Book Now - Step 6: Booking Confirmation": formatPercentage(calculateWoWVariance(
+          previousRecord.step6Value + secondToPreviousRecord.step6Value,
+          lastRecord.step6Value + secondToLastRecord.step6Value)),
+        "Step 1 CAC": formatPercentage(calculateWoWVariance(
+          (previousRecord.cost + secondToPreviousRecord.cost) / (previousRecord.step1Value + secondToPreviousRecord.step1Value),
+          (lastRecord.cost + secondToLastRecord.cost) / (lastRecord.step1Value + secondToLastRecord.step1Value))),
+        "Step 5 CAC": formatPercentage(calculateWoWVariance(
+          (previousRecord.cost + secondToPreviousRecord.cost) / (previousRecord.step5Value + secondToPreviousRecord.step5Value),
+          (lastRecord.cost + secondToLastRecord.cost) / (lastRecord.step5Value + secondToLastRecord.step5Value))),
+        "Step 6 CAC": formatPercentage(calculateWoWVariance(
+          (previousRecord.cost + secondToPreviousRecord.cost) / (previousRecord.step6Value + secondToPreviousRecord.step6Value),
+          (lastRecord.cost + secondToLastRecord.cost) / (lastRecord.step6Value + secondToLastRecord.step6Value))),
+        "Step 1 Conv Rate": formatPercentage(calculateWoWVariance(
+          (previousRecord.step1Value + secondToPreviousRecord.step1Value) / (previousRecord.clicks + secondToPreviousRecord.clicks),
+          (lastRecord.step1Value + secondToLastRecord.step1Value) / (lastRecord.clicks + secondToLastRecord.clicks))),
+        "Step 5 Conv Rate": formatPercentage(calculateWoWVariance(
+          (previousRecord.step5Value + secondToPreviousRecord.step5Value) / (previousRecord.clicks + secondToPreviousRecord.clicks),
+          (lastRecord.step5Value + secondToLastRecord.step5Value) / (lastRecord.clicks + secondToLastRecord.clicks))),
+        "Step 6 Conv Rate": formatPercentage(calculateWoWVariance(
+          (previousRecord.step6Value + secondToPreviousRecord.step6Value) / (previousRecord.clicks + secondToPreviousRecord.clicks),
+          (lastRecord.step6Value + secondToLastRecord.step6Value) / (lastRecord.clicks + secondToLastRecord.clicks))),
+        "Purchase": formatPercentage(calculateWoWVariance(
+          previousRecord.purchase + secondToPreviousRecord.purchase,
+          lastRecord.purchase + secondToLastRecord.purchase))
       });
     };
 
@@ -904,14 +966,14 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
           "Impr.": formatNumber(record.impressions),
           'Clicks': formatNumber(record.clicks),
           'Cost': formatCurrency(record.cost),
+          "CPC": formatCurrency(record.cost / record.clicks),
+          "CTR": formatPercentage((record.clicks / record.impressions) * 100),
           "Booking Confirmed": formatNumber(record.bookingConfirmed),
           "Booking CAC": formatCurrency(record.cost / record.bookingConfirmed),
           "Booking Conv Rate": formatPercentage((record.bookingConfirmed / record.clicks) * 100),
           "Book Now - Step 1: Locations": formatNumber(record.step1Value),
           "Book Now - Step 5: Confirm Booking": formatNumber(record.step5Value),
           "Book Now - Step 6: Booking Confirmation": formatNumber(record.step6Value),
-          "CPC": formatCurrency(record.cost / record.clicks),
-          "CTR": formatPercentage((record.clicks / record.impressions) * 100),
           "Step 1 CAC": formatCurrency(record.cost / record.step1Value),
           "Step 5 CAC": formatCurrency(record.cost / record.step5Value),
           "Step 6 CAC": formatCurrency(record.cost / record.step6Value),
@@ -1000,6 +1062,46 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     }
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
+    if (!date || date.trim() === '') {
+      addBiWeeklyVariance(weeklyCampaignData.slice(-2)[0], weeklyCampaignData.slice(-3)[0], weeklyCampaignData.slice(-4)[0], weeklyCampaignData.slice(-5)[0], "All Campaign", 1);
+      addBiWeeklyVariance(weeklySearchData.slice(-2)[0], weeklySearchData.slice(-3)[0], weeklySearchData.slice(-4)[0], weeklySearchData.slice(-5)[0], "All Search", 2);
+      addBiWeeklyVariance(brandData.slice(-2)[0], brandData.slice(-3)[0], brandData.slice(-4)[0], brandData.slice(-5)[0], "Brand Search", 3);
+      addBiWeeklyVariance(noBrandData.slice(-2)[0], noBrandData.slice(-3)[0], noBrandData.slice(-4)[0], noBrandData.slice(-5)[0], "NB Search", 4);
+      addBiWeeklyVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], pmaxData.slice(-4)[0], pmaxData.slice(-5)[0], "Pmax", 5);
+      addBiWeeklyVariance(pmaxDataBrand.slice(-2)[0], pmaxDataBrand.slice(-3)[0], pmaxDataBrand.slice(-4)[0], pmaxDataBrand.slice(-5)[0], "Pmax Brand", 6);
+      addBiWeeklyVariance(pmaxDataNB.slice(-2)[0], pmaxDataNB.slice(-3)[0], pmaxDataNB.slice(-4)[0], pmaxDataNB.slice(-5)[0], "Pmax NB", 7);
+      addBiWeeklyVariance(shoppingData.slice(-2)[0], shoppingData.slice(-3)[0], shoppingData.slice(-4)[0], shoppingData.slice(-5)[0], "Shopping", 8);
+      addBiWeeklyVariance(bingData.slice(-2)[0], bingData.slice(-3)[0], bingData.slice(-4)[0], bingData.slice(-5)[0], "Bing", 9);
+      addBiWeeklyVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], gilbertData.slice(-4)[0], gilbertData.slice(-5)[0], "Gilbert", 10);
+      addBiWeeklyVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], gilbertDataBrand.slice(-4)[0], gilbertDataBrand.slice(-5)[0], "Gilbert Brand", 11);
+      addBiWeeklyVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], gilbertDataNB.slice(-4)[0], gilbertDataNB.slice(-5)[0], "Gilbert NB", 12);
+      addBiWeeklyVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], mktData.slice(-4)[0], mktData.slice(-5)[0], "MKT", 13);
+      addBiWeeklyVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], mktDataBrand.slice(-4)[0], mktDataBrand.slice(-5)[0], "MKT Brand", 14);
+      addBiWeeklyVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], mktDataNB.slice(-4)[0], mktDataNB.slice(-5)[0], "MKT NB", 15);
+      addBiWeeklyVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], phoenixData.slice(-4)[0], phoenixData.slice(-5)[0], "Phoenix", 16);
+      addBiWeeklyVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], phoenixDataBrand.slice(-4)[0], phoenixDataBrand.slice(-5)[0], "Phoenix Brand", 17);
+      addBiWeeklyVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], phoenixDataNB.slice(-4)[0], phoenixDataNB.slice(-5)[0], "Phoenix NB", 18);
+      addBiWeeklyVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], scottsdaleData.slice(-4)[0], scottsdaleData.slice(-5)[0], "Scottsdale", 19);
+      addBiWeeklyVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], scottsdaleDataBrand.slice(-4)[0], scottsdaleDataBrand.slice(-5)[0], "Scottsdale Brand", 20);
+      addBiWeeklyVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], scottsdaleDataNB.slice(-4)[0], scottsdaleDataNB.slice(-5)[0], "Scottsdale NB", 21);
+      addBiWeeklyVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], uptownParkData.slice(-4)[0], uptownParkData.slice(-5)[0], "UptownPark", 22);
+      addBiWeeklyVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], uptownParkDataBrand.slice(-4)[0], uptownParkDataBrand.slice(-5)[0], "UptownPark Brand", 23);
+      addBiWeeklyVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], uptownParkDataNB.slice(-4)[0], uptownParkDataNB.slice(-5)[0], "UptownPark NB", 24);
+      addBiWeeklyVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], montroseData.slice(-4)[0], montroseData.slice(-5)[0], "Montrose", 25);
+      addBiWeeklyVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], montroseDataBrand.slice(-4)[0], montroseDataBrand.slice(-5)[0], "Montrose Brand", 26);
+      addBiWeeklyVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], montroseDataNB.slice(-4)[0], montroseDataNB.slice(-5)[0], "Montrose NB", 27);
+      addBiWeeklyVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], riceVillageData.slice(-4)[0], riceVillageData.slice(-5)[0], "RiceVillage", 28);
+      addBiWeeklyVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], riceVillageDataBrand.slice(-4)[0], riceVillageDataBrand.slice(-5)[0], "RiceVillage Brand", 29);
+      addBiWeeklyVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], riceVillageDataNB.slice(-4)[0], riceVillageDataNB.slice(-5)[0], "RiceVillage NB", 30);
+      addBiWeeklyVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], mosaicData.slice(-4)[0], mosaicData.slice(-5)[0], "Mosaic", 31);
+      addBiWeeklyVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], mosaicDataBrand.slice(-4)[0], mosaicDataBrand.slice(-5)[0], "Mosaic Brand", 32);
+      addBiWeeklyVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], mosaicDataNB.slice(-4)[0], mosaicDataNB.slice(-5)[0], "Mosaic NB", 33);
+      addBiWeeklyVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], fourteenthStData.slice(-4)[0], fourteenthStData.slice(-5)[0], "14thSt", 34);
+      addBiWeeklyVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], fourteenthStDataBrand.slice(-4)[0], fourteenthStDataBrand.slice(-5)[0], "14thSt Brand", 35);
+      addBiWeeklyVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], fourteenthStDataNB.slice(-4)[0], fourteenthStDataNB.slice(-5)[0], "14thSt NB", 36);
+    }
+    records.sort((a, b) => a.Filter2 - b.Filter2);
+
     const finalRecords = [];
 
     function processGroup(records) {
@@ -1013,14 +1115,14 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
             "Impr.": "Impr.",
             "Clicks": "Clicks",
             "Cost": "Cost",
+            "CPC": "CPC",
+            "CTR": "CTR",
             "Booking Confirmed": "Booking Confirmed",
             "Booking CAC": "Booking CAC",
             "Booking Conv Rate": "Booking Conv Rate",
             "Book Now - Step 1: Locations": "Book Now - Step 1: Locations",
             "Book Now - Step 5: Confirm Booking": "Book Now - Step 5: Confirm Booking",
-            "Book Now - Step 6: Booking Confirmation": "Book Now - Step 6: Booking Confirmation",
-            "CPC": "CPC",
-            "CTR": "CTR",
+            "Book Now - Step 6: Booking Confirmation": "Book Now - Step 6: Booking Confirmation",     
             "Step 1 CAC": "Step 1 CAC",
             "Step 5 CAC": "Step 5 CAC",
             "Step 6 CAC": "Step 6 CAC",
@@ -1033,7 +1135,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
           currentGroup = record.Filter;
         }
         finalRecords.push({ ...record, isBold: false });
-        if (record.Week === "WoW Variance %") {
+        if (record.Week === "Biweekly Variance %") {
           finalRecords.push({ Week: "", Filter: "", Filter2: "", isBold: false });
         }
       });
@@ -1048,14 +1150,14 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       record["Impr."],
       record["Clicks"],
       record["Cost"],
+      record["CPC"],
+      record["CTR"],
       record["Booking Confirmed"],
       record["Booking CAC"],
       record["Booking Conv Rate"],
       record["Book Now - Step 1: Locations"],
       record["Book Now - Step 5: Confirm Booking"],
       record["Book Now - Step 6: Booking Confirmation"],
-      record["CPC"],
-      record["CTR"],
       record["Step 1 CAC"],
       record["Step 5 CAC"],
       record["Step 6 CAC"],

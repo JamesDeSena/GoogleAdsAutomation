@@ -7,6 +7,7 @@ const {
 } = require("../controllers/lpc/DailyFetch");
 
 const {
+  generateLPCBing,
   fetchAndSaveAdCosts,
   executeSpecificFetchFunctionLPC,
   sendLPCDetailedBudgettoGoogleSheets,
@@ -34,12 +35,12 @@ const {
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
 const {
-  executeSpecificFetchFunctionMIV,
+  // executeSpecificFetchFunctionMIV,
   sendFinalDailyReportToGoogleSheetsMIV,
 } = require('../controllers/mobile_iv/GoogleAdsDaily');
 
 const {
-  // executeSpecificFetchFunctionMIV,
+  executeSpecificFetchFunctionMIV,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   // sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsWeekly');
@@ -49,6 +50,11 @@ const {
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendBookings,
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
+
+const {
+  executeSpecificFetchFunctionGC,
+  sendFinalWeeklyReportToGoogleSheetsGC,
+} = require('../controllers/guardian_carers/GoogleAdsWeekly');
 
 router.get('/lpc/report-daily', async (req, res) => {
   try {
@@ -131,9 +137,19 @@ router.get('/mobile_iv/report-month/:date?', async (req, res) => {
   }
 });
 
+router.get('/guardian_carers/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsGC(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
 // router.get("/test", async (req, res) => {
 //   try {
-//     await downloadAndExtractHSBing();
+//     await generateLPCBing();
 //     res.status(200).send("Process completed successfully.");
 //   } catch (error) {
 //     console.error("Error in /test route:", error);
