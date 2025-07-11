@@ -24,6 +24,7 @@ const { sendLPCMonthlyReport } = require('./controllers/lpc/GoogleAdsMonthly');
 const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
+const { sendFinalWeeklyReportToGoogleSheetsGC } = require('./controllers/guardian_carers/GoogleAdsWeekly');
 
 const { highlightErrorHandler, highlightJobErrorHandler } = require('./utils/highlightIO');
 
@@ -140,6 +141,7 @@ const eveningJobs2 = [
 ];
 
 const morningJobs3 = [
+  sendFinalWeeklyReportToGoogleSheetsGC,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsLPC,
   sendFinalWeeklyReportToGoogleSheetsHS,
