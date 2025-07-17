@@ -209,7 +209,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
-    const formatCurrency = (value) => `$${value.toFixed(2)}`;
+    const formatCurrency = (value) => `£${value.toFixed(2)}`;
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
 
