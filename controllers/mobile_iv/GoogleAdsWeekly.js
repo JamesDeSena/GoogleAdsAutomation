@@ -92,20 +92,20 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
       segments.date DESC
   `;
 
-  const conversionQuery = `
-    SELECT 
-      campaign.id,
-      metrics.all_conversions,
-      segments.conversion_action_name,
-      segments.date 
-    FROM 
-      campaign
-    WHERE 
-      segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND segments.conversion_action_name IN ('MobileIVDrip.com Book Now Confirmed', 'MobileIVDrip.com Click - Call Now Button')
-    ORDER BY 
-      segments.date DESC
-  `;
+  // const conversionQuery = `
+  //   SELECT 
+  //     campaign.id,
+  //     metrics.all_conversions,
+  //     segments.conversion_action_name,
+  //     segments.date 
+  //   FROM 
+  //     campaign
+  //   WHERE 
+  //     segments.date BETWEEN '${startDate}' AND '${endDate}'
+  //     AND segments.conversion_action_name IN ('MobileIVDrip.com Book Now Confirmed', 'MobileIVDrip.com Click - Call Now Button')
+  //   ORDER BY 
+  //     segments.date DESC
+  // `;
 
   let metricsPageToken = null;
   do {
@@ -121,19 +121,19 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
 
-  let conversionPageToken = null;
-  do {
-    const conversionBatchResponse = await customer.query(conversionQuery);
-    conversionBatchResponse.forEach((conversion) => {
-      const conversionValue = conversion.metrics.all_conversions || 0;
-      if (conversion.segments.conversion_action_name === "MobileIVDrip.com Book Now Confirmed") {
-        aggregatedData.books += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "MobileIVDrip.com Click - Call Now Button") {
-        aggregatedData.phone += conversionValue;
-      }
-    });
-    conversionPageToken = conversionBatchResponse.next_page_token;
-  } while (conversionPageToken);
+  // let conversionPageToken = null;
+  // do {
+  //   const conversionBatchResponse = await customer.query(conversionQuery);
+  //   conversionBatchResponse.forEach((conversion) => {
+  //     const conversionValue = conversion.metrics.all_conversions || 0;
+  //     if (conversion.segments.conversion_action_name === "MobileIVDrip.com Book Now Confirmed") {
+  //       aggregatedData.books += conversionValue;
+  //     } else if (conversion.segments.conversion_action_name === "MobileIVDrip.com Click - Call Now Button") {
+  //       aggregatedData.phone += conversionValue;
+  //     }
+  //   });
+  //   conversionPageToken = conversionBatchResponse.next_page_token;
+  // } while (conversionPageToken);
 
   return aggregatedData;
 };
@@ -199,9 +199,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
   const dataRanges = {
-    AZLive: 'AZ Weekly!A2:U',
-    LVLive: 'LV Weekly!A2:S',
-    NYCLive: 'NYC Weekly!A2:S',
+    AZLive: 'AZ Weekly!A2:S',
+    LVLive: 'LV Weekly!A2:Q',
+    NYCLive: 'NYC Weekly!A2:Q',
   };
 
   try {
@@ -306,8 +306,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
-        "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateWoWVariance(lastRecord.books, secondToLastRecord.books)),
-        "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateWoWVariance(lastRecord.phone, secondToLastRecord.phone)),
       });
     
       records.push(baseRecord);
@@ -423,8 +421,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
         "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
-        "MobileIVDrip.com Book Now Confirmed": formatPercentage(calculateWoWVariance((previousRecord.books + secondToPreviousRecord.books), (lastRecord.books + secondToLastRecord.books))),
-        "MobileIVDrip.com Click - Call Now Button": formatPercentage(calculateWoWVariance((previousRecord.phone + secondToPreviousRecord.phone), (lastRecord.phone + secondToLastRecord.phone))),
       });
     
       records.push(baseRecord);
@@ -477,8 +473,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
-          "MobileIVDrip.com Book Now Confirmed": formatNumber(record.books),
-          "MobileIVDrip.com Click - Call Now Button": formatNumber(record.phone),
         });
     
         records.push(baseRecord);
@@ -538,8 +532,6 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
-            "MobileIVDrip.com Book Now Confirmed": "MobileIVDrip.com Book Now Confirmed",
-            "MobileIVDrip.com Click - Call Now Button": "MobileIVDrip.com Click - Call Now Button",
           });
 
           finalRecords.push(baseHeader);
@@ -583,9 +575,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
       baseData.push(
         record["Conversion"],
         record["Cost Per Conv"],
-        record["Conv. Rate"],
-        record["MobileIVDrip.com Book Now Confirmed"],
-        record["MobileIVDrip.com Click - Call Now Button"]
+        record["Conv. Rate"]
       );
       
       return baseData;
