@@ -60,43 +60,52 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
 async function getRawCampaigns() {
-  try {
-    const initialResponse = await axios.get(
-      "https://api.lawmatics.com/v1/prospects?page=1&fields=created_at,stage,custom_field_values",
-      { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-    );
+  const formatDateToMMDDYYYY = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
 
+  const fetchPaginatedData = async (baseUrl, token, batchSize) => {
+    const allData = [];
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const initialResponse = await axios.get(`${baseUrl}&page=1`, { headers, maxBodyLength: Infinity });
     const totalPages = initialResponse.data.meta?.total_pages || 1;
-    const requests = Array.from({ length: totalPages }, (_, i) =>
-      axios.get(
-        `https://api.lawmatics.com/v1/prospects?page=${i + 1}&fields=created_at,stage,custom_field_values`,
-        { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-      )
-    );
-    const responses = await Promise.all(requests);
 
-    const allCampaigns = responses.flatMap(response =>
-      response.data.stages || response.data.data || response.data.results || []
-    );
+    for (let i = 0; i < totalPages; i += batchSize) {
+      const batchPromises = [];
+      const endOfBatch = Math.min(i + batchSize, totalPages);
 
-    const formatDateToMMDDYYYY = (dateString) => {
-      if (!dateString) return null;
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-      return `${month}/${day}/${year}`;
-    };
-
-    const filteredCampaigns = allCampaigns
-      .filter(({ attributes }) => {
-        const createdAt = attributes?.created_at;
-        if (!createdAt) return false;
-
-        const createdDate = new Date(
-          new Date(createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+      for (let j = i; j < endOfBatch; j++) {
+        const pageNumber = j + 1;
+        batchPromises.push(
+          axios.get(`${baseUrl}&page=${pageNumber}`, { headers, maxBodyLength: Infinity })
         );
+      }
+      const batchResponses = await Promise.all(batchPromises);
+      batchResponses.forEach(response => allData.push(...(response.data.data || [])));
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return allData;
+  };
 
+  try {
+    const LAWMATICS_TOKEN = process.env.LAWMATICS_TOKEN;
+    const BATCH_SIZE = 30;
+
+    const [allCampaignsData, allEventsData] = await Promise.all([
+      fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values", LAWMATICS_TOKEN, BATCH_SIZE),
+      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date", LAWMATICS_TOKEN, BATCH_SIZE)
+    ]);
+    
+    const filteredCampaigns = allCampaignsData
+      .filter(({ attributes }) => {
+        if (!attributes?.created_at) return false;
+        const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
         return createdDate >= new Date("2021-10-03T00:00:00-08:00");
       })
       .map(({ attributes, relationships }) => ({
@@ -105,35 +114,12 @@ async function getRawCampaigns() {
         jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
       }));
 
-    const eventInitialResponse = await axios.get(
-      "https://api.lawmatics.com/v1/events?fields=id,name,start_date",
-      { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-    );
-
-    const eventTotalPages = eventInitialResponse.data.meta?.total_pages || 1;
-    const eventRequests = Array.from({ length: eventTotalPages }, (_, i) =>
-      axios.get(
-        `https://api.lawmatics.com/v1/events?page=${i + 1}&fields=id,name,start_date`,
-        { headers: { Authorization: `Bearer ${process.env.LAWMATICS_TOKEN}` }, maxBodyLength: Infinity }
-      )
-    );
-    const eventResponses = await Promise.all(eventRequests);
-
-    const allEvents = eventResponses.flatMap(response =>
-      response.data.data || []
-    );
-
-    const strategySessions = allEvents
+    const strategySessions = allEventsData
       .filter(event => {
-        const eventName = event.attributes?.name;
-        const startDate = event.attributes?.start_date;
-        if (!eventName || !startDate) return false;
-
-        const eventDate = new Date(
-          new Date(startDate).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-        );
-
-        return (eventName === "Strategy Session" || eventName === "AZ - Strategy Session") && eventDate >= new Date("2021-10-03T00:00:00-08:00");
+        const { name, start_date } = event.attributes || {};
+        if (!name || !start_date) return false;
+        const eventDate = new Date(new Date(start_date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        return (name === "Strategy Session" || name === "AZ - Strategy Session") && eventDate >= new Date("2021-10-03T00:00:00-08:00");
       })
       .map(event => ({
         event_start: formatDateToMMDDYYYY(event.attributes?.start_date),
@@ -141,16 +127,21 @@ async function getRawCampaigns() {
         jurisdiction: event.attributes?.name,
       }));
 
-    const combinedData = {campaigns: filteredCampaigns, events: strategySessions};
-    // console.log("Final Campaigns:", JSON.stringify(combinedData, null, 2));
+    return { campaigns: filteredCampaigns, events: strategySessions };
 
-    return combinedData;
   } catch (error) {
-    throw new Error(
-      error.response ? error.response.data : error.message
-    );
+    if (error.response) {
+      console.error("API Error:", error.response.status, error.response.data);
+      throw new Error(`API returned status ${error.response.status}`);
+    } else if (error.request) {
+      console.error("Network Error:", error.message);
+      throw new Error("Network error or timeout connecting to API.");
+    } else {
+      console.error("Script Error:", error.message);
+      throw new Error(`Script error: ${error.message}`);
+    }
   }
-};
+}
 
 const fetchAndAggregateLPCData = async (filter) => {
   const refreshToken_Google = getStoredRefreshToken();
@@ -236,7 +227,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
   try {
     const { campaigns, events } = await getRawCampaigns();
     const caData = await fetchAndAggregateLPCData("%CA%");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 10000));
     const azData = await fetchAndAggregateLPCData("%AZ%");
 
     const startDate = new Date("2021-10-03");
