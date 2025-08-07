@@ -95,7 +95,7 @@ async function getRawCampaigns() {
 
   try {
     const LAWMATICS_TOKEN = process.env.LAWMATICS_TOKEN;
-    const BATCH_SIZE = 30;
+    const BATCH_SIZE = 20;
 
     const [allCampaignsData, allEventsData] = await Promise.all([
       fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values", LAWMATICS_TOKEN, BATCH_SIZE),

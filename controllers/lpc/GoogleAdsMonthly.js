@@ -354,14 +354,21 @@ async function getAmountBing() {
   };
 
   try {
-    const monthlyAmounts = await Promise.all(
-      dateRanges.map(({ start }) => {
+    const allMonthlyAmounts = [];
+    const BATCH_SIZE = 10;
+
+    for (let i = 0; i < dateRanges.length; i += BATCH_SIZE) {
+      const batch = dateRanges.slice(i, i + BATCH_SIZE);
+      const promises = batch.map(({ start }) => {
         const startMonthYear = start.slice(0, 7);
         return fetchAmountForMonth(startMonthYear);
-      })
-    );
+      });
 
-    return monthlyAmounts;
+      const batchResults = await Promise.all(promises);
+      allMonthlyAmounts.push(...batchResults);
+    }
+
+    return allMonthlyAmounts;
   } catch (err) {
     console.error("Error fetching amounts:", err);
     throw err;
