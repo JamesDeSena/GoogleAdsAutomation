@@ -67,9 +67,9 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     cost: 0,
     conversions: 0,
     interactions: 0,
-    // calls: 0,
-    // books: 0,
-    // phone: 0,
+    callsFromAds: 0,
+    formSubmissionProfile: 0,
+    formSubmitHiring: 0,
     // conv_date: 0,
   };
 
@@ -92,20 +92,20 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
       segments.date DESC
   `;
 
-  // const conversionQuery = `
-  //   SELECT 
-  //     campaign.id,
-  //     metrics.all_conversions,
-  //     segments.conversion_action_name,
-  //     segments.date 
-  //   FROM 
-  //     campaign
-  //   WHERE 
-  //     segments.date BETWEEN '${startDate}' AND '${endDate}'
-  //     AND segments.conversion_action_name IN ('MobileIVDrip.com Book Now Confirmed', 'MobileIVDrip.com Click - Call Now Button')
-  //   ORDER BY 
-  //     segments.date DESC
-  // `;
+  const conversionQuery = `
+    SELECT 
+      campaign.id,
+      metrics.all_conversions,
+      segments.conversion_action_name,
+      segments.date 
+    FROM 
+      campaign
+    WHERE 
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND segments.conversion_action_name IN ('GC - Calls from ads', 'guardiancarers.co.uk - GA4 (web) Form Submission Profile', 'guardiancarers.co.uk - GA4 (web) Form Submit Hiring')
+    ORDER BY 
+      segments.date DESC
+  `;
 
   let metricsPageToken = null;
   do {
@@ -121,19 +121,21 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
 
-  // let conversionPageToken = null;
-  // do {
-  //   const conversionBatchResponse = await customer.query(conversionQuery);
-  //   conversionBatchResponse.forEach((conversion) => {
-  //     const conversionValue = conversion.metrics.all_conversions || 0;
-  //     if (conversion.segments.conversion_action_name === "MobileIVDrip.com Book Now Confirmed") {
-  //       aggregatedData.books += conversionValue;
-  //     } else if (conversion.segments.conversion_action_name === "MobileIVDrip.com Click - Call Now Button") {
-  //       aggregatedData.phone += conversionValue;
-  //     }
-  //   });
-  //   conversionPageToken = conversionBatchResponse.next_page_token;
-  // } while (conversionPageToken);
+  let conversionPageToken = null;
+  do {
+    const conversionBatchResponse = await customer.query(conversionQuery);
+    conversionBatchResponse.forEach((conversion) => {
+      const conversionValue = conversion.metrics.all_conversions || 0;
+      if (conversion.segments.conversion_action_name === "GC - Calls from ads") {
+        aggregatedData.callsFromAds += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submission Profile") {
+        aggregatedData.formSubmissionProfile += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submit Hiring") {
+        aggregatedData.formSubmitHiring += conversionValue;
+      }
+    });
+    conversionPageToken = conversionBatchResponse.next_page_token;
+  } while (conversionPageToken);
 
   return aggregatedData;
 };
@@ -197,7 +199,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_GUARDIAN_CARERS;
   const dataRanges = {
-    GCLive: 'Weekly Report!A2:K',
+    GCLive: 'Weekly Report!A2:N',
   };
 
   try {
@@ -226,6 +228,10 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(lastRecord.callsFromAds, secondToLastRecord.callsFromAds)),
+        "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(lastRecord.formSubmissionProfile, secondToLastRecord.formSubmissionProfile)),
+        "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(lastRecord.formSubmitHiring, secondToLastRecord.formSubmitHiring)),
+
       };
     
       records.push(baseRecord);
@@ -244,7 +250,9 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
         "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
-
+        "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(((previousRecord.callsFromAds + secondToPreviousRecord.callsFromAds)), ((lastRecord.callsFromAds + secondToLastRecord.callsFromAds)))),
+        "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(((previousRecord.formSubmissionProfile + secondToPreviousRecord.formSubmissionProfile)), ((lastRecord.formSubmissionProfile + secondToLastRecord.formSubmissionProfile)))),
+        "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(((previousRecord.formSubmitHiring + secondToPreviousRecord.formSubmitHiring)), ((lastRecord.formSubmitHiring + secondToLastRecord.formSubmitHiring)))),
       };
     
       records.push(baseRecord);
@@ -264,6 +272,9 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "GA4 - Calls from ads": formatNumber(record.callsFromAds),
+          "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatNumber(record.formSubmissionProfile),
+          "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatNumber(record.formSubmitHiring),
         };
 
         records.push(baseRecord);
@@ -301,6 +312,9 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
+            "GA4 - Calls from ads": "GA4 - Calls from ads",
+            "guardiancarers.co.uk - GA4 (web) Form Submission Profile": "guardiancarers.co.uk - GA4 (web) Form Submission Profile",
+            "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": "guardiancarers.co.uk - GA4 (web) Form Submit Hiring",
           };    
     
           finalRecords.push(baseHeader);
@@ -329,6 +343,9 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
+        record["GA4 - Calls from ads"],
+        record["guardiancarers.co.uk - GA4 (web) Form Submission Profile"],
+        record["guardiancarers.co.uk - GA4 (web) Form Submit Hiring"],
       ];
       
       return baseData;
