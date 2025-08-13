@@ -56,6 +56,11 @@ const {
   sendFinalWeeklyReportToGoogleSheetsGC,
 } = require('../controllers/guardian_carers/GoogleAdsWeekly');
 
+const {
+  executeSpecificFetchFunctionMNR,
+  sendFinalWeeklyReportToGoogleSheetsMNR,
+} = require('../controllers/menerals/GoogleAdsWeekly');
+
 router.get('/lpc/report-daily', async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
@@ -85,7 +90,6 @@ router.get('/lpc/report-final', async (req, res) => {
     res.status(500).send("Error processing final report.");
   }
 });
-
 
 router.get('/hi_skin/report-final/:date?', async (req, res) => {
   try {
@@ -147,6 +151,16 @@ router.get('/guardian_carers/report-final/:date?', async (req, res) => {
   }
 });
 
+router.get('/menerals/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsMNR(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
 // router.get("/test", async (req, res) => {
 //   try {
 //     await generateLPCBing();
@@ -159,5 +173,6 @@ router.get('/guardian_carers/report-final/:date?', async (req, res) => {
 
 // router.get('/lpc/report/', executeSpecificFetchFunctionLPC);
 // router.get('/mobile_iv/report/:date?', executeSpecificFetchFunctionMIV);
+// router.get('/guardian_carers/report/:date?', executeSpecificFetchFunctionGC);
 
 module.exports = router;

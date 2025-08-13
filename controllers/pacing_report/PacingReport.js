@@ -338,6 +338,17 @@ async function getAmountGoogleGC() {
   }
 };
 
+async function getAmountGoogleMNR() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_MNR
+    );
+    return { GoogleMenerals: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads Vault data");
+  }
+};
+
 async function getAmountBingTotal() {
   try {
     const BingLPC = await getAmountBing(
@@ -366,6 +377,7 @@ async function getAllMetrics() {
     const googleDripNYC = await getAmountGoogleNYC();
     const googleTW = await getAmountGoogleTWCampaigns();
     const googleGC = await getAmountGoogleGC();
+    const googleMNR = await getAmountGoogleMNR();
     
     const metrics = {
       data: {
@@ -378,6 +390,7 @@ async function getAllMetrics() {
         ...googleDripNYC,
         ...googleTW,
         ...googleGC,
+        ...googleMNR,
       },
     };
 
@@ -432,6 +445,7 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
       ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
       ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian]
+      ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals]
     ];
 
     const existingData = await sheets.spreadsheets.values.get({

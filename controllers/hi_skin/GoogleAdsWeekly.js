@@ -650,10 +650,6 @@ const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, repor
 
     const allWeeklyData = await Promise.all(allWeeklyDataPromises);
 
-    // if (campaignNameFilter === "Brand" || campaignNameFilter === "NB") {
-    //   await sendToAirtable(allWeeklyData, `${reportName} Weekly Report`, campaignNameFilter);
-    // }
-
     return allWeeklyData;
   } catch (error) {
     console.error("Error fetching report data:", error);
@@ -714,7 +710,7 @@ const executeSpecificFetchFunctionHS = async (req, res, dateRanges) => {
 };
 
 let lastApiCallTime = 0;
-const MIN_DELAY_BETWEEN_CALLS_MS = 5000;
+const MIN_DELAY_BETWEEN_CALLS_MS = 1000;
 
 const createThrottledFetch = (fetchFn) => async (...args) => {
   const now = Date.now();
@@ -726,8 +722,10 @@ const createThrottledFetch = (fetchFn) => async (...args) => {
     await new Promise(resolve => setTimeout(resolve, delayNeeded));
   }
 
+  const result = await fetchFn(...args);
   lastApiCallTime = Date.now();
-  return fetchFn(...args);
+  
+  return result;
 };
 
 const throttledFetchFunctions = {

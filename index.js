@@ -25,6 +25,7 @@ const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
 const { sendFinalWeeklyReportToGoogleSheetsGC } = require('./controllers/guardian_carers/GoogleAdsWeekly');
+const { sendFinalWeeklyReportToGoogleSheetsMNR } = require('./controllers/menerals/GoogleAdsWeekly');
 
 const { highlightErrorHandler, highlightJobErrorHandler } = require('./utils/highlightIO');
 
@@ -61,35 +62,24 @@ app.use("/", (req, res) => {
 
 app.use(highlightErrorHandler);
 
-const executeConcurrentJobs = async (jobs, jobName) => {
-  console.log(`Executing ${jobName} jobs concurrently.`);
-  try {
-    await Promise.all(jobs.map(job => async () => {
-        try {
-            await job();
-        } catch (error) {
-            console.error(`Error in individual ${jobName} job:`, error);
-            highlightJobErrorHandler(error, { jobName: jobName, jobFunction: job.name || 'anonymous' });
-            throw error;
-        }
-    }).map(fn => fn()));
-    console.log(`${jobName} jobs completed successfully.`);
-  } catch (error) {
-    console.error(`Error in ${jobName} jobs:`, error);
+const executeSequentialJobs = async (jobs, jobName) => {
+  console.log(`Executing ${jobName} jobs sequentially.`);
+
+  for (const job of jobs) {
+    try {
+      await job();
+    } catch (error) {
+      console.error(`Error in individual ${jobName} job:`, error);
+      highlightJobErrorHandler(error, { jobName: jobName, jobFunction: job.name || 'anonymous' });
+      console.log(`Halting execution of ${jobName} jobs due to an error.`);
+      return; 
+    }
   }
+  
+  console.log(`All ${jobName} jobs completed successfully.`);
 };
 
 pingRenderApp();
-
-// const executeConcurrentJobs = async (jobs, jobName) => {
-//   console.log(`Executing ${jobName} jobs concurrently.`);
-//   try {
-//     await Promise.all(jobs.map(job => job()));
-//     console.log(`${jobName} jobs completed successfully.`);
-//   } catch (error) {
-//     console.error(`Error in ${jobName} jobs:`, error);
-//   }
-// };
 
 const rule1 = new schedule.RecurrenceRule();
 rule1.hour = 7;
@@ -142,29 +132,30 @@ const eveningJobs2 = [
 
 const morningJobs3 = [
   sendFinalWeeklyReportToGoogleSheetsGC,
+  sendFinalWeeklyReportToGoogleSheetsMNR,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsLPC,
   sendFinalWeeklyReportToGoogleSheetsHS,
 ];
 
 schedule.scheduleJob(rule1, () => {
-  executeConcurrentJobs(morningJobs, "Morning");
+  executeSequentialJobs(morningJobs, "Morning");
 });
 
 schedule.scheduleJob(rule2, () => {
-  executeConcurrentJobs(eveningJobs, "Evening");
+  executeSequentialJobs(eveningJobs, "Evening");
 });
 
 schedule.scheduleJob(rule3, () => {
-  executeConcurrentJobs(morningJobs2, "Morning2");
+  executeSequentialJobs(morningJobs2, "Morning2");
 });
 
 schedule.scheduleJob(rule4, () => {
-  executeConcurrentJobs(eveningJobs2, "Evening2");
+  executeSequentialJobs(eveningJobs2, "Evening2");
 });
 
 schedule.scheduleJob(rule5, () => {
-  executeConcurrentJobs(morningJobs3, "Morning3");
+  executeSequentialJobs(morningJobs3, "Morning3");
 });
 
 // schedule.scheduleJob('* * * * *', () => {
