@@ -444,7 +444,7 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
       ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
       ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
-      ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian]
+      ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals]
     ];
 
