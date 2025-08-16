@@ -3,8 +3,8 @@ const axios = require("axios");
 const { google } = require('googleapis');
 
 const { client } = require("../../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("../GoogleAuth");
-const { getStoredAccessToken } = require("../BingAuth");
+const { getStoredGoogleToken } = require("../GoogleAuth");
+const { getStoredBingToken } = require("../BingAuth");
 
 const fs = require("fs");
 const path = require("path");
@@ -23,7 +23,7 @@ function formatDateUTC(date) {
 };
 
 async function getAmountBing(accountId) {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -72,7 +72,7 @@ async function getAmountBing(accountId) {
 };
 
 async function getGoogleAdsCost(customerId) {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Refresh token is missing. Please authenticate.");
@@ -147,7 +147,7 @@ async function getAmountGoogleVault() {
 };
 
 async function getAmountGoogleHSCampaigns() {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Refresh token is missing. Please authenticate.");
@@ -262,7 +262,7 @@ async function getAmountGoogleNYC() {
 };
 
 async function getAmountGoogleTWCampaigns() {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Refresh token is missing. Please authenticate.");
@@ -490,58 +490,7 @@ function saveMetricsToFile(metrics) {
   }
 }
 
-const getStoredMetrics = () => {
-  try {
-    const data = fs.readFileSync(tokenFilePath, "utf8");
-    const metricsData = JSON.parse(data);
-    return metricsData;
-  } catch (err) {
-    console.error("Error reading token:", err);
-    return null;
-  }
-};
-
-const sendTWtoGoogleSheets = async (req, res) => {
-  try {
-    const auth = new google.auth.GoogleAuth({
-      keyFile: 'serviceToken.json',
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.SHEET_TW;
-    const record = getStoredMetrics();
-    if (!record?.data.Search || !record?.data.Youtube) {
-      throw new Error("Missing data for Search or Youtube");
-    }
-
-    const values = [[record.data.Search], [record.data.Youtube]];
-    const range = 'Pacing!E3:E4';
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range,
-      valueInputOption: "RAW",
-      resource: { values },
-    });
-
-    console.log("TW budget updated in Google Sheets successfully!");
-  } catch (error) {
-    console.error("Error updating TW budget in Google Sheets:", error);
-  }
-};
-
-const sendSubPacingReport = async (req, res) => {
-  try {
-    await sendTWtoGoogleSheets(req, res);
-    console.log("LPC Budget and TW sent to Google Sheets successfully");
-  } catch (error) {
-    console.error("Error sending reports:", error);
-  }
-};
-
 module.exports = {
   getAllMetrics,
   sendPacingReportToGoogleSheets,
-  sendSubPacingReport,
 };

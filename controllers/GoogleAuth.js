@@ -5,7 +5,7 @@ const path = require("path");
 
 const tokenFilePath = path.join(__dirname, "token.json");
 
-const saveRefreshToken = (refreshToken_Google) => {
+const saveGoogleToken = (refreshToken_Google) => {
   try {
     let currentData = {};
     if (fs.existsSync(tokenFilePath)) {
@@ -18,17 +18,17 @@ const saveRefreshToken = (refreshToken_Google) => {
     }
     
   } catch (error) {
-    console.error("Error saving refresh token:", error);
+    console.error("Error saving Google token:", error);
   }
 };
 
-const getStoredRefreshToken = () => {
+const getStoredGoogleToken = () => {
   try {
     const data = fs.readFileSync(tokenFilePath, "utf8");
     const parsedData = JSON.parse(data);
     return parsedData.refreshToken_Google;
   } catch (err) {
-    console.error("Error reading token:", err);
+    console.error("Error reading Google token:", err);
     return null;
   }
 };
@@ -49,18 +49,18 @@ const handleOAuthCallbackGoogle = async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    saveRefreshToken(tokens.refresh_token);
+    saveGoogleToken(tokens.refresh_token);
     
-    res.send("OAuth2 authentication successful.");
+    res.send("Google Ads OAuth2 authentication successful. You can close this window.");
   } catch (error) {
-    console.error("Error getting OAuth tokens:", error);
-    res.status(500).send("Error during OAuth2 callback.");
+    console.error("Error getting Google OAuth tokens:", error);
+    res.status(500).send("Error during Google OAuth2 callback.");
   }
 };
 
 // const refreshAccessToken = async () => {
 //   try {
-//     const storedData = getStoredRefreshToken();
+//     const storedData = getStoredGoogleToken();
 
 //     if (storedData) {
 //       const { refreshToken_Google } = storedData;
@@ -80,7 +80,7 @@ const handleOAuthCallbackGoogle = async (req, res) => {
 
 //       const tokenResponse = response.data;
 //       console.log(tokenResponse)
-//       saveRefreshToken(
+//       saveGoogleToken(
 //         tokenResponse.access_token
 //       );
 
@@ -101,5 +101,5 @@ const handleOAuthCallbackGoogle = async (req, res) => {
 module.exports = {
   redirectToGoogle,
   handleOAuthCallbackGoogle,
-  getStoredRefreshToken,
+  getStoredGoogleToken,
 };

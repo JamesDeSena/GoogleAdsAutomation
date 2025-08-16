@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("../GoogleAuth");
+const { getStoredGoogleToken } = require("../GoogleAuth");
 
 let storedDateRanges = null;
 
@@ -144,7 +144,7 @@ async function getRawCampaigns() {
 }
 
 const fetchAndAggregateLPCData = async (filter) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
     return;

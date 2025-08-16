@@ -1,8 +1,8 @@
 const axios = require("axios");
 const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("../GoogleAuth");
-const { getStoredAccessToken } = require("../BingAuth");
+const { getStoredGoogleToken } = require("../GoogleAuth");
+const { getStoredBingToken } = require("../BingAuth");
 
 const fs = require("fs");
 const path = require("path");
@@ -69,7 +69,7 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
 async function generateHSBing() {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -156,7 +156,7 @@ async function generateHSBing() {
 };
 
 async function pollingHSBing() {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -323,7 +323,7 @@ const aggregateWeeklyDataFromCSV = async () => {
 };
 
 const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
@@ -435,7 +435,7 @@ const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
 };
 
 const fetchReportDataWeeklySearchHS = async (dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
@@ -628,7 +628,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate, campaignNameFi
 };
 
 const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, reportName, brandNBFilter, dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");

@@ -2,8 +2,8 @@ const axios = require('axios');
 const { google } = require('googleapis');
 
 const { client } = require("../../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("../GoogleAuth");
-const { getStoredAccessToken } = require("../BingAuth");
+const { getStoredGoogleToken } = require("../GoogleAuth");
+const { getStoredBingToken } = require("../BingAuth");
 
 const fs = require("fs");
 const path = require("path");
@@ -60,7 +60,7 @@ const getOrGenerateDateRanges = () => {
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
 async function generateLPCBing() {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -142,7 +142,7 @@ async function generateLPCBing() {
 };
 
 async function pollingLPCBing() {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -295,7 +295,7 @@ const calculateMonthlyTotals = async () => {
 };
 
 async function getAmountBing() {
-  const token = getStoredAccessToken();
+  const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
     console.error("Access token is missing. Please authenticate.");
     return;
@@ -411,7 +411,7 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
 };
 
 const fetchReportDataMonthlyFilter = async (req, res, condition, campaignNameFilter) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");

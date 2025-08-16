@@ -5,7 +5,7 @@ const path = require("path");
 
 const tokenFilePath = path.join(__dirname, "token.json");
 
-const saveAccessToken = (accessToken_Bing, refreshToken_Bing, expiresIn_Bing) => {
+const saveBingToken = (accessToken_Bing, refreshToken_Bing,) => {
   try {
     let currentData = {};
 
@@ -15,15 +15,14 @@ const saveAccessToken = (accessToken_Bing, refreshToken_Bing, expiresIn_Bing) =>
 
     currentData.accessToken_Bing = accessToken_Bing;
     currentData.refreshToken_Bing = refreshToken_Bing;
-    currentData.expiresIn_Bing = expiresIn_Bing;
 
     fs.writeFileSync(tokenFilePath, JSON.stringify(currentData, null, 2));
   } catch (error) {
-    console.error("Error saving access token:", error);
+    console.error("Error saving Bing token:", error);
   }
 };
 
-const getStoredAccessToken = () => {
+const getStoredBingToken = () => {
   try {
     if (fs.existsSync(tokenFilePath)) {
       const data = fs.readFileSync(tokenFilePath, "utf8");
@@ -34,7 +33,7 @@ const getStoredAccessToken = () => {
       return null;
     }
   } catch (err) {
-    console.error("Error reading token:", err);
+    console.error("Error reading Bing token:", err);
     return null;
   }
 };
@@ -49,8 +48,8 @@ const redirectToBing = async (req, res) => {
 
     res.redirect(authUrl);
   } catch (error) {
-    console.error("Error generating auth URL:", error);
-    res.status(500).send("Error generating auth URL.");
+    console.error("Error generating Bing auth URL:", error);
+    res.status(500).send("Error generating Bing auth URL.");
   }
 };
 
@@ -75,22 +74,21 @@ const handleOAuthCallbackBing = async (req, res) => {
     );
 
     const tokenResponse = response.data;
-    saveAccessToken(
+    saveBingToken(
       tokenResponse.access_token,
       tokenResponse.refresh_token,
-      tokenResponse.expires_in
     );
 
-    res.send("OAuth2 authentication successful.");
+    res.send("Bing Ads OAuth2 authentication successful. You can close this window.");
   } catch (error) {
-    console.error("Error getting OAuth tokens:", error);
-    res.status(500).send("Error during OAuth2 callback.");
+    console.error("Error getting Bing OAuth2 tokens:", error);
+    res.status(500).send("Error during Bing OAuth2 callback.");
   }
 };
 
 const refreshAccessToken = async () => {
   try {
-    const storedData = getStoredAccessToken();
+    const storedData = getStoredBingToken();
 
     if (storedData) {
       const { refreshToken_Bing } = storedData;
@@ -111,10 +109,9 @@ const refreshAccessToken = async () => {
 
       const tokenResponse = response.data;
 
-      saveAccessToken(
+      saveBingToken(
         tokenResponse.access_token,
         tokenResponse.refresh_token,
-        tokenResponse.expires_in
       );
 
       console.log("Bing access token has been refreshed.");
@@ -122,7 +119,7 @@ const refreshAccessToken = async () => {
       console.log("Bing access token is not valid, no stored token found.");
     }
   } catch (error) {
-    console.error("Error refreshing access token:", error);
+    console.error("Error refreshing Bing token:", error);
   }
 };
 
@@ -134,5 +131,5 @@ setInterval(async () => {
 module.exports = {
   redirectToBing,
   handleOAuthCallbackBing,
-  getStoredAccessToken,
+  getStoredBingToken,
 };

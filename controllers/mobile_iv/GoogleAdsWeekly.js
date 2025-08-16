@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
-const { getStoredRefreshToken } = require("../GoogleAuth");
+const { getStoredGoogleToken } = require("../GoogleAuth");
 
 let storedDateRanges = null;
 
@@ -139,7 +139,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
 };
 
 const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
-  const refreshToken_Google = getStoredRefreshToken();
+  const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");

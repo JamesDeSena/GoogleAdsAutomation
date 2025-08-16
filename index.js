@@ -15,7 +15,8 @@ const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
-const { sendPacingReportToGoogleSheets, sendSubPacingReport } = require('./controllers/pacing_report/PacingReport');
+const { sendPacingReportToGoogleSheets } = require('./controllers/pacing_report/PacingReport');
+const { sendTWtoGoogleSheets } = require('./controllers/pacing_report/TWPacingReport');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
@@ -122,7 +123,7 @@ const morningJobs2 = [
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendFinalMonthlyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS,
-  sendSubPacingReport,
+  sendTWtoGoogleSheets,
 ];
 
 const eveningJobs2 = [
