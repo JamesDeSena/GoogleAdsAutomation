@@ -14,6 +14,8 @@ require("./utils/slackNotifier")
 const googleRoutes = require('./routes/GoogleRoutes');
 const bingRoutes = require('./routes/PacingRoutes');
 const apiRoutes = require('./routes/AuthRoutes');
+const scrapeRoutes = require('./routes/ScraperRoutes');
+
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendPacingReportToGoogleSheets } = require('./controllers/pacing_report/PacingReport');
 const { sendTWtoGoogleSheets } = require('./controllers/pacing_report/TWPacingReport');
@@ -54,6 +56,7 @@ app.use((req, res, next) => {
 app.use('/api/google', googleRoutes);
 app.use('/api/pacing', bingRoutes)
 app.use('/api/auth', apiRoutes)
+app.use('/api/scrape', scrapeRoutes)
 app.use("/test", (req, res) => {
   res.send("Hello Akorn Media!");
 });

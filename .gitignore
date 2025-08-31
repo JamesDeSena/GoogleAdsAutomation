@@ -132,6 +132,9 @@ dist
 #data
 date.json
 
+#
+user-data/
+
 #tokens
 token.json
 adCosts.json
