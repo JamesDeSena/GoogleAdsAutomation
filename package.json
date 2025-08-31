@@ -7,8 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "npm install && npx patchright install --with-deps chromium",
-    "postinstall": "npx patchright install chromium"
+    "postinstall": "npx patchright install --with-deps chromium"
   },
   "keywords": [],
   "author": "",

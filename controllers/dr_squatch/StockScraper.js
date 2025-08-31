@@ -1,4 +1,5 @@
 require("dotenv").config();
+const path = require("path");
 const { chromium } = require("patchright");
 const { google } = require("googleapis");
 const ScraperConfig = require("./ScraperConfig");
@@ -15,6 +16,7 @@ const auth = new google.auth.GoogleAuth({
     "https://www.googleapis.com/auth/drive",
   ],
 });
+
 const sheets = google.sheets({ version: "v4", auth });
 const drive = google.drive({ version: "v3", auth });
 
@@ -309,7 +311,6 @@ async function runStockVerification() {
   try {
     await updateStatusCell("Status: Initializing and launching browser...");
     browserContext = await chromium.launchPersistentContext("./user-data", {
-      // channel: "chrome",
       headless: true,
       args: [
         "--no-sandbox",
@@ -354,7 +355,6 @@ async function runSingleRegionVerification(regionCode) {
   try {
     await updateStatusCell(`Status: Initializing for ${regionCode}...`);
     browserContext = await chromium.launchPersistentContext("./user-data", {
-      // channel: "chrome",
       headless: true, // Render-ready settings
       args: [
         "--no-sandbox",
