@@ -310,7 +310,7 @@ async function runStockVerification() {
 
   try {
     await updateStatusCell("Status: Initializing and launching browser...");
-    browserContext = await chromium.launchPersistentContext("./user-data", {
+    browserContext = await chromium.launch({
       headless: true,
       args: [
         "--no-sandbox",
@@ -354,7 +354,7 @@ async function runSingleRegionVerification(regionCode) {
 
   try {
     await updateStatusCell(`Status: Initializing for ${regionCode}...`);
-    browserContext = await chromium.launchPersistentContext("./user-data", {
+    browserContext = await chromium.launch({
       headless: true, // Render-ready settings
       args: [
         "--no-sandbox",
