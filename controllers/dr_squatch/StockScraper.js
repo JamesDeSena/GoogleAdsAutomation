@@ -354,7 +354,7 @@ async function runSingleRegionVerification(regionCode) {
   try {
     await updateStatusCell(`Status: Initializing for ${regionCode}...`);
     browserContext = await chromium.launchPersistentContext("./user-data", {
-      channel: "chrome",
+      // channel: "chrome",
       headless: true, // Render-ready settings
       args: [
         "--no-sandbox",
