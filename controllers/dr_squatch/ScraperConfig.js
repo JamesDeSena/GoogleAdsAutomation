@@ -14,7 +14,7 @@ const REGION_CONFIGS = [
 const SOURCE_SHEET_NAME = 'Google Shopping Feed';
 const OUTPUT_SHEET_NAME = 'Stock Changes Review';
 const STATUS_SHEET_NAME = 'Overview';
-const STATUS_CELL = 'A1';
+const STATUS_CELL = 'B1';
 
 module.exports = {
   CONTROLLER_SHEET_ID,

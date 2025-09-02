@@ -143,3 +143,8 @@ serviceToken.json
 
 #csv
 report.csv
+
+#scraper
+test_video
+test_page.html
+test_screenshot.png

@@ -52,14 +52,19 @@ async function getLinkedinTotalSpend(startDate, endDate) {
 const runLinkedinReport = async () => {
   try {
     const today = new Date();
+
+    if (today.getDate() === 1) {
+      return null;
+    }
+
     const startDateObj = new Date(today.getFullYear(), today.getMonth(), 1);
     const endDateObj = new Date(today);
     endDateObj.setDate(today.getDate() - 1);
-    
+
     const formatDate = (date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0'); 
+      const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
 
@@ -67,10 +72,10 @@ const runLinkedinReport = async () => {
     const endDate = formatDate(endDateObj);
 
     const linkedinSpend = await getLinkedinTotalSpend(startDate, endDate);
-    
     return linkedinSpend;
   } catch (error) {
     console.error("Failed to run the Linkedin report.", error);
+    return null; 
   }
 };
 
@@ -97,11 +102,18 @@ const sendTWtoGoogleSheets = async (req, res) => {
     const record = getStoredMetrics();
     const linkedinCost = await runLinkedinReport();
 
-    if (!record?.data.Search || !record?.data.Youtube) {
+    if (
+      record?.data.Search === undefined || record?.data.Search === null ||
+      record?.data.Youtube === undefined || record?.data.Youtube === null
+    ) {
       throw new Error("Missing data for Search or Youtube");
     }
 
-    const values = [[record.data.Search], [record.data.Youtube], [linkedinCost]];
+    const values = [
+      [record.data.Search],
+      [record.data.Youtube],
+      [linkedinCost],
+    ];
     const range = 'Pacing!E3:E5';
 
     await sheets.spreadsheets.values.update({

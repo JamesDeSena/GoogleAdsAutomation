@@ -3,13 +3,24 @@ const router = express.Router();
 
 const {
   runStockVerification,
-  runSingleRegionVerification 
+  runSingleRegionVerification,
+  runTestStock,
 } = require('../controllers/dr_squatch/StockScraper');
 
 router.get('/stock', (req, res) => {
   try {
     runStockVerification(); 
     res.status(202).send("✅ Accepted: Verification process for ALL regions has been started. Monitor the 'Overview' sheet for progress.");
+  } catch (error) {
+    console.error("Error starting verification for all regions:", error);
+    res.status(500).send("❌ Error starting verification for all regions.");
+  }
+});
+
+router.get('/test', (req, res) => {
+  try {
+    runTestStock(); 
+    res.status(202).send("Test Link Started");
   } catch (error) {
     console.error("Error starting verification for all regions:", error);
     res.status(500).send("❌ Error starting verification for all regions.");

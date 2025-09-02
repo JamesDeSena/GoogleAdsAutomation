@@ -1,4 +1,5 @@
 require("dotenv").config();
+const fs = require("fs")
 const path = require("path");
 const { chromium } = require("patchright");
 const { google } = require("googleapis");
@@ -177,38 +178,105 @@ async function getProductsFromSheet(sheetId) {
       )?.toLowerCase(),
     }))
     .filter((p) => p.id && p.link);
+    // .slice(0, 5);
+}
+
+async function handleCloseIfExists(page) {
+  try {
+    const closeButton = page.locator('button[aria-label="Close modal"]').last();
+    const okButton = page.locator('aside button:has-text("OK")').last();
+
+    try {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+      return true;
+    } catch {}
+
+    try {
+      await okButton.click();
+      await page.waitForTimeout(1000);
+      return true;
+    } catch {}
+
+    return false;
+  } catch (error) {
+    console.warn(`⚠️ Could not close modal. Error: ${error.message.split('\n')[0]}`);
+    return false;
+  }
+}
+
+async function checkOneTimePurchase(page) {
+  try {
+    const oneTimePurchaseLabel = page.locator('label:has-text("One Time Purchase")');
+    const oneTimePurchaseInput = page.locator('input[id^="onetime"]');
+
+    const labelCount = await oneTimePurchaseLabel.count();
+    const inputCount = await oneTimePurchaseInput.count();
+
+    if (labelCount === 0 || inputCount === 0) {
+      return false;
+    }
+
+    const isAlreadyChecked = await oneTimePurchaseInput.getAttribute('aria-checked');
+    if (isAlreadyChecked === 'true') {
+      return true;
+    }
+
+    await oneTimePurchaseLabel.click();
+    await page.waitForFunction(
+      (selector) => {
+        const input = document.querySelector(selector);
+        return input && input.getAttribute('aria-checked') === 'true';
+      },
+      'input[id^="onetime"]',
+      { timeout: 5000 }
+    );
+
+    return true;
+  } catch (error) {
+    console.warn(`⚠️ Could not select 'One Time Purchase'. Error: ${error.message.split('\n')[0]}`);
+    return false;
+  }
 }
 
 async function scrapeProductStatus(browserContext, url) {
   let page;
   try {
     page = await browserContext.newPage();
-    
-    // Block unnecessary resources to speed up page loads
-    await page.route('**/*.{png,jpg,jpeg,webp,gif,css,woff,woff2}', (route) => route.abort());
+    await page.route('**/*.{png,jpg,jpeg,webp,gif,css,woff,woff2}', r => r.abort());
+    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
 
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await handleCloseIfExists(page);
+    await checkOneTimePurchase(page);
 
-    const buttonLocator = page.locator("button.btn-primary.relative");
-    await buttonLocator.waitFor({ state: "visible", timeout: 25000 });
-    const buttonText = (await buttonLocator.innerText()).trim().toLowerCase();
+    let status = "UNKNOWN", evidence, error;
 
-    let status;
-    if (buttonText.includes("out of stock") || buttonText.includes("sold out")) {
-      status = "Out of Stock";
-    } else if (buttonText.includes("add to cart")) {
-      status = "In Stock";
-    } else {
-      status = `UNKNOWN (Button text: "${await buttonLocator.innerText()}")`;
+    try {
+      const rawHtml = await page.content();
+      if (rawHtml.includes('alt="404 error image"')) {
+        evidence = "404 error image present in page";
+        return { status, error: null, evidence };
+      }
+
+      const buttonLocator = page.locator("button.btn-primary.relative").first();
+      await buttonLocator.waitFor({ state: "visible", timeout: 25000 });
+      const buttonText = (await buttonLocator.innerText()).trim();
+      evidence = buttonText;
+
+      const lowerText = buttonText.toLowerCase();
+      if (lowerText.includes("out of stock") || lowerText.includes("sold out")) {
+        status = "Out of Stock";
+      } else if (lowerText.includes("add to cart")) {
+        status = "In Stock";
+      }
+    } catch (err) {
+      evidence = err.message.split("\n")[0];
     }
-    return { status, error: null, evidence: buttonText };
-  } catch (error) {
-    const errorMessage = error.message.split("\n")[0];
-    return {
-      status: "UNKNOWN (Error during scrape)",
-      error: errorMessage,
-      evidence: errorMessage,
-    };
+
+    return { status, error, evidence };
+  } catch (outerErr) {
+    const msg = outerErr.message.split("\n")[0];
+    return { status: "UNKNOWN", error: msg, evidence: msg };
   } finally {
     if (page) await page.close();
   }
@@ -296,6 +364,10 @@ async function processSingleRegion(regionConfig, browserContext) {
       evidenceResults.push({ id: product.id, link: product.link, signals: { html_button_text: evidence }, decision: liveStatus, checked_at_utc });
     }
 
+    await updateStatusCell(
+      `Status (${regionConfig.regionCode}): Scraping ${count}/${productsToCheck.length} products...`
+    );
+
     if (count < productsToCheck.length) {
       await sleep(getRandomDelay(MIN_DELAY_MS, MAX_DELAY_MS));
     }
@@ -380,7 +452,82 @@ async function runSingleRegionVerification(regionCode) {
   }
 }
 
+async function runTestStock() {
+  const testUrl = "https://intl.drsquatch.com/products/wood-barrel-bourbon";
+  let browser;
+  try {
+    browser = await chromium.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
+    });
+
+    const videoDir = path.join(__dirname, "test_video");
+    if (!fs.existsSync(videoDir)) fs.mkdirSync(videoDir);
+    const context = await browser.newContext({
+      recordVideo: { dir: videoDir, size: { width: 1280, height: 720 } },
+    });
+
+    const page = await context.newPage();
+    await page.goto(testUrl, { waitUntil: "networkidle", timeout: 60000 });
+
+    await handleCloseIfExists(page);
+    await checkOneTimePurchase(page);
+
+    let detectedStatus, evidence, error;
+    try {
+      const buttonLocator = page.locator("button.btn-primary.relative").first();
+      await buttonLocator.waitFor({ state: "visible", timeout: 25000 });
+      const buttonText = (await buttonLocator.innerText()).trim().toLowerCase();
+      evidence = buttonText;
+
+      if (buttonText.includes("out of stock") || buttonText.includes("sold out")) {
+        detectedStatus = "Out of Stock";
+      } else if (buttonText.includes("add to cart")) {
+        detectedStatus = "In Stock";
+      } else {
+        detectedStatus = `UNKNOWN (Button text: "${buttonText}")`;
+      }
+    } catch (err) {
+      detectedStatus = "UNKNOWN (Error during scrape)";
+      error = err.message.split("\n")[0];
+      evidence = error;
+    }
+
+    const screenshotPath = path.join(__dirname, "test_screenshot.png");
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    const rawHtml = await page.content();
+    const htmlPath = path.join(__dirname, "test_page.html");
+    fs.writeFileSync(htmlPath, rawHtml, "utf8");
+
+    const videoPath = await page.video().path();
+    await page.close();
+
+    console.log("\n===== 🧪 TEST STATUS REPORT =====");
+    console.log(`🔗 URL: ${testUrl}`);
+    console.log(`📸 Screenshot: ${screenshotPath}`);
+    console.log(`📼 Video: ${videoPath}`);
+    console.log(`📄 HTML: ${htmlPath}`);
+    console.log(`✅ Detected Status: ${detectedStatus}`);
+    if (evidence) console.log(`🔍 Evidence: ${evidence}`);
+    if (error) console.log(`⚠️ Error: ${error}`);
+    console.log("=================================\n");
+
+    return { screenshotPath, videoPath, htmlPath, detectedStatus, evidence, error };
+  } catch (error) {
+    console.error("runTestStock error:", error.message);
+    return null;
+  } finally {
+    if (browser) await browser.close();
+  }
+};
+
 module.exports = {
+  runTestStock,
   runStockVerification,
   runSingleRegionVerification,
 };

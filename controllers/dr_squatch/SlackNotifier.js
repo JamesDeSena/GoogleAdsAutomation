@@ -73,7 +73,7 @@ const sendSlackSummary = async (summaryData) => {
       text: `Stock Status Run Complete for ${region}`, // Fallback text for notifications
       blocks: blocks,
     });
-    console.log(`Summary sent to Slack channel ${slackChannel}.`);
+    console.log(`✅ Summary sent to Slack channel.`);
   } catch (e) {
       console.error(`Error sending Slack message: ${e.message}`);
   }
