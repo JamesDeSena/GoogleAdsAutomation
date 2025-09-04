@@ -2,6 +2,7 @@ const axios = require('axios');
 const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredGoogleToken } = require("../GoogleAuth");
+const fs = require('fs');
 
 let storedDateRanges = null;
 
@@ -119,7 +120,7 @@ async function getRawCampaigns() {
         const { name, start_date } = event.attributes || {};
         if (!name || !start_date) return false;
         const eventDate = new Date(new Date(start_date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-        return (name === "Strategy Session" || name === "AZ - Strategy Session") && eventDate >= new Date("2021-10-03T00:00:00-08:00");
+        return (name === "Strategy Session" || (/^AZ\b/.test(name))) && eventDate >= new Date("2021-10-03T00:00:00-08:00");
       })
       .map(event => ({
         event_start: formatDateToMMDDYYYY(event.attributes?.start_date),
@@ -128,7 +129,6 @@ async function getRawCampaigns() {
       }));
 
     return { campaigns: filteredCampaigns, events: strategySessions };
-
   } catch (error) {
     if (error.response) {
       console.error("API Error:", error.response.status, error.response.data);
@@ -209,7 +209,7 @@ const fetchAndAggregateLPCData = async (filter) => {
   } catch (error) {
     console.error("Error fetching report data:", error);
   }
-};
+}
 
 const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
@@ -219,15 +219,12 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
-  const dataRanges = {
-    CA: "CA Weekly Report",
-    AZ: "AZ Weekly Report",
-  };
+  const dataRanges = { CA: "CA Weekly Report", AZ: "AZ Weekly Report" };
 
   try {
     const { campaigns, events } = await getRawCampaigns();
     const caData = await fetchAndAggregateLPCData("%CA%");
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await new Promise((r) => setTimeout(r, 10000));
     const azData = await fetchAndAggregateLPCData("%AZ%");
 
     const startDate = new Date("2021-10-03");
@@ -240,12 +237,12 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     };
 
     const eventLikeStages = {
-      CA: new Set(["21590", "37830", "21574", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]),
-      AZ: new Set(["111631", "126229", "111632", "111633", "111634", "111635", "111636"]),
+      CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]),
+      AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]),
     };
 
     const formatDate = (date) =>
-      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 
     const processDate = (date) => {
       if (!date) return null;
@@ -254,49 +251,48 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     };
 
     const processWeek = (date) => {
-      let weekStart = new Date(date);
+      const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay());
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
-      return {
-        label: `${formatDate(weekStart)} - ${formatDate(weekEnd)}`,
-        weekStart,
-      };
+      return { label: `${formatDate(weekStart)} - ${formatDate(weekEnd)}`, weekStart };
     };
 
-    // Unified handler for campaigns
+    const addWeekEntry = (region, label) => {
+      if (!weeks[region][label]) weeks[region][label] = [label,0,0,0,0,0,0,0,0];
+      return weeks[region][label];
+    };
+
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
       if (!createdDate || createdDate > today) return;
 
-      const region = jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
       const { label } = processWeek(createdDate);
+      const region = eventLikeStages.AZ.has(stage_id) ? "AZ" :
+                     eventLikeStages.CA.has(stage_id) ? "CA" :
+                     jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
 
-      if (!weeks[region][label]) weeks[region][label] = [label, 0, 0, 0, 0, 0, 0, 0, 0];
-
-      weeks[region][label][1]++; // Total forms
-      if (nopeStages[region].has(stage_id)) weeks[region][label][2]++; // No shows
-      if (eventLikeStages[region].has(stage_id)) weeks[region][label][4]++; // Event-like
+      const weekData = addWeekEntry(region, label);
+      weekData[1]++;
+      if (nopeStages[region].has(stage_id)) weekData[2]++;
+      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
     });
 
-    // Unified handler for events
     events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
 
-      const region = jurisdiction === "AZ - Strategy Session" ? "AZ" : "CA";
+      const region = /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" : "CA";
       const { label } = processWeek(eventDate);
-
-      if (!weeks[region][label]) weeks[region][label] = [label, 0, 0, 0, 0, 0, 0, 0, 0];
-      weeks[region][label][4]++; // Event-like
+      const weekData = addWeekEntry(region, label);
+      weekData[4]++;
     });
 
-    // Cost and clicks
     const applyLPCData = (data, region) => {
       data.forEach(({ date, clicks, cost }) => {
         if (weeks[region][date]) {
-          weeks[region][date][5] = cost;  // Cost
-          weeks[region][date][6] = clicks; // Clicks
+          weeks[region][date][5] = cost;
+          weeks[region][date][6] = clicks;
         }
       });
     };
@@ -304,183 +300,233 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     if (Array.isArray(caData)) applyLPCData(caData, "CA");
     if (Array.isArray(azData)) applyLPCData(azData, "AZ");
 
-    // Calculations and final touches
     Object.keys(weeks).forEach((region) => {
       Object.values(weeks[region]).forEach((week) => {
-        const totalForms = week[1];
-        const noShows = week[2];
+        const totalForms = week[1], noShows = week[2];
         const confirmed = totalForms - noShows;
         const cost = parseFloat(week[5]) || 0;
         const clicks = parseFloat(week[6]) || 0;
 
         week[3] = confirmed;
-        week[7] = confirmed > 0 ? cost / confirmed : 0; // Cost per confirmed
-        week[8] = clicks > 0 ? (totalForms / clicks) : 0; // Form-to-click rate
+        week[7] = confirmed > 0 ? cost / confirmed : 0;
+        week[8] = clicks > 0 ? (totalForms / clicks) * 100 : 0;
       });
     });
 
-    // Column type signs (add to metadata/output if needed)
-    const columnSigns = [
-      "date",      // 0: week label
-      "number",    // 1: total forms
-      "number",    // 2: no shows
-      "number",    // 3: confirmed
-      "number",    // 4: event-like
-      "currency",  // 5: cost (USD)
-      "number",    // 6: clicks
-      "currency",  // 7: cost per confirmed
-      "percent",   // 8: form-to-click rate
-    ];
-
     const calculateVariance = (current, previous) => {
-      if (previous === 0 || isNaN(current) || isNaN(previous)) return 0;
+      current = parseFloat(current) || 0;
+      previous = parseFloat(previous) || 0;
+      if (previous === 0) return null;
       return ((current - previous) / previous) * 100;
     };
 
-    const formatPercentage = (value) =>
-      isNaN(value) || !isFinite(value) ? "0.00%" : `${value.toFixed(2)}%`;
-
     const addWoWRow = (records) => {
       if (records.length < 3) return;
-
-      const lastWeek = records[records.length - 2];
-      const twoWeeksAgo = records[records.length - 3];
-
-      const row = [
-        "WoW Variance %",
-        formatPercentage(calculateVariance(lastWeek[1], twoWeeksAgo[1])),
-        formatPercentage(calculateVariance(lastWeek[2], twoWeeksAgo[2])),
-        formatPercentage(calculateVariance(lastWeek[3], twoWeeksAgo[3])),
-        formatPercentage(calculateVariance(lastWeek[4], twoWeeksAgo[4])),
-        formatPercentage(calculateVariance(lastWeek[5], twoWeeksAgo[5])),
-        formatPercentage(calculateVariance(lastWeek[6], twoWeeksAgo[6])),
-        formatPercentage(calculateVariance(lastWeek[7], twoWeeksAgo[7])),
-        formatPercentage(calculateVariance(lastWeek[8], twoWeeksAgo[8])),
-      ];
-
-      records.push(row);
+      const lastWeek = records[records.length-2].map(v => parseFloat(v) || 0);
+      const twoWeeksAgo = records[records.length-3].map(v => parseFloat(v) || 0);
+      records.push(["WoW Variance %", ...[1,2,3,4,5,6,7,8].map(i => calculateVariance(lastWeek[i], twoWeeksAgo[i]))]);
     };
 
     const addBiWeeklyRow = (records) => {
       if (records.length < 6) return;
-
-      const last2Weeks = [records[records.length - 3], records[records.length - 4]];
-      const prev2Weeks = [records[records.length - 5], records[records.length - 6]];
-
-      const averageMetric = (index, weeks) =>
-        weeks.reduce((sum, row) => sum + (parseFloat(row[index]) || 0), 0) / weeks.length;
-
-      const row = [
-        "Biweekly Variance %",
-        formatPercentage(calculateVariance(
-          averageMetric(1, last2Weeks), averageMetric(1, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(2, last2Weeks), averageMetric(2, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(3, last2Weeks), averageMetric(3, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(4, last2Weeks), averageMetric(4, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(5, last2Weeks), averageMetric(5, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(6, last2Weeks), averageMetric(6, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(7, last2Weeks), averageMetric(7, prev2Weeks)
-        )),
-        formatPercentage(calculateVariance(
-          averageMetric(8, last2Weeks), averageMetric(8, prev2Weeks)
-        )),
-      ];
-
-      records.push(row);
+      const last2Weeks = [records[records.length-3], records[records.length-4]];
+      const prev2Weeks = [records[records.length-5], records[records.length-6]];
+      const avg = (idx, weeksArr) => weeksArr.reduce((s,r)=>s+(parseFloat(r[idx])||0),0)/weeksArr.length;
+      records.push(["Biweekly Variance %", ...[1,2,3,4,5,6,7,8].map(i => calculateVariance(avg(i,last2Weeks), avg(i,prev2Weeks)))]);
     };
 
-    await Promise.all(
-      Object.entries(weeks).map(async ([region, data]) => {
-        console.log(`Processing region: ${region}`);
+    const finalData = {};
 
-        const sortedWeeks = Object.values(data).sort(
-          (a, b) => new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0])
-        );
+    Object.keys(weeks).forEach((region) => {
+      const records = Object.values(weeks[region]).sort((a,b)=>new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0]));
 
-        if (sortedWeeks.length >= 5) {
-          addWoWRow(sortedWeeks);
-          addBiWeeklyRow(sortedWeeks);
+      addWoWRow(records);
+      addBiWeeklyRow(records);
+
+      finalData[region] = records;
+    });
+
+    const columnSigns = ["date","number","number","number","number","currency","number","currency","percent"];
+    const formatRow = (row) => {
+      // First, check if this is a variance row by looking at the label in the first column.
+      const isVarianceRow = /variance %/i.test(row[0]);
+
+      return row.map((value, idx) => {
+        if (idx === 0) return value;
+        if (isVarianceRow) {
+          return value === null ? "N/A" : parseFloat(value).toFixed(2) + "%";
         }
 
-        const existingData = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: dataRanges[region],
+        const type = columnSigns[idx];
+        if (type === "currency") return "$" + (parseFloat(value) || 0).toFixed(2);
+        if (type === "percent") {
+          return value === null ? "N/A" : parseFloat(value).toFixed(2) + "%";
+        }
+        if (type === "number") return parseFloat(value) || 0;
+        
+        return value;
+      });
+    };
+
+    Object.keys(finalData).forEach(region => {
+      finalData[region] = finalData[region].map(row => formatRow(row));
+    });
+
+    await Promise.all(Object.entries(finalData).map(async ([region, sortedWeeks]) => {
+      const existingData = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges[region] });
+      const existingRows = existingData.data.values || [];
+      const existingWeeks = new Map(existingRows.map((row,i)=>[row[0]?.trim(),i]));
+
+      const batchUpdates = [], newValues = [];
+      
+      sortedWeeks.forEach(weekData => {
+        const label = weekData[0].trim();
+        if(existingWeeks.has(label)) {
+          batchUpdates.push({ range: `${dataRanges[region]}!A${existingWeeks.get(label)+1}`, values:[weekData] });
+        } else {
+          newValues.push(weekData);
+        }
+      });
+
+      if(batchUpdates.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({ 
+          spreadsheetId, 
+          resource:{ valueInputOption:"USER_ENTERED", data:batchUpdates }
         });
-
-        const existingRows = existingData.data.values || [];
-        const existingWeeks = new Map(
-          existingRows.map((row, index) => {
-            const weekLabel = row[0]?.trim();
-            return [weekLabel, index];
-          })
-        );
-
-        const batchUpdates = [];
-        const newValues = [];
-
-        sortedWeeks.forEach((weekData) => {
-          const weekLabel = weekData[0].trim();
-    
-          if (existingWeeks.has(weekLabel)) {
-            const rowIndex = existingWeeks.get(weekLabel);
-            batchUpdates.push({
-              range: `${dataRanges[region]}!A${rowIndex + 1}:I${rowIndex + 1}`,
-              values: [weekData],
-            });
-          } else {
-            newValues.push(weekData);
-          }
+      }
+      if(newValues.length > 0) {
+        await sheets.spreadsheets.values.append({ 
+          spreadsheetId, 
+          range:`${dataRanges[region]}!A2`, 
+          valueInputOption:"USER_ENTERED", 
+          insertDataOption:"INSERT_ROWS", 
+          resource:{ values:newValues }
         });
-
-        try {
-          if (batchUpdates.length > 0) {
-            await sheets.spreadsheets.values.batchUpdate({
-              spreadsheetId,
-              resource: {
-                valueInputOption: "RAW",
-                data: batchUpdates,
-              },
-            });
-          }
-        } catch (error) {
-          console.error(`Error updating ${region} sheet:`, error.response?.data || error.message);
-        }
-
-        try {
-          if (newValues.length > 0) {
-            await sheets.spreadsheets.values.append({
-              spreadsheetId,
-              range: `${dataRanges[region]}!A2:I`,
-              valueInputOption: "RAW",
-              insertDataOption: "INSERT_ROWS",
-              resource: { values: newValues },
-            });
-          }
-        } catch (error) {
-          console.error(`Error appending to ${region} sheet:`, error.response?.data || error.message);
-        }
-      })
-    );
+      }
+    }));
 
     console.log("Weekly LPC Report data successfully updated!");
   } catch (error) {
     console.error("Error processing weekly campaigns:", error);
   }
-};
+}
+
+async function testLawmatics() {
+  const formatDateToMMDDYYYY = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  const fetchPaginatedData = async (baseUrl, token, batchSize) => {
+    const allData = [];
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const initialResponse = await axios.get(`${baseUrl}&page=1`, { headers, maxBodyLength: Infinity });
+    const totalPages = initialResponse.data.meta?.total_pages || 1;
+
+    for (let i = 0; i < totalPages; i += batchSize) {
+      const batchPromises = [];
+      const endOfBatch = Math.min(i + batchSize, totalPages);
+
+      for (let j = i; j < endOfBatch; j++) {
+        const pageNumber = j + 1;
+        batchPromises.push(
+          axios.get(`${baseUrl}&page=${pageNumber}`, { headers, maxBodyLength: Infinity })
+        );
+      }
+
+      const batchResponses = await Promise.all(batchPromises);
+      batchResponses.forEach((response) => allData.push(...(response.data.data || [])));
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return allData;
+  };
+
+  try {
+    const LAWMATICS_TOKEN = process.env.LAWMATICS_TOKEN;
+    const BATCH_SIZE = 20;
+
+    const allCampaignsData = await fetchPaginatedData(
+      "https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values",
+      LAWMATICS_TOKEN,
+      BATCH_SIZE
+    );
+
+    const startDate = new Date("2025-07-27T00:00:00-07:00"); 
+    const endDate = new Date("2025-08-31T23:59:59-07:00");
+
+    const excludedStageIds = new Set([
+      "111631","126229","111632","111633","111634","111635","111636", "111597", "111596"
+    ]);
+
+    const filteredCampaigns = allCampaignsData
+      .filter(({ attributes, relationships }) => {
+        if (!attributes?.created_at) return false;
+
+        const stageId = relationships?.stage?.data?.id;
+        if (!excludedStageIds.has(stageId)) return false;
+
+        const jurisdiction = attributes?.custom_field_values?.["562886"]?.formatted_value || null;
+        if (jurisdiction && !/AZ|Arizona/i.test(jurisdiction)) return false;
+
+        const createdDate = new Date(
+          new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+        );
+        return createdDate >= startDate && createdDate <= endDate;
+      })
+      .map(({ attributes, relationships }) => ({
+        created_at: formatDateToMMDDYYYY(attributes.created_at),
+        stage_id: relationships?.stage?.data?.id || null,
+        jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+      }));
+
+    // --- Weekly grouping ---
+    const groupedByWeek = {};
+    const weekStartRef = new Date("2025-07-27T00:00:00");
+
+    filteredCampaigns.forEach((campaign) => {
+      const date = new Date(campaign.created_at);
+      const diffDays = Math.floor((date - weekStartRef) / (1000 * 60 * 60 * 24));
+      const weekIndex = Math.floor(diffDays / 7);
+
+      const weekStart = new Date(weekStartRef);
+      weekStart.setDate(weekStartRef.getDate() + weekIndex * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const weekLabel = `${formatDateToMMDDYYYY(weekStart)} - ${formatDateToMMDDYYYY(weekEnd)}`;
+
+      if (!groupedByWeek[weekLabel]) {
+        groupedByWeek[weekLabel] = { count: 0, campaigns: [] };
+      }
+
+      groupedByWeek[weekLabel].campaigns.push(campaign);
+      groupedByWeek[weekLabel].count++;
+    });
+
+    fs.writeFileSync("campaigns_weekly_report.json", JSON.stringify(groupedByWeek, null, 2));
+
+    return groupedByWeek;
+  } catch (error) {
+    if (error.response) {
+      console.error("API Error:", error.response.status, error.response.data);
+      throw new Error(`API returned status ${error.response.status}`);
+    } else if (error.request) {
+      console.error("Network Error:", error.message);
+      throw new Error("Network error or timeout connecting to API.");
+    } else {
+      console.error("Script Error:", error.message);
+      throw new Error(`Script error: ${error.message}`);
+    }
+  }
+}
 
 module.exports = {
+  testLawmatics,
   getRawCampaigns,
   sendFinalWeeklyReportToGoogleSheetsLPC,
 };

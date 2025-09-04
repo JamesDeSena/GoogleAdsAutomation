@@ -15,7 +15,8 @@ const {
   sendLPCMonthlyReport
 } = require("../controllers/lpc/GoogleAdsMonthly");
 
-const { 
+const {
+  testLawmatics,
   getRawCampaigns,
   sendFinalWeeklyReportToGoogleSheetsLPC,
 } = require("../controllers/lpc/GoogleAdsWeekly");
@@ -171,7 +172,7 @@ router.get('/menerals/report-final/:date?', async (req, res) => {
 //   }
 // });
 
-// router.get('/lpc/report/', executeSpecificFetchFunctionLPC);
+// router.get('/singleTest', executeSpecificFetchFunctionHS);
 // router.get('/mobile_iv/report/:date?', executeSpecificFetchFunctionMIV);
 // router.get('/guardian_carers/report/:date?', executeSpecificFetchFunctionGC);
 
