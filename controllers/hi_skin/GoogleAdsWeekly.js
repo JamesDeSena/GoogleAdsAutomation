@@ -699,8 +699,9 @@ const fetchFunctions = {
   fetchReportDataWeeklyHSBing: createFetchFunction("Bing", "Bing"),
 };
 
-const executeSpecificFetchFunctionHS = async (req, res, dateRanges) => {
+const executeSpecificFetchFunctionHS = async (req, res) => {
   const functionName = "fetchReportDataWeeklyHSDSA";
+  const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
     const data = await fetchFunctions[functionName](dateRanges);
     res.json(data);

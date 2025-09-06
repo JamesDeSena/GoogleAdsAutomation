@@ -70,6 +70,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     callsFromAds: 0,
     formSubmissionProfile: 0,
     formSubmitHiring: 0,
+    contactsHubspot: 0,
     // conv_date: 0,
   };
 
@@ -102,7 +103,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
       campaign
     WHERE 
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND segments.conversion_action_name IN ('GC - Calls from ads', 'guardiancarers.co.uk - GA4 (web) Form Submission Profile', 'guardiancarers.co.uk - GA4 (web) Form Submit Hiring')
+      AND segments.conversion_action_name IN ('GC - Calls from ads', 'guardiancarers.co.uk - GA4 (web) Form Submission Profile', 'guardiancarers.co.uk - GA4 (web) Form Submit Hiring', 'Contacts Hubspot Integration')
     ORDER BY 
       segments.date DESC
   `;
@@ -132,6 +133,8 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
         aggregatedData.formSubmissionProfile += conversionValue;
       } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submit Hiring") {
         aggregatedData.formSubmitHiring += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "Contacts Hubspot Integration") {
+        aggregatedData.contactsHubspot += conversionValue;
       }
     });
     conversionPageToken = conversionBatchResponse.next_page_token;
@@ -199,7 +202,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_GUARDIAN_CARERS;
   const dataRanges = {
-    GCLive: 'Weekly Report!A2:N',
+    GCLive: 'Weekly Report!A2:O',
   };
 
   try {
@@ -228,10 +231,10 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "Contacts Hubspot Integration": formatPercentage(calculateWoWVariance(lastRecord.contactsHubspot, secondToLastRecord.contactsHubspot)),
         "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(lastRecord.callsFromAds, secondToLastRecord.callsFromAds)),
         "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(lastRecord.formSubmissionProfile, secondToLastRecord.formSubmissionProfile)),
         "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(lastRecord.formSubmitHiring, secondToLastRecord.formSubmitHiring)),
-
       };
     
       records.push(baseRecord);
@@ -250,6 +253,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
         "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
+        "Contacts Hubspot Integration": formatPercentage(calculateWoWVariance(((previousRecord.contactsHubspot + secondToPreviousRecord.contactsHubspot)), ((lastRecord.contactsHubspot + secondToLastRecord.contactsHubspot)))),
         "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(((previousRecord.callsFromAds + secondToPreviousRecord.callsFromAds)), ((lastRecord.callsFromAds + secondToLastRecord.callsFromAds)))),
         "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(((previousRecord.formSubmissionProfile + secondToPreviousRecord.formSubmissionProfile)), ((lastRecord.formSubmissionProfile + secondToLastRecord.formSubmissionProfile)))),
         "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(((previousRecord.formSubmitHiring + secondToPreviousRecord.formSubmitHiring)), ((lastRecord.formSubmitHiring + secondToLastRecord.formSubmitHiring)))),
@@ -272,6 +276,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "Contacts Hubspot Integration": formatNumber(record.contactsHubspot),
           "GA4 - Calls from ads": formatNumber(record.callsFromAds),
           "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatNumber(record.formSubmissionProfile),
           "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatNumber(record.formSubmitHiring),
@@ -312,6 +317,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
+            "Contacts Hubspot Integration": "Contacts Hubspot Integration",
             "GA4 - Calls from ads": "GA4 - Calls from ads",
             "guardiancarers.co.uk - GA4 (web) Form Submission Profile": "guardiancarers.co.uk - GA4 (web) Form Submission Profile",
             "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": "guardiancarers.co.uk - GA4 (web) Form Submit Hiring",
@@ -343,6 +349,7 @@ const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
+        record["Contacts Hubspot Integration"],
         record["GA4 - Calls from ads"],
         record["guardiancarers.co.uk - GA4 (web) Form Submission Profile"],
         record["guardiancarers.co.uk - GA4 (web) Form Submit Hiring"],
