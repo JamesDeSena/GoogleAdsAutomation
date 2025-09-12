@@ -200,11 +200,9 @@ const fetchAndAggregateLPCData = async (filter) => {
           });
           metricsPageToken = metricsResponse.next_page_token;
         } while (metricsPageToken);
-
         return aggregatedData;
       })
     );
-
     return lpcData;
   } catch (error) {
     console.error("Error fetching report data:", error);
@@ -348,7 +346,6 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
     const columnSigns = ["date","number","number","number","number","currency","number","currency","percent"];
     const formatRow = (row) => {
-      // First, check if this is a variance row by looking at the label in the first column.
       const isVarianceRow = /variance %/i.test(row[0]);
 
       return row.map((value, idx) => {
@@ -358,18 +355,19 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         }
 
         const type = columnSigns[idx];
-        if (type === "currency") return "$" + (parseFloat(value) || 0).toFixed(2);
+        if (type === "currency")
+          return "$" + (parseFloat(value) || 0).toFixed(2);
         if (type === "percent") {
           return value === null ? "N/A" : parseFloat(value).toFixed(2) + "%";
         }
-        if (type === "number") return parseFloat(value) || 0;
-        
+        if (type === "number") return "'" + (parseFloat(value) || 0);
+
         return value;
       });
     };
 
-    Object.keys(finalData).forEach(region => {
-      finalData[region] = finalData[region].map(row => formatRow(row));
+    Object.keys(finalData).forEach((region) => {
+      finalData[region] = finalData[region].map((row) => formatRow(row));
     });
 
     await Promise.all(Object.entries(finalData).map(async ([region, sortedWeeks]) => {
@@ -394,13 +392,12 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
           resource:{ valueInputOption:"USER_ENTERED", data:batchUpdates }
         });
       }
-      if(newValues.length > 0) {
-        await sheets.spreadsheets.values.append({ 
-          spreadsheetId, 
-          range:`${dataRanges[region]}!A2`, 
-          valueInputOption:"USER_ENTERED", 
-          insertDataOption:"INSERT_ROWS", 
-          resource:{ values:newValues }
+      if (newValues.length > 0) {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: dataRanges[region],
+          valueInputOption: "USER_ENTERED",
+          resource: { values: newValues },
         });
       }
     }));

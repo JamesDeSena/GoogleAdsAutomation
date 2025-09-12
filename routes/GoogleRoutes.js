@@ -32,6 +32,11 @@ const {
 } = require('../controllers/hi_skin/GoogleAdsWeekly');
 
 const {
+  executeSpecificFetchFunctionHSAdG,
+  sendFinalWeeklyReportToGoogleSheetsHSAdG,
+} = require('../controllers/hi_skin/GoogleAdsGroupWeekly');
+
+const {
   sendFinalMonthlyReportToGoogleSheetsHS
 } = require('../controllers/hi_skin/GoogleAdsMonthly');
 
@@ -112,6 +117,16 @@ router.get('/hi_skin/report-month/:date?', async (req, res) => {
   }
 });
 
+router.get('/hi_skin_adg/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsHSAdG(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
 router.get('/mobile_iv/report-daily/:date?', async (req, res) => {
   try {
     await sendFinalDailyReportToGoogleSheetsMIV(req, res);
@@ -172,7 +187,7 @@ router.get('/menerals/report-final/:date?', async (req, res) => {
 //   }
 // });
 
-// router.get('/singleTest', executeSpecificFetchFunctionHS);
+// router.get('/singleTest', executeSpecificFetchFunctionHSAdG);
 // router.get('/mobile_iv/report/:date?', executeSpecificFetchFunctionMIV);
 // router.get('/guardian_carers/report/:date?', executeSpecificFetchFunctionGC);
 
