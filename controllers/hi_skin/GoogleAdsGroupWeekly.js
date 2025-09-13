@@ -64,6 +64,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
       ad_group.id,
       ad_group.name,
       ad_group_criterion.criterion_id,
+      ad_group_criterion.keyword.text,
       metrics.impressions,
       metrics.cost_micros
     FROM
@@ -96,7 +97,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
   qualityScoreData.forEach(row => {
     if (row.ad_group_criterion.quality_info) {
       qualityScoreMap.set(
-        row.ad_group_criterion.criterion_id, 
+        row.ad_group_criterion.criterion_id,
         row.ad_group_criterion.quality_info.quality_score
       );
     }
@@ -135,7 +136,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
     if (data.totalImpressions > 0) {
       weightedQs = data.qsSumProduct / data.totalImpressions;
     }
-    
+
     finalReport.push({
       week: weekString,
       adGroupName: data.name,
@@ -143,7 +144,6 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
     });
   }
 
-  console.log(finalReport)
   return finalReport;
 };
 
@@ -162,7 +162,7 @@ const fetchReportDataWeeklyHSFilter = async (exactCampaignName, reportName, date
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
     
-    const dateRanges = getOrGenerateDateRanges();
+    // const dateRanges = getOrGenerateDateRanges();
 
     const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
       return fetchWeeklyAdGroupReportWithKeywords(customer, start, end, exactCampaignName);
@@ -217,113 +217,160 @@ const createThrottledFetch = (fetchFn) => async (...args) => {
 };
 
 const throttledFetchFunctions = {
-  brandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSBrand),
+  searchNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSSearch),
+};
+
+const toColumnName = (num) => {
+  let str = '';
+  while (num >= 0) {
+    str = String.fromCharCode(num % 26 + 65) + str;
+    num = Math.floor(num / 26) - 1;
+  }
+  return str;
+};
+
+const AD_GROUP_ROW_MAP = {
+  "Acne Facial": 4,
+  "Chemical Peels": 5,
+  "Dermaplaning Facials": 6,
+  "Extraction Facial": 7,
+  "Facial DC": 8,
+  "Facial Fairfax": 9,
+  "Facial Houston": 10,
+  "Facial Massage": 11,
+  "Facial Phoenix": 12,
+  "Facial Scottsdale": 13,
+  "Facials Near Me": 14,
+  "Hydrafacial": 15,
+  "Men's Facial": 16,
+  "Microdermabrasion Facial": 17,
+  "Teen Facial": 18,
+  "Couple Facials": 19,
+  "Membership Facials": 20
 };
 
 const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'serviceToken.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-
-  const spreadsheetId = process.env.SHEET_HI_SKIN;
-  const dataRanges = {
-    Live: 'Weekly Performance!A2:U',
-  };
-
   try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: "serviceToken.json",
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.SHEET_HS_QS;
+    const sheetName = "Quality Score Automation";
+
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
 
-    const {
-      brandData: throttledBrandDataFetch,
-    } = throttledFetchFunctions;
+    const { searchNB: throttledBrandDataFetch } = throttledFetchFunctions;
 
-    const brandData = await throttledBrandDataFetch(req, res, dateRanges);
+    const nestedReportData = await throttledBrandDataFetch(dateRanges);
+    const newApiReports = nestedReportData.flat();
 
-    const records = [];
+    const reportsByWeek = newApiReports.reduce((acc, report) => {
+      if (!acc[report.week]) {
+        acc[report.week] = [];
+      }
+      acc[report.week].push(report);
+      return acc;
+    }, {});
 
-    const addDataToRecords = (data, filter) => {
-      data.forEach((record) => {
-        records.push({
-          Week: record.date,
-          Filter: filter,
-        });
-      });
-    };
+    const maxRow = Math.max(...Object.values(AD_GROUP_ROW_MAP));
+    const readRange = `${sheetName}!A3:ZZ${maxRow}`;
+    const sheetDataResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: readRange,
+    });
+    const existingSheetValues = sheetDataResponse.data.values || [];
 
-    addDataToRecords(brandData, "Brand Search", 1);
+    const combinedDataByWeek = {};
+    const adGroupNamesByRow = Object.keys(AD_GROUP_ROW_MAP).reduce(
+      (acc, name) => {
+        acc[AD_GROUP_ROW_MAP[name]] = name;
+        return acc;
+      },
+      {}
+    );
 
-    const finalRecords = [];
-
-    function processGroup(records) {
-      let currentGroup = '';
-      records.forEach(record => {
-        if (record.Filter !== currentGroup) {
-          finalRecords.push({
-            Week: record.Filter,
-            Filter: "Filter",
-            isBold: true,
-          });
-          currentGroup = record.Filter;
+    if (existingSheetValues.length > 0) {
+      const existingHeaders = existingSheetValues[0] || [];
+      existingHeaders.slice(1).forEach((weekHeader, colIndex) => {
+        if (weekHeader && !combinedDataByWeek[weekHeader]) {
+          combinedDataByWeek[weekHeader] = [];
         }
-        finalRecords.push({ ...record, isBold: false });
+        if (weekHeader) {
+          for (
+            let rowIndex = 1;
+            rowIndex < existingSheetValues.length;
+            rowIndex++
+          ) {
+            const row = existingSheetValues[rowIndex];
+            const adGroupName = adGroupNamesByRow[rowIndex + 3];
+            const qsValue = row ? row[colIndex + 1] : undefined;
+            if (adGroupName && qsValue) {
+              combinedDataByWeek[weekHeader].push({
+                adGroupName,
+                weightedQs: qsValue,
+              });
+            }
+          }
+        }
       });
     }
 
-    processGroup(records);
+    for (const weekString in reportsByWeek) {
+      combinedDataByWeek[weekString] = reportsByWeek[weekString];
+    }
 
-    const sheetData = finalRecords.map(record => [
-      record.Week,
-      record.Filter,
-    ]);
+    const sortedWeeks = Object.keys(combinedDataByWeek).sort(
+      (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
+    );
 
-    const dataToSend = {
-      Live: sheetData.filter(row => ["Brand Search"].includes(row[0]) || ["Brand Search"].includes(row[1])),
-    };    
+    const clearRange = `${sheetName}!B3:ZZ`;
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: clearRange,
+    });
 
-    const formatSheets = async (sheetName, data) => {
-      await sheets.spreadsheets.values.clear({ spreadsheetId, range: dataRanges[sheetName] });
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: dataRanges[sheetName],
-        valueInputOption: "RAW",
-        resource: { values: data },
+    const dataForBatchUpdate = [];
+    sortedWeeks.forEach((weekString, colIndex) => {
+      const columnLetter = toColumnName(colIndex + 1);
+      const weeklyReportData = combinedDataByWeek[weekString];
+
+      dataForBatchUpdate.push({
+        range: `${sheetName}!${columnLetter}3`,
+        values: [[weekString]],
       });
 
-      await sheets.spreadsheets.batchUpdate({
+      const columnData = Array(maxRow)
+        .fill(null)
+        .map(() => [null]);
+      weeklyReportData.forEach((report) => {
+        const rowNumber = AD_GROUP_ROW_MAP[report.adGroupName];
+        if (rowNumber) {
+          columnData[rowNumber - 1] = [report.weightedQs];
+        }
+      });
+
+      dataForBatchUpdate.push({
+        range: `${sheetName}!${columnLetter}4:${columnLetter}${maxRow}`,
+        values: columnData.slice(3),
+      });
+    });
+
+    if (dataForBatchUpdate.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         resource: {
-          requests: [
-            {
-              repeatCell: {
-                range: {
-                  sheetId: 0,
-                  startRowIndex: 1,
-                  endRowIndex: data.length + 1,
-                  startColumnIndex: 0,
-                  endColumnIndex: 6,
-                },
-                cell: {
-                  userEnteredFormat: { horizontalAlignment: 'RIGHT' },
-                },
-                fields: 'userEnteredFormat.horizontalAlignment',
-              },
-            },
-          ],
+          valueInputOption: "USER_ENTERED",
+          data: dataForBatchUpdate,
         },
       });
-    };
-
-    for (const [sheetName, data] of Object.entries(dataToSend)) {
-      await formatSheets(sheetName, data);
     }
 
-    console.log("Final Hi, Skin weekly report sent to Google Sheets successfully!");
+    console.log(`Final Ads Group Keywords weekly report sent to Google Sheets successfully!`);
   } catch (error) {
-    console.error("Error sending final report to Google Sheets:", error);
+    console.error("Error sending Ads Group Keywords Report to Google Sheets:", error);
   }
 };
 
