@@ -229,26 +229,6 @@ const toColumnName = (num) => {
   return str;
 };
 
-const AD_GROUP_ROW_MAP = {
-  "Acne Facial": 4,
-  "Chemical Peels": 5,
-  "Dermaplaning Facials": 6,
-  "Extraction Facial": 7,
-  "Facial DC": 8,
-  "Facial Fairfax": 9,
-  "Facial Houston": 10,
-  "Facial Massage": 11,
-  "Facial Phoenix": 12,
-  "Facial Scottsdale": 13,
-  "Facials Near Me": 14,
-  "Hydrafacial": 15,
-  "Men's Facial": 16,
-  "Microdermabrasion Facial": 17,
-  "Teen Facial": 18,
-  "Couple Facials": 19,
-  "Membership Facials": 20
-};
-
 const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -258,6 +238,18 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.SHEET_HS_QS;
     const sheetName = "Quality Score Automation";
+
+    const adGroupColumnRange = `${sheetName}!A4:A`;
+    const adGroupColumnResponse = await sheets.spreadsheets.values.get({ spreadsheetId, range: adGroupColumnRange });
+    const adGroupNamesFromSheet = (adGroupColumnResponse.data.values || []).flat();
+
+    const dynamicAdGroupRowMap = new Map();
+    adGroupNamesFromSheet.forEach((name, index) => {
+        if (name) {
+            const rowNumber = index + 4;
+            dynamicAdGroupRowMap.set(name, rowNumber);
+        }
+    });
 
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
@@ -275,7 +267,7 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       return acc;
     }, {});
 
-    const maxRow = Math.max(...Object.values(AD_GROUP_ROW_MAP));
+    const maxRow = adGroupNamesFromSheet.length > 0 ? adGroupNamesFromSheet.length + 3 : 4;
     const readRange = `${sheetName}!A3:ZZ${maxRow}`;
     const sheetDataResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -284,13 +276,10 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     const existingSheetValues = sheetDataResponse.data.values || [];
 
     const combinedDataByWeek = {};
-    const adGroupNamesByRow = Object.keys(AD_GROUP_ROW_MAP).reduce(
-      (acc, name) => {
-        acc[AD_GROUP_ROW_MAP[name]] = name;
-        return acc;
-      },
-      {}
-    );
+    const adGroupNamesByRow = {};
+    dynamicAdGroupRowMap.forEach((rowNumber, name) => {
+        adGroupNamesByRow[rowNumber] = name;
+    });
 
     if (existingSheetValues.length > 0) {
       const existingHeaders = existingSheetValues[0] || [];
@@ -299,11 +288,7 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
           combinedDataByWeek[weekHeader] = [];
         }
         if (weekHeader) {
-          for (
-            let rowIndex = 1;
-            rowIndex < existingSheetValues.length;
-            rowIndex++
-          ) {
+          for (let rowIndex = 1; rowIndex < existingSheetValues.length; rowIndex++) {
             const row = existingSheetValues[rowIndex];
             const adGroupName = adGroupNamesByRow[rowIndex + 3];
             const qsValue = row ? row[colIndex + 1] : undefined;
@@ -342,11 +327,9 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
         values: [[weekString]],
       });
 
-      const columnData = Array(maxRow)
-        .fill(null)
-        .map(() => [null]);
+      const columnData = Array(maxRow).fill(null).map(() => [null]);
       weeklyReportData.forEach((report) => {
-        const rowNumber = AD_GROUP_ROW_MAP[report.adGroupName];
+        const rowNumber = dynamicAdGroupRowMap.get(report.adGroupName);
         if (rowNumber) {
           columnData[rowNumber - 1] = [report.weightedQs];
         }

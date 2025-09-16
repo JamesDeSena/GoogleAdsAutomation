@@ -223,8 +223,8 @@ async function getAmountGoogleHSCampaigns() {
 
     return totalCosts;
   } catch (error) {
-    console.error("Error fetching Google Ads campaigns data:", error.message);
-    throw new Error(`Error fetching Google Ads campaigns data: ${error.message}`);
+    console.error("Error fetching Google Ads Hi Skin data:", error.message);
+    throw new Error(`Error fetching Google Ads Hi Skin data: ${error.message}`);
   }
 };
 
@@ -235,7 +235,7 @@ async function getAmountGoogleAZ() {
     );
     return { AZ: totalCost };
   } catch (error) {
-    throw new Error("Error fetching Google Ads WB data");
+    throw new Error("Error fetching Google Ads MIVD AZ data");
   }
 };
 
@@ -246,7 +246,7 @@ async function getAmountGoogleLV() {
     );
     return { LV: totalCost };
   } catch (error) {
-    throw new Error("Error fetching Google Ads WB data");
+    throw new Error("Error fetching Google Ads MIVD LV data");
   }
 };
 
@@ -257,7 +257,7 @@ async function getAmountGoogleNYC() {
     );
     return { NYC: totalCost };
   } catch (error) {
-    throw new Error("Error fetching Google Ads WB data");
+    throw new Error("Error fetching Google Ads MIVD NYC data");
   }
 };
 
@@ -323,7 +323,7 @@ async function getAmountGoogleTWCampaigns() {
 
     return totalCosts;
   } catch (error) {
-    throw new Error("Error fetching Google Ads campaigns data");
+    throw new Error("Error fetching Google Ads Triple Whale data");
   }
 };
 
@@ -334,7 +334,7 @@ async function getAmountGoogleGC() {
     );
     return { GoogleGuardian: totalCost };
   } catch (error) {
-    throw new Error("Error fetching Google Ads Vault data");
+    throw new Error("Error fetching Google Ads Guardian Carers data");
   }
 };
 
@@ -345,7 +345,29 @@ async function getAmountGoogleMNR() {
     );
     return { GoogleMenerals: totalCost };
   } catch (error) {
-    throw new Error("Error fetching Google Ads Vault data");
+    throw new Error("Error fetching Google Ads Menerals data");
+  }
+};
+
+async function getAmountGoogleNB() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_NB
+    );
+    return { GoogleNB: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads NB data");
+  }
+};
+
+async function getAmountGoogleST() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_ST
+    );
+    return { GoogleST: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads Sleeping Tie data");
   }
 };
 
@@ -375,9 +397,11 @@ async function getAllMetrics() {
     const googleDripAZ = await getAmountGoogleAZ();
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
-    const googleTW = await getAmountGoogleTWCampaigns();
+    // const googleTW = await getAmountGoogleTWCampaigns();
     const googleGC = await getAmountGoogleGC();
     const googleMNR = await getAmountGoogleMNR();
+    const googleNB = await getAmountGoogleNB();
+    const googleST = await getAmountGoogleST();
     
     const metrics = {
       data: {
@@ -388,9 +412,11 @@ async function getAllMetrics() {
         ...googleDripAZ,
         ...googleDripLV,
         ...googleDripNYC,
-        ...googleTW,
+        // ...googleTW,
         ...googleGC,
         ...googleMNR,
+        ...googleNB,
+        ...googleST,
       },
     };
 
@@ -442,10 +468,12 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
       ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
-      ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
-      ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
+      // ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
+      // ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
       ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
-      ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals]
+      ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
+      ["National Buyers", "Google", dateCST, datePST, record.data.GoogleMenerals],
+      ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleMenerals],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({

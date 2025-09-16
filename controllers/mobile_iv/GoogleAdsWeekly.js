@@ -197,7 +197,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIV = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
+  const spreadsheetId = process.env.SHEET_MIVD;
   const dataRanges = {
     AZLive: 'AZ Weekly!A2:S',
     LVLive: 'LV Weekly!A2:Q',
@@ -642,7 +642,7 @@ const sendBookings = async (req, res) => {
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   const sheets = google.sheets({ version: 'v4', auth });
-  const sourceSpreadsheetId = process.env.SHEET_MOBILE_DRIP;
+  const sourceSpreadsheetId = process.env.SHEET_MIVD;
   const sourceDataRanges = {
     "AZ_Phoenix": "AZ Phoenix Bookings Data!A2:D",
     "AZ_Tucson": "AZ Tucson Bookings Data!A2:D",

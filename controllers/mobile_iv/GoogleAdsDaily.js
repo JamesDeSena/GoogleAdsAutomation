@@ -136,7 +136,10 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_MOBILE_DRIP;
+
+  const spreadsheetId = process.env.SHEET_MIVD;
+  const readOnlySpreadsheetId = process.env.SHEET_MIVD_BOOKING;
+
   const dataRanges = {
     Phoenix: 'AZ Phoenix Bookings Data!A2:K',
     Tucson: 'AZ Tucson Bookings Data!A2:K',
@@ -144,9 +147,29 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     NY: 'NY Bookings Data!A2:K',
   };
 
+  const readOnlyGids = {
+    Phoenix: 0,
+    Tucson: 385552116,
+    LV: 163207021,
+    NY: 1618558737,
+  };
+
   try {
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDate(date);
+
+    const { data: meta } = await sheets.spreadsheets.get({
+      spreadsheetId: readOnlySpreadsheetId
+    });
+
+    const gidToTitle = {};
+    meta.sheets.forEach(sh => {
+      gidToTitle[sh.properties.sheetId] = sh.properties.title;
+    });
+
+    const readOnlyRanges = Object.fromEntries(
+      Object.entries(readOnlyGids).map(([key, gid]) => [key, `${gidToTitle[gid]}!A2:G`])
+    );
 
     const [azData, allAZData] = await Promise.all([
       fetchFunctions.fetchReportDataDailyAZ(req, res, dateRanges),
@@ -170,11 +193,24 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
     const batchGetRanges = Object.keys(sheetsData).filter(sheet => sheetsData[sheet].length > 0);
     if (batchGetRanges.length === 0) return console.log("No data to update.");
 
-    const batchResponse = await sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges: batchGetRanges });
+    const batchResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges: batchGetRanges
+    });
 
     const existingData = {};
     batchResponse.data.valueRanges.forEach((response, index) => {
       existingData[batchGetRanges[index]] = response.values || [];
+    });
+
+    const readOnlyResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: readOnlySpreadsheetId,
+      ranges: Object.values(readOnlyRanges),
+    });
+
+    const readOnlyDataBySheet = {};
+    Object.keys(readOnlyRanges).forEach((key, i) => {
+      readOnlyDataBySheet[key] = readOnlyResponse.data.valueRanges[i].values || [];
     });
 
     const batchUpdates = [];
@@ -186,16 +222,40 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
       if (!dataArr.length) continue;
 
       const rows = existingData[sheet] || [];
+      const sheetKey = sheet.includes('Phoenix') ? 'Phoenix'
+        : sheet.includes('Tucson') ? 'Tucson'
+        : sheet.includes('LV') ? 'LV'
+        : 'NY';
+
+      const readOnlyRows = readOnlyDataBySheet[sheetKey] || [];
 
       for (const data of dataArr) {
         const sheetDate = data?.date;
         if (!sheetDate) continue;
 
-        let rowIndex = rows.findIndex(row => row[0] === sheetDate);
+        const rowIndex = rows.findIndex(row => row[0] === sheetDate);
+        const matchingReadOnlyRow = readOnlyRows.find(row => row[0] === sheetDate);
+
+        let agValues = [];
+        if (matchingReadOnlyRow) agValues = matchingReadOnlyRow.slice(0, 7);
+
         if (rowIndex !== -1) {
-          batchUpdates.push({ range: `${sheet.split("!")[0]}!K${rowIndex + 2}`, values: [[data.cost]] });
+          if (agValues.length === 7) {
+            batchUpdates.push({
+              range: `${sheet.split("!")[0]}!A${rowIndex + 2}:G${rowIndex + 2}`,
+              values: [agValues]
+            });
+          }
+          batchUpdates.push({
+            range: `${sheet.split("!")[0]}!K${rowIndex + 2}`,
+            values: [[data.cost]]
+          });
         } else {
-          batchAppends[sheet].push([sheetDate, data.cost]); 
+          const newRow = agValues.length === 7
+            ? [...agValues, "", "", "", data.cost]
+            : [sheetDate, "", "", "", "", "", "", "", "", "", data.cost];
+
+          batchAppends[sheet].push(newRow);
         }
       }
     }
@@ -223,7 +283,7 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
 
     await Promise.all(updatePromises);
 
-    console.log("Daily MIVD data updated successfully!");
+    console.log("Daily MIVD bookings data updated successfully!");
   } catch (error) {
     console.error("Error updating daily report:", error);
   }
