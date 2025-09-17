@@ -7,6 +7,12 @@ const {
 } = require("../controllers/lpc/DailyFetch");
 
 const {
+  testLawmatics,
+  getRawCampaigns,
+  sendFinalWeeklyReportToGoogleSheetsLPC,
+} = require("../controllers/lpc/GoogleAdsWeekly");
+
+const {
   generateLPCBing,
   fetchAndSaveAdCosts,
   executeSpecificFetchFunctionLPC,
@@ -16,29 +22,25 @@ const {
 } = require("../controllers/lpc/GoogleAdsMonthly");
 
 const {
-  testLawmatics,
-  getRawCampaigns,
-  sendFinalWeeklyReportToGoogleSheetsLPC,
-} = require("../controllers/lpc/GoogleAdsWeekly");
+  sendFinalWeeklyReportToGoogleSheetsLPCAdG,
+} = require('../controllers/lpc/GoogleAdsGroupWeekly');
 
 const {
   downloadAndExtractHSBing,
   aggregateWeeklyDataFromCSV,
-  fetchReportDataWeeklyCampaignHS,
-  fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS
 } = require('../controllers/hi_skin/GoogleAdsWeekly');
 
 const {
+  sendFinalMonthlyReportToGoogleSheetsHS
+} = require('../controllers/hi_skin/GoogleAdsMonthly');
+
+const {
   executeSpecificFetchFunctionHSAdG,
   sendFinalWeeklyReportToGoogleSheetsHSAdG,
 } = require('../controllers/hi_skin/GoogleAdsGroupWeekly');
-
-const {
-  sendFinalMonthlyReportToGoogleSheetsHS
-} = require('../controllers/hi_skin/GoogleAdsMonthly');
 
 const {
   // executeSpecificFetchFunctionMIV,
@@ -63,6 +65,10 @@ const {
 } = require('../controllers/guardian_carers/GoogleAdsWeekly');
 
 const {
+  sendFinalWeeklyReportToGoogleSheetsGCAdG,
+} = require('../controllers/guardian_carers/GoogleAdsGroupWeekly');
+
+const {
   executeSpecificFetchFunctionMNR,
   sendFinalWeeklyReportToGoogleSheetsMNR,
 } = require('../controllers/menerals/GoogleAdsWeekly');
@@ -70,6 +76,16 @@ const {
 router.get('/lpc/report-daily', async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/lpc/report-final', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsLPC(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
@@ -87,9 +103,9 @@ router.get('/lpc/report-month', async (req, res) => {
   }
 });
 
-router.get('/lpc/report-final', async (req, res) => {
+router.get('/lpc_adg/report-final', async (req, res) => {
   try {
-    await sendFinalWeeklyReportToGoogleSheetsLPC(req, res);
+    await sendFinalWeeklyReportToGoogleSheetsLPCAdG(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
@@ -117,7 +133,7 @@ router.get('/hi_skin/report-month/:date?', async (req, res) => {
   }
 });
 
-router.get('/hi_skin_adg/report-final/:date?', async (req, res) => {
+router.get('/hi_skin_adg/report-final', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsHSAdG(req, res);
     res.status(200).send("Process completed successfully.");
@@ -160,6 +176,16 @@ router.get('/mobile_iv/report-month/:date?', async (req, res) => {
 router.get('/guardian_carers/report-final/:date?', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsGC(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/guardian_carers_adg/report-final', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsGCAdG(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

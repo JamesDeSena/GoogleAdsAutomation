@@ -397,7 +397,7 @@ async function getAllMetrics() {
     const googleDripAZ = await getAmountGoogleAZ();
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
-    // const googleTW = await getAmountGoogleTWCampaigns();
+    const googleTW = await getAmountGoogleTWCampaigns();
     const googleGC = await getAmountGoogleGC();
     const googleMNR = await getAmountGoogleMNR();
     const googleNB = await getAmountGoogleNB();
@@ -412,7 +412,7 @@ async function getAllMetrics() {
         ...googleDripAZ,
         ...googleDripLV,
         ...googleDripNYC,
-        // ...googleTW,
+        ...googleTW,
         ...googleGC,
         ...googleMNR,
         ...googleNB,
@@ -472,8 +472,8 @@ const sendPacingReportToGoogleSheets = async () => {
       // ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
       ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
-      ["National Buyers", "Google", dateCST, datePST, record.data.GoogleMenerals],
-      ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleMenerals],
+      ["National Buyers", "Google", dateCST, datePST, record.data.GoogleNB],
+      ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({

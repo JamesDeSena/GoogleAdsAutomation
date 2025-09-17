@@ -1282,8 +1282,6 @@ const sendBlendedCACToGoogleSheetsHS = async (req, res) => {
 module.exports = {
   downloadAndExtractHSBing,
   aggregateWeeklyDataFromCSV,
-  fetchReportDataWeeklyCampaignHS,
-  fetchReportDataWeeklySearchHS,
   executeSpecificFetchFunctionHS,
   sendFinalWeeklyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS
