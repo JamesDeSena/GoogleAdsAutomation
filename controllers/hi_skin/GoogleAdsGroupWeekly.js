@@ -90,11 +90,11 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
 
   const [performanceData, qualityScoreData] = await Promise.all([
     customer.query(performanceQuery),
-    customer.query(qualityScoreQuery)
+    customer.query(qualityScoreQuery),
   ]);
 
   const qualityScoreMap = new Map();
-  qualityScoreData.forEach(row => {
+  qualityScoreData.forEach((row) => {
     if (row.ad_group_criterion.quality_info) {
       qualityScoreMap.set(
         row.ad_group_criterion.criterion_id,
@@ -104,7 +104,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
   });
 
   const adGroupCalculations = new Map();
-  performanceData.forEach(row => {
+  performanceData.forEach((row) => {
     const adGroupId = row.ad_group.id;
     const adGroupName = row.ad_group.name;
     const criterionId = row.ad_group_criterion.criterion_id;
@@ -147,79 +147,6 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
   return finalReport;
 };
 
-const fetchReportDataWeeklyHSFilter = async (exactCampaignName, dateRanges) => {
-  const refreshToken_Google = getStoredGoogleToken();
-
-  if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
-    return;
-  }
-
-  try {
-    const customer = client.Customer({
-      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
-      refresh_token: refreshToken_Google,
-      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-    });
-    
-    // const dateRanges = getOrGenerateDateRanges();
-
-    const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
-      return fetchWeeklyAdGroupReportWithKeywords(customer, start, end, exactCampaignName);
-    });
-
-    const allWeeklyData = await Promise.all(allWeeklyDataPromises);
-
-    return allWeeklyData;
-  } catch (error) {
-    console.error("Error fetching report data:", error);
-    // res.status(300).send("Error fetching report data");
-  }
-};
-
-const createFetchFunction = (exactCampaignName) => {
-  return (dateRanges) => fetchReportDataWeeklyHSFilter(exactCampaignName, dateRanges);
-};
-
-const fetchFunctions = {
-  fetchReportDataWeeklyHSSearch: createFetchFunction("Search_NB"),
-};
-
-const executeSpecificFetchFunctionHSAdG = async (req, res) => {
-  const functionName = "fetchReportDataWeeklyHSSearch";
-  const dateRanges = getOrGenerateDateRanges();
-  if (fetchFunctions[functionName]) {
-    const data = await fetchFunctions[functionName](dateRanges);
-    res.json(data);
-  } else {
-    console.error(`Function ${functionName} does not exist.`);
-    res.status(404).send("Function not found");
-  }
-};
-
-let lastApiCallTime = 0;
-const MIN_DELAY_BETWEEN_CALLS_MS = 3000;
-
-const createThrottledFetch = (fetchFn) => async (...args) => {
-  const now = Date.now();
-  const timeSinceLastCall = now - lastApiCallTime;
-  const delayNeeded = MIN_DELAY_BETWEEN_CALLS_MS - timeSinceLastCall;
-
-  if (delayNeeded > 0) {
-    console.log(`Throttling: Waiting for ${delayNeeded}ms before calling ${fetchFn.name || 'a function'}.`);
-    await new Promise(resolve => setTimeout(resolve, delayNeeded));
-  }
-
-  const result = await fetchFn(...args);
-  lastApiCallTime = Date.now();
-  
-  return result;
-};
-
-const throttledFetchFunctions = {
-  searchNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSSearch),
-};
-
 const toColumnName = (num) => {
   let str = '';
   while (num >= 0) {
@@ -239,35 +166,60 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     const spreadsheetId = process.env.SHEET_HS_QS;
     const sheetName = "Quality Score Automation";
 
-    const adGroupColumnRange = `${sheetName}!A4:A`;
-    const adGroupColumnResponse = await sheets.spreadsheets.values.get({ spreadsheetId, range: adGroupColumnRange });
-    const adGroupNamesFromSheet = (adGroupColumnResponse.data.values || []).flat();
+    const structureRange = `${sheetName}!A4:B`;
+    const structureResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: structureRange,
+    });
+    const structureRows = structureResponse.data.values || [];
 
     const dynamicAdGroupRowMap = new Map();
-    adGroupNamesFromSheet.forEach((name, index) => {
-        if (name) {
-            const rowNumber = index + 4;
-            dynamicAdGroupRowMap.set(name, rowNumber);
+    const campaignsToFetch = new Map();
+    let currentCampaign = "";
+
+    structureRows.forEach((row, index) => {
+      const campaignName = row[0] || currentCampaign;
+      const adGroupName = row[1];
+      currentCampaign = campaignName;
+
+      if (adGroupName) {
+        const rowNumber = index + 4;
+        dynamicAdGroupRowMap.set(adGroupName, rowNumber);
+        if (!campaignsToFetch.has(campaignName)) {
+          campaignsToFetch.set(campaignName, []);
         }
+        campaignsToFetch.get(campaignName).push(adGroupName);
+      }
     });
 
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+      refresh_token: getStoredGoogleToken(),
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
 
-    const { searchNB: throttledBrandDataFetch } = throttledFetchFunctions;
-
-    const nestedReportData = await throttledBrandDataFetch(dateRanges);
-    const newApiReports = nestedReportData.flat();
-
-    const reportsByWeek = newApiReports.reduce((acc, report) => {
-      if (!acc[report.week]) {
-        acc[report.week] = [];
+    const allApiReports = [];
+    for (const [campaignName] of campaignsToFetch.entries()) {
+      for (const range of dateRanges) {
+        const weeklyData = await fetchWeeklyAdGroupReportWithKeywords(
+          customer,
+          range.start,
+          range.end,
+          campaignName
+        );
+        allApiReports.push(...weeklyData);
       }
+    }
+
+    const reportsByWeek = allApiReports.reduce((acc, report) => {
+      if (!acc[report.week]) acc[report.week] = [];
       acc[report.week].push(report);
       return acc;
     }, {});
 
-    const maxRow = adGroupNamesFromSheet.length > 0 ? adGroupNamesFromSheet.length + 3 : 4;
+    const maxRow = structureRows.length + 3;
     const readRange = `${sheetName}!A3:ZZ${maxRow}`;
     const sheetDataResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -278,20 +230,22 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     const combinedDataByWeek = {};
     const adGroupNamesByRow = {};
     dynamicAdGroupRowMap.forEach((rowNumber, name) => {
-        adGroupNamesByRow[rowNumber] = name;
+      adGroupNamesByRow[rowNumber] = name;
     });
 
     if (existingSheetValues.length > 0) {
       const existingHeaders = existingSheetValues[0] || [];
-      existingHeaders.slice(1).forEach((weekHeader, colIndex) => {
-        if (weekHeader && !combinedDataByWeek[weekHeader]) {
-          combinedDataByWeek[weekHeader] = [];
-        }
+      existingHeaders.slice(2).forEach((weekHeader, colIndex) => {
         if (weekHeader) {
-          for (let rowIndex = 1; rowIndex < existingSheetValues.length; rowIndex++) {
+          combinedDataByWeek[weekHeader] = combinedDataByWeek[weekHeader] || [];
+          for (
+            let rowIndex = 1;
+            rowIndex < existingSheetValues.length;
+            rowIndex++
+          ) {
             const row = existingSheetValues[rowIndex];
             const adGroupName = adGroupNamesByRow[rowIndex + 3];
-            const qsValue = row ? row[colIndex + 1] : undefined;
+            const qsValue = row ? row[colIndex + 2] : undefined;
             if (adGroupName && qsValue) {
               combinedDataByWeek[weekHeader].push({
                 adGroupName,
@@ -311,7 +265,7 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
     );
 
-    const clearRange = `${sheetName}!B3:ZZ`;
+    const clearRange = `${sheetName}!C3:ZZ`;
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
       range: clearRange,
@@ -319,7 +273,7 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
 
     const dataForBatchUpdate = [];
     sortedWeeks.forEach((weekString, colIndex) => {
-      const columnLetter = toColumnName(colIndex + 1);
+      const columnLetter = toColumnName(colIndex + 2);
       const weeklyReportData = combinedDataByWeek[weekString];
 
       dataForBatchUpdate.push({
@@ -327,7 +281,9 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
         values: [[weekString]],
       });
 
-      const columnData = Array(maxRow).fill(null).map(() => [null]);
+      const columnData = Array(maxRow)
+        .fill(null)
+        .map(() => [null]);
       weeklyReportData.forEach((report) => {
         const rowNumber = dynamicAdGroupRowMap.get(report.adGroupName);
         if (rowNumber) {
@@ -358,6 +314,5 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
 };
 
 module.exports = {
-  executeSpecificFetchFunctionHSAdG,
   sendFinalWeeklyReportToGoogleSheetsHSAdG,
 };

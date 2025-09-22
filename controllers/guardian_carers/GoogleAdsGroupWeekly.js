@@ -166,7 +166,7 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
     const spreadsheetId = process.env.SHEET_GC_QS;
     const sheetName = "Quality Score Automation";
 
-    const structureRange = `${sheetName}!B4:C`;
+    const structureRange = `${sheetName}!A4:B`;
     const structureResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: structureRange,
@@ -235,7 +235,7 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
 
     if (existingSheetValues.length > 0) {
       const existingHeaders = existingSheetValues[0] || [];
-      existingHeaders.slice(3).forEach((weekHeader, colIndex) => {
+      existingHeaders.slice(2).forEach((weekHeader, colIndex) => {
         if (weekHeader) {
           combinedDataByWeek[weekHeader] = combinedDataByWeek[weekHeader] || [];
           for (
@@ -245,7 +245,7 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
           ) {
             const row = existingSheetValues[rowIndex];
             const adGroupName = adGroupNamesByRow[rowIndex + 3];
-            const qsValue = row ? row[colIndex + 3] : undefined;
+            const qsValue = row ? row[colIndex + 2] : undefined;
             if (adGroupName && qsValue) {
               combinedDataByWeek[weekHeader].push({
                 adGroupName,
@@ -265,7 +265,7 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
       (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
     );
 
-    const clearRange = `${sheetName}!D3:ZZ`;
+    const clearRange = `${sheetName}!C3:ZZ`;
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
       range: clearRange,
@@ -273,7 +273,7 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
 
     const dataForBatchUpdate = [];
     sortedWeeks.forEach((weekString, colIndex) => {
-      const columnLetter = toColumnName(colIndex + 3);
+      const columnLetter = toColumnName(colIndex + 2);
       const weeklyReportData = combinedDataByWeek[weekString];
 
       dataForBatchUpdate.push({
