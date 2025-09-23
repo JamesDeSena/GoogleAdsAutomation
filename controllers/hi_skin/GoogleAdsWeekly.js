@@ -424,13 +424,9 @@ const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
       allWeeklyData.push(weeklyData);
     }
 
-    // await sendToAirtable(allWeeklyData, "All Weekly Report", "All Search");
     return allWeeklyData;
-
-    // res.json(allWeeklyData);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(300).send("Error fetching report data");
   }
 };
 
@@ -1216,7 +1212,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
 
     console.log("Final Hi, Skin weekly report sent to Google Sheets successfully!");
   } catch (error) {
-    console.error("Error sending final report to Google Sheets:", error);
+    console.error("Error sending Hi, Skin weekly report to Google Sheets:", error);
   }
 };
 

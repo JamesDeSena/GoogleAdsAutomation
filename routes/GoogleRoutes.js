@@ -73,6 +73,11 @@ const {
   sendFinalWeeklyReportToGoogleSheetsMNR,
 } = require('../controllers/menerals/GoogleAdsWeekly');
 
+const {
+  executeSpecificFetchFunctionST,
+  sendFinalWeeklyReportToGoogleSheetsST,
+} = require('../controllers/sleepy_tie/GoogleAdsWeekly');
+
 router.get('/lpc/report-daily', async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
@@ -196,6 +201,16 @@ router.get('/guardian_carers_adg/report-final', async (req, res) => {
 router.get('/menerals/report-final/:date?', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsMNR(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/sleepy_tie/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsST(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
