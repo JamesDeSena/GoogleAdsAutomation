@@ -58,14 +58,18 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
-const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate, exactCampaignName) => {
-  const performanceQuery = `
+const fetchWeeklyAdGroupReportWithKeywords = async (
+  customer,
+  startDate,
+  endDate,
+  exactCampaignName
+) => {
+  const reportQuery = `
     SELECT
       ad_group.id,
       ad_group.name,
-      ad_group_criterion.criterion_id,
-      ad_group_criterion.keyword.text,
       metrics.impressions,
+      metrics.historical_quality_score,
       metrics.cost_micros
     FROM
       keyword_view
@@ -75,44 +79,15 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
       AND metrics.cost_micros > 0
   `;
 
-  const qualityScoreQuery = `
-    SELECT
-      ad_group.id,
-      ad_group_criterion.criterion_id,
-      ad_group_criterion.quality_info.quality_score
-    FROM
-      ad_group_criterion
-    WHERE
-      campaign.name = '${exactCampaignName}'
-      AND ad_group_criterion.type = 'KEYWORD'
-      AND ad_group_criterion.status != 'REMOVED'
-  `;
-
-  const [performanceData, qualityScoreData] = await Promise.all([
-    customer.query(performanceQuery),
-    customer.query(qualityScoreQuery),
-  ]);
-
-  const qualityScoreMap = new Map();
-  qualityScoreData.forEach((row) => {
-    if (row.ad_group_criterion.quality_info) {
-      qualityScoreMap.set(
-        row.ad_group_criterion.criterion_id,
-        row.ad_group_criterion.quality_info.quality_score
-      );
-    }
-  });
-
+  const performanceData = await customer.query(reportQuery);
   const adGroupCalculations = new Map();
+
   performanceData.forEach((row) => {
     const adGroupId = row.ad_group.id;
     const adGroupName = row.ad_group.name;
-    const criterionId = row.ad_group_criterion.criterion_id;
-    const qualityScore = qualityScoreMap.get(criterionId);
+    const qualityScore = row.metrics.historical_quality_score;
 
-    if (qualityScore === undefined || qualityScore === null) {
-      return;
-    }
+    if (qualityScore === undefined || qualityScore === null) return;
 
     if (!adGroupCalculations.has(adGroupId)) {
       adGroupCalculations.set(adGroupId, {
@@ -133,12 +108,12 @@ const fetchWeeklyAdGroupReportWithKeywords = async (customer, startDate, endDate
 
   for (const [adGroupId, data] of adGroupCalculations.entries()) {
     let weightedQs = 0;
-    if (data.totalImpressions > 0) {
+    if (data.totalImpressions > 0)
       weightedQs = data.qsSumProduct / data.totalImpressions;
-    }
 
     finalReport.push({
       week: weekString,
+      campaignName: exactCampaignName,
       adGroupName: data.name,
       weightedQs: weightedQs.toFixed(2),
     });
@@ -154,6 +129,11 @@ const toColumnName = (num) => {
     num = Math.floor(num / 26) - 1;
   }
   return str;
+};
+
+const normalizeName = (name) => {
+  if (!name) return '';
+  return name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 };
 
 const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
@@ -184,7 +164,8 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
 
       if (adGroupName) {
         const rowNumber = index + 4;
-        dynamicAdGroupRowMap.set(adGroupName, rowNumber);
+        const uniqueKey = normalizeName(campaignName) + normalizeName(adGroupName);
+        dynamicAdGroupRowMap.set(uniqueKey, rowNumber);
         if (!campaignsToFetch.has(campaignName)) {
           campaignsToFetch.set(campaignName, []);
         }
@@ -285,7 +266,8 @@ const sendFinalWeeklyReportToGoogleSheetsGCAdG = async (req, res) => {
         .fill(null)
         .map(() => [null]);
       weeklyReportData.forEach((report) => {
-        const rowNumber = dynamicAdGroupRowMap.get(report.adGroupName);
+        const uniqueKey = normalizeName(report.campaignName) + normalizeName(report.adGroupName);
+        const rowNumber = dynamicAdGroupRowMap.get(uniqueKey);
         if (rowNumber) {
           columnData[rowNumber - 1] = [report.weightedQs];
         }

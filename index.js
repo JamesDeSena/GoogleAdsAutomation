@@ -23,14 +23,18 @@ const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } 
 const { sendFinalWeeklyReportToGoogleSheetsHSAdG } = require('./controllers/hi_skin/GoogleAdsGroupWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
 const { runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
+const { sendFinalWeeklyReportToGoogleSheetsLPCAdG } = require('./controllers/lpc/GoogleAdsGroupWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsLPC } = require('./controllers/lpc/GoogleAdsWeekly');
 const { sendLPCMonthlyReport } = require('./controllers/lpc/GoogleAdsMonthly');
 const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
+const { sendFinalWeeklyReportToGoogleSheetsMIVDAdG } = require('./controllers/mobile_iv/GoogleAdsGroupWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
+const { sendFinalWeeklyReportToGoogleSheetsGCAdG } = require('./controllers/guardian_carers/GoogleAdsGroupWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsGC } = require('./controllers/guardian_carers/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsMNR } = require('./controllers/menerals/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsST } = require('./controllers/sleepy_tie/GoogleAdsWeekly');
+const { sendFinalWeeklyReportToGoogleSheetsNB } = require('./controllers/national_buyers/GoogleAdsWeekly');
 
 const { highlightErrorHandler, highlightJobErrorHandler } = require('./utils/highlightIO');
 
@@ -115,6 +119,10 @@ rule5.tz = 'America/Los_Angeles';
 const morningJobs = [
   sendPacingReportToGoogleSheets,
   sendFinalDailyReportToGoogleSheetsMIV,
+  sendFinalWeeklyReportToGoogleSheetsHSAdG,
+  sendFinalWeeklyReportToGoogleSheetsMIVDAdG,
+  sendFinalWeeklyReportToGoogleSheetsLPCAdG,
+  sendFinalWeeklyReportToGoogleSheetsGCAdG,
 ];
 
 const eveningJobs = [
@@ -137,10 +145,10 @@ const eveningJobs2 = [
 ];
 
 const morningJobs3 = [
-  sendFinalWeeklyReportToGoogleSheetsHSAdG,
   sendFinalWeeklyReportToGoogleSheetsGC,
   sendFinalWeeklyReportToGoogleSheetsMNR,
   sendFinalWeeklyReportToGoogleSheetsST,
+  sendFinalWeeklyReportToGoogleSheetsNB,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsLPC,
   sendFinalWeeklyReportToGoogleSheetsHS,

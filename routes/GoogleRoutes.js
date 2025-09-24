@@ -60,6 +60,10 @@ const {
 } = require('../controllers/mobile_iv/GoogleAdsMonthly');
 
 const {
+  sendFinalWeeklyReportToGoogleSheetsMIVDAdG,
+} = require('../controllers/mobile_iv/GoogleAdsGroupWeekly');
+
+const {
   executeSpecificFetchFunctionGC,
   sendFinalWeeklyReportToGoogleSheetsGC,
 } = require('../controllers/guardian_carers/GoogleAdsWeekly');
@@ -77,6 +81,11 @@ const {
   executeSpecificFetchFunctionST,
   sendFinalWeeklyReportToGoogleSheetsST,
 } = require('../controllers/sleepy_tie/GoogleAdsWeekly');
+
+const {
+  executeSpecificFetchFunctionNB,
+  sendFinalWeeklyReportToGoogleSheetsNB,
+} = require('../controllers/national_buyers/GoogleAdsWeekly');
 
 router.get('/lpc/report-daily', async (req, res) => {
   try {
@@ -178,6 +187,16 @@ router.get('/mobile_iv/report-month/:date?', async (req, res) => {
   }
 });
 
+router.get('/mobile_iv_adg/report-final', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsMIVDAdG(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
 router.get('/guardian_carers/report-final/:date?', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsGC(req, res);
@@ -211,6 +230,16 @@ router.get('/menerals/report-final/:date?', async (req, res) => {
 router.get('/sleepy_tie/report-final/:date?', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsST(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/national_buyers/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsNB(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
