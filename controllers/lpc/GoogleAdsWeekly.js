@@ -99,7 +99,7 @@ async function getRawCampaigns() {
     const BATCH_SIZE = 20;
 
     const [allCampaignsData, allEventsData] = await Promise.all([
-      fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values", LAWMATICS_TOKEN, BATCH_SIZE),
+      fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values,utm_source", LAWMATICS_TOKEN, BATCH_SIZE),
       fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date", LAWMATICS_TOKEN, BATCH_SIZE)
     ]);
     
@@ -107,12 +107,15 @@ async function getRawCampaigns() {
       .filter(({ attributes }) => {
         if (!attributes?.created_at) return false;
         const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-        return createdDate >= new Date("2021-10-03T00:00:00-08:00");
+        if (createdDate < new Date("2021-10-03T00:00:00-08:00")) return false;
+        if (!/google/i.test(attributes?.utm_source || "")) return false;
+        return true;
       })
       .map(({ attributes, relationships }) => ({
         created_at: formatDateToMMDDYYYY(attributes.created_at),
         stage_id: relationships?.stage?.data?.id || null,
         jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+        source: attributes?.utm_source || null,
       }));
 
     const strategySessions = allEventsData
@@ -448,7 +451,7 @@ async function testLawmatics() {
     const BATCH_SIZE = 20;
 
     const allCampaignsData = await fetchPaginatedData(
-      "https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values",
+      "https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values,utm_source",
       LAWMATICS_TOKEN,
       BATCH_SIZE
     );
@@ -473,12 +476,18 @@ async function testLawmatics() {
         const createdDate = new Date(
           new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
         );
-        return createdDate >= startDate && createdDate <= endDate;
+        if (createdDate < startDate || createdDate > endDate) return false;
+
+        // ✅ only allow google utm_source
+        if ((attributes?.utm_source || "").toLowerCase() !== "google") return false;
+
+        return true;
       })
       .map(({ attributes, relationships }) => ({
         created_at: formatDateToMMDDYYYY(attributes.created_at),
         stage_id: relationships?.stage?.data?.id || null,
         jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+        source: attributes?.utm_source || null,
       }));
 
     // --- Weekly grouping ---
