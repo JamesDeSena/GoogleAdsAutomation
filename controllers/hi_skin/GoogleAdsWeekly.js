@@ -623,7 +623,7 @@ const aggregateDataForWeek = async (customer, startDate, endDate, campaignNameFi
   return aggregatedData;
 };
 
-const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, reportName, brandNBFilter, dateRanges) => {
+const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, brandNBFilter, dateRanges) => {
   const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
@@ -653,46 +653,47 @@ const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, repor
   }
 };
 
-const createFetchFunction = (campaignNameFilter, reportName, brandNBFilter = "") => {
-  return (req, res, dateRanges) => fetchReportDataWeeklyHSFilter(req, res, campaignNameFilter, reportName, brandNBFilter, dateRanges);
+const createFetchFunction = (campaignNameFilter, brandNBFilter = "") => {
+  return (req, res, dateRanges) => fetchReportDataWeeklyHSFilter(req, res, campaignNameFilter, brandNBFilter, dateRanges);
 };
 
 const fetchFunctions = {
-  fetchReportDataWeeklyHSBrand: createFetchFunction("Brand", "Brand", "Search"),
-  fetchReportDataWeeklyHSNB: createFetchFunction("NB", "NB", "Search"),
-  fetchReportDataWeeklyHSDSA: createFetchFunction("DSA", "DSA", "NB"),
-  fetchReportDataWeeklyHSGilbert: createFetchFunction("Gilbert", "Gilbert"),
-  fetchReportDataWeeklyHSGilbertBrand: createFetchFunction("Gilbert", "Gilbert", "Brand"),
-  fetchReportDataWeeklyHSGilbertNB: createFetchFunction("Gilbert", "Gilbert", "NB"),
-  fetchReportDataWeeklyHSMKT: createFetchFunction("MKT", "MKT"),
-  fetchReportDataWeeklyHSMKTBrand: createFetchFunction("MKT", "MKT", "Brand"),
-  fetchReportDataWeeklyHSMKTNB: createFetchFunction("MKT", "MKT", "NB"),
-  fetchReportDataWeeklyHSPhoenix: createFetchFunction("Phoenix", "Phoenix"),
-  fetchReportDataWeeklyHSPhoenixBrand: createFetchFunction("Phoenix", "Phoenix", "Brand"),
-  fetchReportDataWeeklyHSPhoenixNB: createFetchFunction("Phoenix", "Phoenix", "NB"),
-  fetchReportDataWeeklyHSScottsdale: createFetchFunction("Scottsdale", "Scottsdale"),
-  fetchReportDataWeeklyHSScottsdaleBrand: createFetchFunction("Scottsdale", "Scottsdale", "Brand"),
-  fetchReportDataWeeklyHSScottsdaleNB: createFetchFunction("Scottsdale", "Scottsdale", "NB"),
-  fetchReportDataWeeklyHSUptownPark: createFetchFunction("Uptown", "Uptown"),
-  fetchReportDataWeeklyHSUptownParkBrand: createFetchFunction("Uptown", "Uptown", "Brand"),
-  fetchReportDataWeeklyHSUptownParkNB: createFetchFunction("Uptown", "Uptown", "NB"),
-  fetchReportDataWeeklyHSMontrose: createFetchFunction("Montrose", "Montrose"),
-  fetchReportDataWeeklyHSMontroseBrand: createFetchFunction("Montrose", "Montrose", "Brand"),
-  fetchReportDataWeeklyHSMontroseNB: createFetchFunction("Montrose", "Montrose", "NB"),
-  fetchReportDataWeeklyHSRiceVillage: createFetchFunction("RiceVillage", "RiceVillage"),
-  fetchReportDataWeeklyHSRiceVillageBrand: createFetchFunction("RiceVillage", "RiceVillage", "Brand"),
-  fetchReportDataWeeklyHSRiceVillageNB: createFetchFunction("RiceVillage", "RiceVillage", "NB"),
-  fetchReportDataWeeklyHSMosaic: createFetchFunction("Mosaic", "Mosaic"),
-  fetchReportDataWeeklyHSMosaicBrand: createFetchFunction("Mosaic", "Mosaic", "Brand"),
-  fetchReportDataWeeklyHSMosaicNB: createFetchFunction("Mosaic", "Mosaic", "NB"),
-  fetchReportDataWeeklyHS14thSt: createFetchFunction("14thSt", "14thSt"),
-  fetchReportDataWeeklyHS14thStBrand: createFetchFunction("14thSt", "14thSt", "Brand"),
-  fetchReportDataWeeklyHS14thStNB: createFetchFunction("14thSt", "14thSt", "NB"),
-  fetchReportDataWeeklyHSPmax: createFetchFunction("Pmax", "Pmax"),
-  fetchReportDataWeeklyHSPmaxBrand: createFetchFunction("Pmax", "Pmax", "Brand"),
-  fetchReportDataWeeklyHSPmaxNB: createFetchFunction("Pmax", "Pmax", "NB"),
-  fetchReportDataWeeklyHSShopping: createFetchFunction("Shopping", "Shopping"),
-  fetchReportDataWeeklyHSBing: createFetchFunction("Bing", "Bing"),
+  fetchReportDataWeeklyHSBrand: createFetchFunction("Brand", "Search"),
+  fetchReportDataWeeklyHSNB: createFetchFunction("NB", "Search"),
+  fetchReportDataWeeklyHSDSA: createFetchFunction("DSA", "NB"),
+  fetchReportDataWeeklyHSGilbert: createFetchFunction("Gilbert", ""),
+  fetchReportDataWeeklyHSGilbertBrand: createFetchFunction("Gilbert", "Brand"),
+  fetchReportDataWeeklyHSGilbertNB: createFetchFunction("Gilbert", "NB"),
+  fetchReportDataWeeklyHSMKT: createFetchFunction("MKT", ""),
+  fetchReportDataWeeklyHSMKTBrand: createFetchFunction("MKT", "Brand"),
+  fetchReportDataWeeklyHSMKTNB: createFetchFunction("MKT", "NB"),
+  fetchReportDataWeeklyHSPhoenix: createFetchFunction("Phoenix", ""),
+  fetchReportDataWeeklyHSPhoenixBrand: createFetchFunction("Phoenix", "Brand"),
+  fetchReportDataWeeklyHSPhoenixNB: createFetchFunction("Phoenix", "NB"),
+  fetchReportDataWeeklyHSScottsdale: createFetchFunction("Scottsdale", ""),
+  fetchReportDataWeeklyHSScottsdaleBrand: createFetchFunction("Scottsdale", "Brand"),
+  fetchReportDataWeeklyHSScottsdaleNB: createFetchFunction("Scottsdale", "NB"),
+  fetchReportDataWeeklyHSUptownPark: createFetchFunction("Uptown", ""),
+  fetchReportDataWeeklyHSUptownParkBrand: createFetchFunction("Uptown", "Brand"),
+  fetchReportDataWeeklyHSUptownParkNB: createFetchFunction("Uptown", "NB"),
+  fetchReportDataWeeklyHSMontrose: createFetchFunction("Montrose", ""),
+  fetchReportDataWeeklyHSMontroseBrand: createFetchFunction("Montrose", "Brand"),
+  fetchReportDataWeeklyHSMontroseNB: createFetchFunction("Montrose", "NB"),
+  fetchReportDataWeeklyHSRiceVillage: createFetchFunction("RiceVillage", ""),
+  fetchReportDataWeeklyHSRiceVillageBrand: createFetchFunction("RiceVillage", "Brand"),
+  fetchReportDataWeeklyHSRiceVillageNB: createFetchFunction("RiceVillage", "NB"),
+  fetchReportDataWeeklyHSMosaic: createFetchFunction("Mosaic", ""),
+  fetchReportDataWeeklyHSMosaicBrand: createFetchFunction("Mosaic", "Brand"),
+  fetchReportDataWeeklyHSMosaicNB: createFetchFunction("Mosaic", "NB"),
+  fetchReportDataWeeklyHS14thSt: createFetchFunction("14thSt", ""),
+  fetchReportDataWeeklyHS14thStBrand: createFetchFunction("14thSt", "Brand"),
+  fetchReportDataWeeklyHS14thStNB: createFetchFunction("14thSt", "NB"),
+  fetchReportDataWeeklyHSPmax: createFetchFunction("Pmax", ""),
+  fetchReportDataWeeklyHSPmaxBrand: createFetchFunction("Pmax", "Brand"),
+  fetchReportDataWeeklyHSPmaxNB: createFetchFunction("Pmax", "NB"),
+  fetchReportDataWeeklyHSShopping: createFetchFunction("Shopping", ""),
+  fetchReportDataWeeklyHSDemandGen: createFetchFunction("DemandGen", ""),
+  fetchReportDataWeeklyHSBing: createFetchFunction("Bing", ""),
 };
 
 const executeSpecificFetchFunctionHS = async (req, res) => {
@@ -763,6 +764,7 @@ const throttledFetchFunctions = {
     pmaxDataBrand: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPmaxBrand),
     pmaxDataNB: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSPmaxNB),
     shoppingData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSShopping),
+    demandGenData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklyHSDemandGen),
     bingData: createThrottledFetch(aggregateWeeklyDataFromCSV),
 };
 
@@ -777,6 +779,8 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
   const spreadsheetId = process.env.SHEET_HI_SKIN;
   const dataRanges = {
     Live: 'Weekly Performance!A2:U',
+    Brand: 'Brand Weekly Performance!A2:U',
+    NB: 'NB Weekly Performance!A2:U'
   };
 
   try {
@@ -820,6 +824,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       pmaxDataBrand: throttledPmaxDataBrandFetch,
       pmaxDataNB: throttledPmaxDataNBFetch,
       shoppingData: throttledShoppingDataFetch,
+      demandGenData: throttledDemandGenFetch,
       bingData: throttledBingDataFetch,
     } = throttledFetchFunctions;
 
@@ -859,6 +864,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const pmaxDataBrand = await throttledPmaxDataBrandFetch(req, res, dateRanges);
     const pmaxDataNB = await throttledPmaxDataNBFetch(req, res, dateRanges);
     const shoppingData = await throttledShoppingDataFetch(req, res, dateRanges);
+    const demandGenData = await throttledDemandGenFetch(req, res, dateRanges);
     const bingData = await throttledBingDataFetch();
 
     const records = [];
@@ -993,34 +999,35 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     addDataToRecords(pmaxDataBrand, "Pmax Brand", 7);
     addDataToRecords(pmaxDataNB, "Pmax NB", 8);
     addDataToRecords(shoppingData, "Shopping", 9);
-    addDataToRecords(bingData, "Bing", 10);
-    addDataToRecords(gilbertData, "Gilbert", 11);
-    addDataToRecords(gilbertDataBrand, "Gilbert Brand", 12);
-    addDataToRecords(gilbertDataNB, "Gilbert NB", 13);
-    addDataToRecords(mktData, "MKT", 14);
-    addDataToRecords(mktDataBrand, "MKT Brand", 15);
-    addDataToRecords(mktDataNB, "MKT NB", 16);
-    addDataToRecords(phoenixData, "Phoenix", 17);
-    addDataToRecords(phoenixDataBrand, "Phoenix Brand", 18);
-    addDataToRecords(phoenixDataNB, "Phoenix NB", 19);
-    addDataToRecords(scottsdaleData, "Scottsdale", 20);
-    addDataToRecords(scottsdaleDataBrand, "Scottsdale Brand", 21);
-    addDataToRecords(scottsdaleDataNB, "Scottsdale NB", 22);
-    addDataToRecords(uptownParkData, "UptownPark", 23);
-    addDataToRecords(uptownParkDataBrand, "UptownPark Brand", 24);
-    addDataToRecords(uptownParkDataNB, "UptownPark NB", 25);
-    addDataToRecords(montroseData, "Montrose", 26);
-    addDataToRecords(montroseDataBrand, "Montrose Brand", 27);
-    addDataToRecords(montroseDataNB, "Montrose NB", 28);
-    addDataToRecords(riceVillageData, "RiceVillage", 29);
-    addDataToRecords(riceVillageDataBrand, "RiceVillage Brand", 30);
-    addDataToRecords(riceVillageDataNB, "RiceVillage NB", 31);
-    addDataToRecords(mosaicData, "Mosaic", 32);
-    addDataToRecords(mosaicDataBrand, "Mosaic Brand", 33);
-    addDataToRecords(mosaicDataNB, "Mosaic NB", 34);
-    addDataToRecords(fourteenthStData, "14thSt", 35);
-    addDataToRecords(fourteenthStDataBrand, "14thSt Brand", 36);
-    addDataToRecords(fourteenthStDataNB, "14thSt NB", 37);
+    addDataToRecords(demandGenData, "DemandGen", 10);
+    addDataToRecords(bingData, "Bing", 11);
+    addDataToRecords(gilbertData, "Gilbert", 12);
+    addDataToRecords(gilbertDataBrand, "Gilbert Brand", 13);
+    addDataToRecords(gilbertDataNB, "Gilbert NB", 14);
+    addDataToRecords(mktData, "MKT", 15);
+    addDataToRecords(mktDataBrand, "MKT Brand", 16);
+    addDataToRecords(mktDataNB, "MKT NB", 17);
+    addDataToRecords(phoenixData, "Phoenix", 18);
+    addDataToRecords(phoenixDataBrand, "Phoenix Brand", 19);
+    addDataToRecords(phoenixDataNB, "Phoenix NB", 20);
+    addDataToRecords(scottsdaleData, "Scottsdale", 21);
+    addDataToRecords(scottsdaleDataBrand, "Scottsdale Brand", 22);
+    addDataToRecords(scottsdaleDataNB, "Scottsdale NB", 23);
+    addDataToRecords(uptownParkData, "UptownPark", 24);
+    addDataToRecords(uptownParkDataBrand, "UptownPark Brand", 25);
+    addDataToRecords(uptownParkDataNB, "UptownPark NB", 26);
+    addDataToRecords(montroseData, "Montrose", 27);
+    addDataToRecords(montroseDataBrand, "Montrose Brand", 28);
+    addDataToRecords(montroseDataNB, "Montrose NB", 29);
+    addDataToRecords(riceVillageData, "RiceVillage", 30);
+    addDataToRecords(riceVillageDataBrand, "RiceVillage Brand", 31);
+    addDataToRecords(riceVillageDataNB, "RiceVillage NB", 32);
+    addDataToRecords(mosaicData, "Mosaic", 33);
+    addDataToRecords(mosaicDataBrand, "Mosaic Brand", 34);
+    addDataToRecords(mosaicDataNB, "Mosaic NB", 35);
+    addDataToRecords(fourteenthStData, "14thSt", 36);
+    addDataToRecords(fourteenthStDataBrand, "14thSt Brand", 37);
+    addDataToRecords(fourteenthStDataNB, "14thSt NB", 38);
 
     if (!date || date.trim() === '') {
       addWoWVariance(weeklyCampaignData.slice(-2)[0], weeklyCampaignData.slice(-3)[0], "All Campaign", 1);
@@ -1032,34 +1039,35 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       addWoWVariance(pmaxDataBrand.slice(-2)[0], pmaxDataBrand.slice(-3)[0], "Pmax Brand", 7);
       addWoWVariance(pmaxDataNB.slice(-2)[0], pmaxDataNB.slice(-3)[0], "Pmax NB", 8);
       addWoWVariance(shoppingData.slice(-2)[0], shoppingData.slice(-3)[0], "Shopping", 9);
-      addWoWVariance(bingData.slice(-2)[0], bingData.slice(-3)[0], "Bing",10);
-      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 11);
-      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "Gilbert Brand", 12);
-      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "Gilbert NB", 13);
-      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 14);
-      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "MKT Brand", 15);
-      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "MKT NB", 16);
-      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 17);
-      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "Phoenix Brand", 18);
-      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "Phoenix NB", 19);
-      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 20);
-      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "Scottsdale Brand", 21);
-      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "Scottsdale NB", 22);
-      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 23);
-      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "UptownPark Brand", 24);
-      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "UptownPark NB", 25);
-      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 26);
-      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "Montrose Brand", 27);
-      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "Montrose NB", 28);
-      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 29);
-      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "RiceVillage Brand", 30);
-      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "RiceVillage NB", 31);
-      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 32);
-      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "Mosaic Brand", 33);
-      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "Mosaic NB", 34);
-      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 35);
-      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "14thSt Brand", 36);
-      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "14thSt NB", 37);
+      addWoWVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], "DemandGen", 10);
+      addWoWVariance(bingData.slice(-2)[0], bingData.slice(-3)[0], "Bing", 11);
+      addWoWVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], "Gilbert", 12);
+      addWoWVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], "Gilbert Brand", 13);
+      addWoWVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], "Gilbert NB", 14);
+      addWoWVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], "MKT", 15);
+      addWoWVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], "MKT Brand", 16);
+      addWoWVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], "MKT NB", 17);
+      addWoWVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], "Phoenix", 18);
+      addWoWVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], "Phoenix Brand", 19);
+      addWoWVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], "Phoenix NB", 20);
+      addWoWVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], "Scottsdale", 21);
+      addWoWVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], "Scottsdale Brand", 22);
+      addWoWVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], "Scottsdale NB", 23);
+      addWoWVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], "UptownPark", 24);
+      addWoWVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], "UptownPark Brand", 25);
+      addWoWVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], "UptownPark NB", 26);
+      addWoWVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], "Montrose", 27);
+      addWoWVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], "Montrose Brand", 28);
+      addWoWVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], "Montrose NB", 29);
+      addWoWVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], "RiceVillage", 30);
+      addWoWVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], "RiceVillage Brand", 31);
+      addWoWVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], "RiceVillage NB", 32);
+      addWoWVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], "Mosaic", 33);
+      addWoWVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], "Mosaic Brand", 34);
+      addWoWVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], "Mosaic NB", 35);
+      addWoWVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], "14thSt", 36);
+      addWoWVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], "14thSt Brand", 37);
+      addWoWVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], "14thSt NB", 38);
     }
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
@@ -1073,34 +1081,35 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       addBiWeeklyVariance(pmaxDataBrand.slice(-2)[0], pmaxDataBrand.slice(-3)[0], pmaxDataBrand.slice(-4)[0], pmaxDataBrand.slice(-5)[0], "Pmax Brand", 7);
       addBiWeeklyVariance(pmaxDataNB.slice(-2)[0], pmaxDataNB.slice(-3)[0], pmaxDataNB.slice(-4)[0], pmaxDataNB.slice(-5)[0], "Pmax NB", 8);
       addBiWeeklyVariance(shoppingData.slice(-2)[0], shoppingData.slice(-3)[0], shoppingData.slice(-4)[0], shoppingData.slice(-5)[0], "Shopping", 9);
-      addBiWeeklyVariance(bingData.slice(-2)[0], bingData.slice(-3)[0], bingData.slice(-4)[0], bingData.slice(-5)[0], "Bing", 10);
-      addBiWeeklyVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], gilbertData.slice(-4)[0], gilbertData.slice(-5)[0], "Gilbert", 11);
-      addBiWeeklyVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], gilbertDataBrand.slice(-4)[0], gilbertDataBrand.slice(-5)[0], "Gilbert Brand", 12);
-      addBiWeeklyVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], gilbertDataNB.slice(-4)[0], gilbertDataNB.slice(-5)[0], "Gilbert NB", 13);
-      addBiWeeklyVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], mktData.slice(-4)[0], mktData.slice(-5)[0], "MKT", 14);
-      addBiWeeklyVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], mktDataBrand.slice(-4)[0], mktDataBrand.slice(-5)[0], "MKT Brand", 15);
-      addBiWeeklyVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], mktDataNB.slice(-4)[0], mktDataNB.slice(-5)[0], "MKT NB", 16);
-      addBiWeeklyVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], phoenixData.slice(-4)[0], phoenixData.slice(-5)[0], "Phoenix", 17);
-      addBiWeeklyVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], phoenixDataBrand.slice(-4)[0], phoenixDataBrand.slice(-5)[0], "Phoenix Brand", 18);
-      addBiWeeklyVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], phoenixDataNB.slice(-4)[0], phoenixDataNB.slice(-5)[0], "Phoenix NB", 19);
-      addBiWeeklyVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], scottsdaleData.slice(-4)[0], scottsdaleData.slice(-5)[0], "Scottsdale", 20);
-      addBiWeeklyVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], scottsdaleDataBrand.slice(-4)[0], scottsdaleDataBrand.slice(-5)[0], "Scottsdale Brand", 21);
-      addBiWeeklyVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], scottsdaleDataNB.slice(-4)[0], scottsdaleDataNB.slice(-5)[0], "Scottsdale NB", 22);
-      addBiWeeklyVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], uptownParkData.slice(-4)[0], uptownParkData.slice(-5)[0], "UptownPark", 23);
-      addBiWeeklyVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], uptownParkDataBrand.slice(-4)[0], uptownParkDataBrand.slice(-5)[0], "UptownPark Brand", 24);
-      addBiWeeklyVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], uptownParkDataNB.slice(-4)[0], uptownParkDataNB.slice(-5)[0], "UptownPark NB", 25);
-      addBiWeeklyVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], montroseData.slice(-4)[0], montroseData.slice(-5)[0], "Montrose", 26);
-      addBiWeeklyVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], montroseDataBrand.slice(-4)[0], montroseDataBrand.slice(-5)[0], "Montrose Brand", 27);
-      addBiWeeklyVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], montroseDataNB.slice(-4)[0], montroseDataNB.slice(-5)[0], "Montrose NB", 28);
-      addBiWeeklyVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], riceVillageData.slice(-4)[0], riceVillageData.slice(-5)[0], "RiceVillage", 29);
-      addBiWeeklyVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], riceVillageDataBrand.slice(-4)[0], riceVillageDataBrand.slice(-5)[0], "RiceVillage Brand", 30);
-      addBiWeeklyVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], riceVillageDataNB.slice(-4)[0], riceVillageDataNB.slice(-5)[0], "RiceVillage NB", 31);
-      addBiWeeklyVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], mosaicData.slice(-4)[0], mosaicData.slice(-5)[0], "Mosaic", 32);
-      addBiWeeklyVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], mosaicDataBrand.slice(-4)[0], mosaicDataBrand.slice(-5)[0], "Mosaic Brand", 33);
-      addBiWeeklyVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], mosaicDataNB.slice(-4)[0], mosaicDataNB.slice(-5)[0], "Mosaic NB", 34);
-      addBiWeeklyVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], fourteenthStData.slice(-4)[0], fourteenthStData.slice(-5)[0], "14thSt", 35);
-      addBiWeeklyVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], fourteenthStDataBrand.slice(-4)[0], fourteenthStDataBrand.slice(-5)[0], "14thSt Brand", 36);
-      addBiWeeklyVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], fourteenthStDataNB.slice(-4)[0], fourteenthStDataNB.slice(-5)[0], "14thSt NB", 37);
+      addBiWeeklyVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], demandGenData.slice(-4)[0], demandGenData.slice(-5)[0], "DemandGen", 10);
+      addBiWeeklyVariance(bingData.slice(-2)[0], bingData.slice(-3)[0], bingData.slice(-4)[0], bingData.slice(-5)[0], "Bing", 11);
+      addBiWeeklyVariance(gilbertData.slice(-2)[0], gilbertData.slice(-3)[0], gilbertData.slice(-4)[0], gilbertData.slice(-5)[0], "Gilbert", 12);
+      addBiWeeklyVariance(gilbertDataBrand.slice(-2)[0], gilbertDataBrand.slice(-3)[0], gilbertDataBrand.slice(-4)[0], gilbertDataBrand.slice(-5)[0], "Gilbert Brand", 13);
+      addBiWeeklyVariance(gilbertDataNB.slice(-2)[0], gilbertDataNB.slice(-3)[0], gilbertDataNB.slice(-4)[0], gilbertDataNB.slice(-5)[0], "Gilbert NB", 14);
+      addBiWeeklyVariance(mktData.slice(-2)[0], mktData.slice(-3)[0], mktData.slice(-4)[0], mktData.slice(-5)[0], "MKT", 15);
+      addBiWeeklyVariance(mktDataBrand.slice(-2)[0], mktDataBrand.slice(-3)[0], mktDataBrand.slice(-4)[0], mktDataBrand.slice(-5)[0], "MKT Brand", 16);
+      addBiWeeklyVariance(mktDataNB.slice(-2)[0], mktDataNB.slice(-3)[0], mktDataNB.slice(-4)[0], mktDataNB.slice(-5)[0], "MKT NB", 17);
+      addBiWeeklyVariance(phoenixData.slice(-2)[0], phoenixData.slice(-3)[0], phoenixData.slice(-4)[0], phoenixData.slice(-5)[0], "Phoenix", 18);
+      addBiWeeklyVariance(phoenixDataBrand.slice(-2)[0], phoenixDataBrand.slice(-3)[0], phoenixDataBrand.slice(-4)[0], phoenixDataBrand.slice(-5)[0], "Phoenix Brand", 19);
+      addBiWeeklyVariance(phoenixDataNB.slice(-2)[0], phoenixDataNB.slice(-3)[0], phoenixDataNB.slice(-4)[0], phoenixDataNB.slice(-5)[0], "Phoenix NB", 20);
+      addBiWeeklyVariance(scottsdaleData.slice(-2)[0], scottsdaleData.slice(-3)[0], scottsdaleData.slice(-4)[0], scottsdaleData.slice(-5)[0], "Scottsdale", 21);
+      addBiWeeklyVariance(scottsdaleDataBrand.slice(-2)[0], scottsdaleDataBrand.slice(-3)[0], scottsdaleDataBrand.slice(-4)[0], scottsdaleDataBrand.slice(-5)[0], "Scottsdale Brand", 22);
+      addBiWeeklyVariance(scottsdaleDataNB.slice(-2)[0], scottsdaleDataNB.slice(-3)[0], scottsdaleDataNB.slice(-4)[0], scottsdaleDataNB.slice(-5)[0], "Scottsdale NB", 23);
+      addBiWeeklyVariance(uptownParkData.slice(-2)[0], uptownParkData.slice(-3)[0], uptownParkData.slice(-4)[0], uptownParkData.slice(-5)[0], "UptownPark", 24);
+      addBiWeeklyVariance(uptownParkDataBrand.slice(-2)[0], uptownParkDataBrand.slice(-3)[0], uptownParkDataBrand.slice(-4)[0], uptownParkDataBrand.slice(-5)[0], "UptownPark Brand", 25);
+      addBiWeeklyVariance(uptownParkDataNB.slice(-2)[0], uptownParkDataNB.slice(-3)[0], uptownParkDataNB.slice(-4)[0], uptownParkDataNB.slice(-5)[0], "UptownPark NB", 26);
+      addBiWeeklyVariance(montroseData.slice(-2)[0], montroseData.slice(-3)[0], montroseData.slice(-4)[0], montroseData.slice(-5)[0], "Montrose", 27);
+      addBiWeeklyVariance(montroseDataBrand.slice(-2)[0], montroseDataBrand.slice(-3)[0], montroseDataBrand.slice(-4)[0], montroseDataBrand.slice(-5)[0], "Montrose Brand", 28);
+      addBiWeeklyVariance(montroseDataNB.slice(-2)[0], montroseDataNB.slice(-3)[0], montroseDataNB.slice(-4)[0], montroseDataNB.slice(-5)[0], "Montrose NB", 29);
+      addBiWeeklyVariance(riceVillageData.slice(-2)[0], riceVillageData.slice(-3)[0], riceVillageData.slice(-4)[0], riceVillageData.slice(-5)[0], "RiceVillage", 30);
+      addBiWeeklyVariance(riceVillageDataBrand.slice(-2)[0], riceVillageDataBrand.slice(-3)[0], riceVillageDataBrand.slice(-4)[0], riceVillageDataBrand.slice(-5)[0], "RiceVillage Brand", 31);
+      addBiWeeklyVariance(riceVillageDataNB.slice(-2)[0], riceVillageDataNB.slice(-3)[0], riceVillageDataNB.slice(-4)[0], riceVillageDataNB.slice(-5)[0], "RiceVillage NB", 32);
+      addBiWeeklyVariance(mosaicData.slice(-2)[0], mosaicData.slice(-3)[0], mosaicData.slice(-4)[0], mosaicData.slice(-5)[0], "Mosaic", 33);
+      addBiWeeklyVariance(mosaicDataBrand.slice(-2)[0], mosaicDataBrand.slice(-3)[0], mosaicDataBrand.slice(-4)[0], mosaicDataBrand.slice(-5)[0], "Mosaic Brand", 34);
+      addBiWeeklyVariance(mosaicDataNB.slice(-2)[0], mosaicDataNB.slice(-3)[0], mosaicDataNB.slice(-4)[0], mosaicDataNB.slice(-5)[0], "Mosaic NB", 35);
+      addBiWeeklyVariance(fourteenthStData.slice(-2)[0], fourteenthStData.slice(-3)[0], fourteenthStData.slice(-4)[0], fourteenthStData.slice(-5)[0], "14thSt", 36);
+      addBiWeeklyVariance(fourteenthStDataBrand.slice(-2)[0], fourteenthStDataBrand.slice(-3)[0], fourteenthStDataBrand.slice(-4)[0], fourteenthStDataBrand.slice(-5)[0], "14thSt Brand", 37);
+      addBiWeeklyVariance(fourteenthStDataNB.slice(-2)[0], fourteenthStDataNB.slice(-3)[0], fourteenthStDataNB.slice(-4)[0], fourteenthStDataNB.slice(-5)[0], "14thSt NB", 38);
     }
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
@@ -1170,7 +1179,9 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     ]);
 
     const dataToSend = {
-      Live: sheetData.filter(row => ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
+      Live: sheetData.filter(row => ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "DemandGen", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "DemandGen", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
+      Brand: sheetData.filter(row => ["Brand Search", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
+      NB: sheetData.filter(row => ["NB Search", "DSA NB", "Pmax", "Pmax NB", "Shopping", "DemandGen"].includes(row[0]) || ["NB Search", "DSA NB", "Pmax", "Pmax NB", "Shopping", "DemandGen"].includes(row[1])),
     };    
 
     const formatSheets = async (sheetName, data) => {

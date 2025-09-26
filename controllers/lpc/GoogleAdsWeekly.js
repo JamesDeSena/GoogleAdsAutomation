@@ -108,7 +108,7 @@ async function getRawCampaigns() {
         if (!attributes?.created_at) return false;
         const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
         if (createdDate < new Date("2021-10-03T00:00:00-08:00")) return false;
-        if (!/google/i.test(attributes?.utm_source || "")) return false;
+        if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
         return true;
       })
       .map(({ attributes, relationships }) => ({

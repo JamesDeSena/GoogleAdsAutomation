@@ -67,9 +67,10 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     cost: 0,
     conversions: 0,
     interactions: 0,
-    // callsFromAds: 0,
-    // formSubmissionProfile: 0,
-    // formSubmitHiring: 0,
+    callsFromAds: 0,
+    formSubmissionProfile: 0,
+    formSubmitHiring: 0,
+    contactsHubspot: 0,
     // conv_date: 0,
   };
 
@@ -92,20 +93,20 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
       segments.date DESC
   `;
 
-  // const conversionQuery = `
-  //   SELECT 
-  //     campaign.id,
-  //     metrics.all_conversions,
-  //     segments.conversion_action_name,
-  //     segments.date 
-  //   FROM 
-  //     campaign
-  //   WHERE 
-  //     segments.date BETWEEN '${startDate}' AND '${endDate}'
-  //     AND segments.conversion_action_name IN ('MNR - Calls from ads', 'guardiancarers.co.uk - GA4 (web) Form Submission Profile', 'guardiancarers.co.uk - GA4 (web) Form Submit Hiring')
-  //   ORDER BY 
-  //     segments.date DESC
-  // `;
+  const conversionQuery = `
+    SELECT 
+      campaign.id,
+      metrics.all_conversions,
+      segments.conversion_action_name,
+      segments.date 
+    FROM 
+      campaign
+    WHERE 
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND segments.conversion_action_name IN ('GC - Calls from ads', 'guardiancarers.co.uk - GA4 (web) Form Submission Profile', 'guardiancarers.co.uk - GA4 (web) Form Submit Hiring', 'Contacts Hubspot Integration')
+    ORDER BY 
+      segments.date DESC
+  `;
 
   let metricsPageToken = null;
   do {
@@ -121,26 +122,28 @@ const aggregateDataForWeek = async (customer, startDate, endDate ) => {
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
 
-  // let conversionPageToken = null;
-  // do {
-  //   const conversionBatchResponse = await customer.query(conversionQuery);
-  //   conversionBatchResponse.forEach((conversion) => {
-  //     const conversionValue = conversion.metrics.all_conversions || 0;
-  //     if (conversion.segments.conversion_action_name === "MNR - Calls from ads") {
-  //       aggregatedData.callsFromAds += conversionValue;
-  //     } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submission Profile") {
-  //       aggregatedData.formSubmissionProfile += conversionValue;
-  //     } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submit Hiring") {
-  //       aggregatedData.formSubmitHiring += conversionValue;
-  //     }
-  //   });
-  //   conversionPageToken = conversionBatchResponse.next_page_token;
-  // } while (conversionPageToken);
+  let conversionPageToken = null;
+  do {
+    const conversionBatchResponse = await customer.query(conversionQuery);
+    conversionBatchResponse.forEach((conversion) => {
+      const conversionValue = conversion.metrics.all_conversions || 0;
+      if (conversion.segments.conversion_action_name === "GC - Calls from ads") {
+        aggregatedData.callsFromAds += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submission Profile") {
+        aggregatedData.formSubmissionProfile += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "guardiancarers.co.uk - GA4 (web) Form Submit Hiring") {
+        aggregatedData.formSubmitHiring += conversionValue;
+      } else if (conversion.segments.conversion_action_name === "Contacts Hubspot Integration") {
+        aggregatedData.contactsHubspot += conversionValue;
+      }
+    });
+    conversionPageToken = conversionBatchResponse.next_page_token;
+  } while (conversionPageToken);
 
   return aggregatedData;
 };
 
-const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, dateRanges) => {
+const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, reportName, dateRanges) => {
   const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
@@ -170,15 +173,15 @@ const fetchReportDataWeeklyFilter = async (req, res, campaignNameFilter, dateRan
   }
 };
 
-const createFetchFunction = (campaignNameFilter) => {
-  return (req, res, dateRanges) => fetchReportDataWeeklyFilter(req, res, campaignNameFilter, dateRanges);
+const createFetchFunction = (campaignNameFilter, reportName) => {
+  return (req, res, dateRanges) => fetchReportDataWeeklyFilter(req, res, campaignNameFilter, reportName, dateRanges);
 };
 
 const fetchFunctions = {
-  fetchReportDataWeeklyTotal: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_MNR, "Total"),
+  fetchReportDataWeeklyTotal: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_GC, "Total"),
 };
 
-const executeSpecificFetchFunctionMNR = async (req, res) => {
+const executeSpecificFetchFunctionGC = async (req, res) => {
   const functionName = "fetchReportDataWeeklyTotal";
   const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
@@ -190,16 +193,16 @@ const executeSpecificFetchFunctionMNR = async (req, res) => {
   }
 };
 
-const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
+const sendFinalWeeklyReportToGoogleSheetsGC = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
     keyFile: 'serviceToken.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const spreadsheetId = process.env.SHEET_MENERALS;
+  const spreadsheetId = process.env.SHEET_GUARDIAN_CARERS;
   const dataRanges = {
-    MNRLive: 'Weekly Report!A2:K',
+    GCLive: 'Weekly Report!A2:O',
   };
 
   try {
@@ -211,7 +214,7 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
 
-    const formatCurrency = (value) => `$${value.toFixed(2)}`;
+    const formatCurrency = (value) => `£${value.toFixed(2)}`;
     const formatPercentage = (value) => `${value.toFixed(2)}%`;
     const formatNumber = (value) => value % 1 === 0 ? value : value.toFixed(2);
 
@@ -228,6 +231,10 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance(lastRecord.conversions, secondToLastRecord.conversions)),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(lastRecord.cost / lastRecord.conversions, secondToLastRecord.cost / secondToLastRecord.conversions)),
         "Conv. Rate": formatPercentage(calculateWoWVariance(lastRecord.conversions / lastRecord.interactions, secondToLastRecord.conversions / secondToLastRecord.interactions)),
+        "Contacts Hubspot Integration": formatPercentage(calculateWoWVariance(lastRecord.contactsHubspot, secondToLastRecord.contactsHubspot)),
+        "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(lastRecord.callsFromAds, secondToLastRecord.callsFromAds)),
+        "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(lastRecord.formSubmissionProfile, secondToLastRecord.formSubmissionProfile)),
+        "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(lastRecord.formSubmitHiring, secondToLastRecord.formSubmitHiring)),
       };
     
       records.push(baseRecord);
@@ -246,6 +253,10 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
         "Conversion": formatPercentage(calculateWoWVariance((previousRecord.conversions + secondToPreviousRecord.conversions), (lastRecord.conversions + secondToLastRecord.conversions))),
         "Cost Per Conv": formatPercentage(calculateWoWVariance(((previousRecord.cost / previousRecord.conversions) + (secondToPreviousRecord.cost / secondToPreviousRecord.conversions)), ((lastRecord.cost / lastRecord.conversions) + (secondToLastRecord.cost / secondToLastRecord.conversions)))),
         "Conv. Rate": formatPercentage(calculateWoWVariance(((previousRecord.conversions / previousRecord.interactions) + (secondToPreviousRecord.conversions / secondToPreviousRecord.interactions)), ((lastRecord.conversions / lastRecord.interactions) + (secondToLastRecord.conversions / secondToLastRecord.interactions)))),
+        "Contacts Hubspot Integration": formatPercentage(calculateWoWVariance(((previousRecord.contactsHubspot + secondToPreviousRecord.contactsHubspot)), ((lastRecord.contactsHubspot + secondToLastRecord.contactsHubspot)))),
+        "GA4 - Calls from ads": formatPercentage(calculateWoWVariance(((previousRecord.callsFromAds + secondToPreviousRecord.callsFromAds)), ((lastRecord.callsFromAds + secondToLastRecord.callsFromAds)))),
+        "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatPercentage(calculateWoWVariance(((previousRecord.formSubmissionProfile + secondToPreviousRecord.formSubmissionProfile)), ((lastRecord.formSubmissionProfile + secondToLastRecord.formSubmissionProfile)))),
+        "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatPercentage(calculateWoWVariance(((previousRecord.formSubmitHiring + secondToPreviousRecord.formSubmitHiring)), ((lastRecord.formSubmitHiring + secondToLastRecord.formSubmitHiring)))),
       };
     
       records.push(baseRecord);
@@ -265,6 +276,10 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
           "Conversion": formatNumber(record.conversions),
           "Cost Per Conv": formatCurrency(record.cost / record.conversions),
           "Conv. Rate": formatPercentage((record.conversions / record.interactions) * 100),
+          "Contacts Hubspot Integration": formatNumber(record.contactsHubspot),
+          "GA4 - Calls from ads": formatNumber(record.callsFromAds),
+          "guardiancarers.co.uk - GA4 (web) Form Submission Profile": formatNumber(record.formSubmissionProfile),
+          "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": formatNumber(record.formSubmitHiring),
         };
 
         records.push(baseRecord);
@@ -302,6 +317,10 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
             "Conversion": "Conversion",
             "Cost Per Conv": "Cost Per Conv",
             "Conv. Rate": "Conv. Rate",
+            "Contacts Hubspot Integration": "Contacts Hubspot Integration",
+            "GA4 - Calls from ads": "GA4 - Calls from ads",
+            "guardiancarers.co.uk - GA4 (web) Form Submission Profile": "guardiancarers.co.uk - GA4 (web) Form Submission Profile",
+            "guardiancarers.co.uk - GA4 (web) Form Submit Hiring": "guardiancarers.co.uk - GA4 (web) Form Submit Hiring",
           };    
     
           finalRecords.push(baseHeader);
@@ -330,13 +349,17 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
         record["Conversion"],
         record["Cost Per Conv"],
         record["Conv. Rate"],
+        record["Contacts Hubspot Integration"],
+        record["GA4 - Calls from ads"],
+        record["guardiancarers.co.uk - GA4 (web) Form Submission Profile"],
+        record["guardiancarers.co.uk - GA4 (web) Form Submit Hiring"],
       ];
       
       return baseData;
     });    
 
     const dataToSend = {
-      MNRLive: sheetData.filter(row => ["All Campaign"].includes(row[1])),
+      GCLive: sheetData.filter(row => ["All Campaign"].includes(row[1])),
     };    
 
     const formatSheets = async (sheetName, data) => {
@@ -382,13 +405,13 @@ const sendFinalWeeklyReportToGoogleSheetsMNR = async (req, res) => {
       await formatSheets(sheetName, data);
     }    
 
-    console.log("Final Menerals weekly report sent to Google Sheets successfully!");
+    console.log("Final Guardian Carers weekly report sent to Google Sheets successfully!");
   } catch (error) {
     console.error("Error sending final report to Google Sheets:", error);
   }
 };
 
 module.exports = {
-  executeSpecificFetchFunctionMNR,
-  sendFinalWeeklyReportToGoogleSheetsMNR,
+  executeSpecificFetchFunctionGC,
+  sendFinalWeeklyReportToGoogleSheetsGC,
 };

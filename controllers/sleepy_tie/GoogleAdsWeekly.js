@@ -292,12 +292,12 @@ const createThrottledFetch = (fetchFn) => async (...args) => {
 };
 
 const throttledFetchFunctions = {
-    weeklyCampaignData: createThrottledFetch(fetchReportDataWeeklyCampaignST),
-    shoppingNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingNB),
-    shoppingBrandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingBrand),
-    searchNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTSearchNB),
-    pmaxData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTPmax),
-    demandGenData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTDemandGen),
+  weeklyCampaignData: createThrottledFetch(fetchReportDataWeeklyCampaignST),
+  shoppingNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingNB),
+  shoppingBrandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingBrand),
+  searchNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTSearchNB),
+  pmaxData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTPmax),
+  demandGenData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTDemandGen),
 };
 
 const sendFinalWeeklyReportToGoogleSheetsST = async (req, res) => {
