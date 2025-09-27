@@ -402,6 +402,7 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
   do {
     const metricsResponse = await customer.query(metricsQuery);
     metricsResponse.forEach((campaign) => {
+      if (campaign.campaign.name.startsWith("LocalServicesCampaign:SystemGenerated")) return;
       aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
     });
     metricsPageToken = metricsResponse.next_page_token;
@@ -446,9 +447,9 @@ const createFetchFunction = (condition, campaignNameFilter) => {
 
 const fetchFunctions = {
   fetchReportDataMonthly: createFetchFunction("LIKE", ""),
-  fetchReportDataMonthlyNoAZ: createFetchFunction("NOT LIKE", "AZ"),
-  fetchReportDataMonthlyCA: createFetchFunction("LIKE", "CA"),
-  fetchReportDataMonthlyAZ: createFetchFunction("LIKE", "AZ"),
+  fetchReportDataMonthlyNoAZ: createFetchFunction("NOT LIKE", "AZ_"),
+  fetchReportDataMonthlyCA: createFetchFunction("LIKE", "CA_"),
+  fetchReportDataMonthlyAZ: createFetchFunction("LIKE", "AZ_"),
 };
 
 const executeSpecificFetchFunctionLPC = async (req, res) => {

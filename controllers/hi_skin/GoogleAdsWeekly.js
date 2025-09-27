@@ -1181,7 +1181,7 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
     const dataToSend = {
       Live: sheetData.filter(row => ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "DemandGen", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "NB Search", "DSA NB", "Pmax", "Pmax Brand", "Pmax NB", "Shopping", "DemandGen", "Bing", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
       Brand: sheetData.filter(row => ["Brand Search", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[0]) || ["Brand Search", "Gilbert Brand", "MKT Brand", "Phoenix Brand", "Scottsdale Brand", "UptownPark Brand", "Montrose Brand", "RiceVillage Brand", "Mosaic Brand", "14thSt Brand"].includes(row[1])),
-      NB: sheetData.filter(row => ["NB Search", "DSA NB", "Pmax", "Pmax NB", "Shopping", "DemandGen"].includes(row[0]) || ["NB Search", "DSA NB", "Pmax", "Pmax NB", "Shopping", "DemandGen"].includes(row[1])),
+      NB: sheetData.filter(row => ["NB Search", "DSA NB", "Pmax NB", "Shopping", "DemandGen"].includes(row[0]) || ["NB Search", "DSA NB", "Pmax NB", "Shopping", "DemandGen"].includes(row[1])),
     };    
 
     const formatSheets = async (sheetName, data) => {

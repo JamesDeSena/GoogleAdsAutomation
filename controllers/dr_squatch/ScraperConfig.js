@@ -31,6 +31,15 @@ const REGION_CONFIGS = [
   { regionCode: 'UK', sourceSheetId: '1WnI1NzG7V3JzHo-EXt4ffGlwDMC_apgRPCjMXkgrDNY', outputFolderName: 'UK' },
 ];
 
+const RERUN_REGIONS = [
+  { regionCode: 'US', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'US - Stock Changes Review', outputFolderName: 'US' },
+  { regionCode: 'CA', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'CA - Stock Changes Review', outputFolderName: 'CA' },
+  { regionCode: 'AU', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'AU - Stock Changes Review', outputFolderName: 'AU' },
+  { regionCode: 'EU', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'EU - Stock Changes Review', outputFolderName: 'EU' },
+  { regionCode: 'DE', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'DE - Stock Changes Review', outputFolderName: 'DE' },
+  { regionCode: 'UK', sourceSheetId: CONTROLLER_SHEET_ID, sheetName: 'UK - Stock Changes Review', outputFolderName: 'UK' },
+];
+
 const usCaCollectionSlugs = [
   'starter-bundles',
   'best-sellers',
@@ -87,6 +96,7 @@ module.exports = {
   ROOT_OUTPUT_FOLDER_ID,
   RETENTION_DAYS,
   REGION_CONFIGS,
+  RERUN_REGIONS,
   SOURCE_SHEET_NAME,
   OUTPUT_SHEET_NAME,
   STATUS_SHEET_NAME,
