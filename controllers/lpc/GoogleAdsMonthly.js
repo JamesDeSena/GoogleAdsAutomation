@@ -378,10 +378,11 @@ async function getAmountBing() {
 const aggregateDataForMonth = async (customer, condition, campaignNameFilter, startDate, endDate ) => {
   const startDateObj = new Date(startDate);
   const formattedDate = `${startDateObj.toLocaleString('en-US', { month: 'short' })}-${startDateObj.getFullYear().toString().slice(-2)}`;
-  
+
   const aggregatedData = {
     date: formattedDate,
     cost: 0,
+    localServices: 0,
   };
 
   const metricsQuery = `
@@ -402,8 +403,14 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
   do {
     const metricsResponse = await customer.query(metricsQuery);
     metricsResponse.forEach((campaign) => {
-      if (campaign.campaign.name.startsWith("LocalServicesCampaign:SystemGenerated")) return;
-      aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
+      const cost = (campaign.metrics.cost_micros || 0) / 1_000_000;
+
+      if (campaign.campaign.name.startsWith("LocalServicesCampaign:SystemGenerated")) {
+        aggregatedData.localServices += cost;
+      } else {
+        aggregatedData.cost += cost;
+      }
+
     });
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
@@ -609,18 +616,25 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
   try {
     const record = getStoredMetrics();
 
-    const mapData = (arr) =>
+    const mapGoogleData = (arr) =>
+      (arr || []).reduce((map, { date, cost, localServices }) => {
+        map[date] = { cost, localServices: localServices || 0 };
+        return map;
+      }, {});
+
+    const mapBingData = (arr) =>
       (arr || []).reduce((map, { date, cost }) => {
         map[date] = cost;
         return map;
       }, {});
 
-    const googleNoAzMap = mapData(record.googleNoAZ);
-    const googleCAMap = mapData(record.googleCA);
-    const googleAZMap = mapData(record.googleAZ);
-    const bingNoAZMap = mapData(record.bingNoAZ);
-    const bingCAMap = mapData(record.bingCA);
-    const bingAZMap = mapData(record.bingAZ);
+    const googleNoAzMap = mapGoogleData(record.googleNoAZ);
+    const googleCAMap = mapGoogleData(record.googleCA);
+    const googleAZMap = mapGoogleData(record.googleAZ);
+    
+    const bingNoAZMap = mapBingData(record.bingNoAZ);
+    const bingCAMap = mapBingData(record.bingCA);
+    const bingAZMap = mapBingData(record.bingAZ);
 
     const allMonths = Array.from(new Set([
       ...Object.keys(googleNoAzMap),
@@ -647,10 +661,12 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
     for (const date of allMonths) {
       const row = [];
       row[0] = date;
-      row[2] = googleNoAzMap[date] || 0;
+      row[2] = googleNoAzMap[date]?.cost || 0;
       row[3] = bingNoAZMap[date] || 0;
-      row[8] = googleAZMap[date] || 0;
+      row[6] = googleNoAzMap[date]?.localServices || 0;
+      row[8] = googleAZMap[date]?.cost || 0;
       row[9] = bingAZMap[date] || 0;
+      row[12] = googleAZMap[date]?.localServices || 0;
 
       if (labelToRow[date]) {
         const rowIndex = labelToRow[date];
@@ -659,8 +675,16 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
           values: [[row[2], row[3]]],
         });
         updateRequests.push({
+          range: `Location Spend!F${rowIndex}`,
+          values: [[row[6]]],
+        });
+        updateRequests.push({
           range: `Location Spend!I${rowIndex}:J${rowIndex}`,
           values: [[row[8], row[9]]],
+        });
+        updateRequests.push({
+          range: `Location Spend!L${rowIndex}`,
+          values: [[row[12]]],
         });
       } else {
         rowsToAppend.push(row);
@@ -680,7 +704,7 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
     if (rowsToAppend.length > 0) {
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Location Spend!A:J',
+        range: 'Location Spend!A:M',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         resource: { values: rowsToAppend },

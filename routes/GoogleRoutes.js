@@ -87,6 +87,10 @@ const {
   sendFinalWeeklyReportToGoogleSheetsNB,
 } = require('../controllers/national_buyers/GoogleAdsWeekly');
 
+const {
+  sendFinalWeeklyReportToGoogleSheetsNBAdG,
+} = require('../controllers/national_buyers/GoogleAdsGroupWeekly');
+
 router.get('/lpc/report-daily', async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
@@ -240,6 +244,16 @@ router.get('/sleepy_tie/report-final/:date?', async (req, res) => {
 router.get('/national_buyers/report-final/:date?', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsNB(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/national_buyers_adg/report-final', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsNBAdG(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

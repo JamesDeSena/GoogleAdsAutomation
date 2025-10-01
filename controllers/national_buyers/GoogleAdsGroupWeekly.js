@@ -1,4 +1,4 @@
-const { google } = require("googleapis");
+const { google } = require('googleapis');
 const { client } = require("../../configs/googleAdsConfig");
 const { getStoredGoogleToken } = require("../GoogleAuth");
 
@@ -30,7 +30,7 @@ const generateWeeklyDateRanges = (startDate, endDate) => {
 const getOrGenerateDateRanges = (inputStartDate = null) => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysSinceLast = (dayOfWeek + 6) % 7;
+  const daysSinceLast = (dayOfWeek + 6) % 7; //Friday (dayOfWeek + 1) % 7; Monday (dayOfWeek + 6) % 7;
 
   const previousLast = new Date(today);
   previousLast.setDate(today.getDate() - daysSinceLast);
@@ -38,16 +38,13 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
   const currentDay = new Date(previousLast);
   currentDay.setDate(previousLast.getDate() + 6);
 
-  const startDate = "2025-08-10";
-  const endDate = currentDay;
+  const startDate = '2025-08-10'; //previousFriday 2024-09-13 / 11-11
+  // const fixedEndDate = '2024-11-07'; // currentDay
+
+  const endDate = currentDay; //new Date(fixedEndDate); //currentDay;
 
   if (inputStartDate) {
-    return generateWeeklyDateRanges(
-      inputStartDate,
-      new Date(
-        new Date(inputStartDate).setDate(new Date(inputStartDate).getDate() + 6)
-      )
-    );
+    return generateWeeklyDateRanges(inputStartDate, new Date(new Date(inputStartDate).setDate(new Date(inputStartDate).getDate() + 6)));
   } else {
     if (
       !storedDateRanges ||
@@ -126,9 +123,9 @@ const fetchWeeklyAdGroupReportWithKeywords = async (
 };
 
 const toColumnName = (num) => {
-  let str = "";
+  let str = '';
   while (num >= 0) {
-    str = String.fromCharCode((num % 26) + 65) + str;
+    str = String.fromCharCode(num % 26 + 65) + str;
     num = Math.floor(num / 26) - 1;
   }
   return str;
@@ -139,23 +136,17 @@ const normalizeName = (name) => {
   return name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 };
 
-const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
+const sendFinalWeeklyReportToGoogleSheetsNBAdG = async (req, res) => {
   try {
     const auth = new google.auth.GoogleAuth({
       keyFile: "serviceToken.json",
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.SHEET_MIVD_QS;
+    const spreadsheetId = process.env.SHEET_NB_QS;
     const sheetName = "Quality Score Automation";
 
-    const LOCATION_TO_CUSTOMER_ID_MAP = {
-      AZ: process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ,
-      LV: process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV,
-      NYC: process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC,
-    };
-
-    const structureRange = `${sheetName}!A4:C`;
+    const structureRange = `${sheetName}!A4:B`;
     const structureResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: structureRange,
@@ -163,59 +154,46 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
     const structureRows = structureResponse.data.values || [];
 
     const dynamicAdGroupRowMap = new Map();
-    const campaignsByLocation = new Map();
-    let currentLocation = "";
+    const campaignsToFetch = new Map();
     let currentCampaign = "";
 
     structureRows.forEach((row, index) => {
-      const location = row[0] || currentLocation;
-      const campaignName = row[1] || currentCampaign;
-      const adGroupName = row[2];
-      currentLocation = location;
+      const campaignName = row[0] || currentCampaign;
+      const adGroupName = row[1];
       currentCampaign = campaignName;
 
       if (adGroupName) {
         const rowNumber = index + 4;
         const uniqueKey = normalizeName(campaignName) + normalizeName(adGroupName);
         dynamicAdGroupRowMap.set(uniqueKey, rowNumber);
-
-        if (!campaignsByLocation.has(location))
-          campaignsByLocation.set(location, new Map());
-        const campaignsInLocation = campaignsByLocation.get(location);
-        if (!campaignsInLocation.has(campaignName))
-          campaignsInLocation.set(campaignName, []);
-        campaignsInLocation.get(campaignName).push(adGroupName);
+        if (!campaignsToFetch.has(campaignName)) {
+          campaignsToFetch.set(campaignName, []);
+        }
+        campaignsToFetch.get(campaignName).push(adGroupName);
       }
     });
 
     const date = req?.params?.date;
     const dateRanges = getOrGenerateDateRanges(date);
+    const customer = client.Customer({
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_NB,
+      refresh_token: getStoredGoogleToken(),
+      login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+    });
+
     const allApiReports = [];
-    const refreshToken = getStoredGoogleToken();
-
-    for (const [location, campaignsToFetch] of campaignsByLocation.entries()) {
-      const customerId = LOCATION_TO_CUSTOMER_ID_MAP[location];
-      if (!customerId) continue;
-
-      const customer = client.Customer({
-        customer_id: customerId,
-        refresh_token: refreshToken,
-        login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-      });
-
-      for (const [campaignName] of campaignsToFetch.entries()) {
-        for (const range of dateRanges) {
-          const weeklyData = await fetchWeeklyAdGroupReportWithKeywords(
-            customer,
-            range.start,
-            range.end,
-            campaignName
-          );
-          allApiReports.push(...weeklyData);
-        }
+    for (const [campaignName] of campaignsToFetch.entries()) {
+      for (const range of dateRanges) {
+        const weeklyData = await fetchWeeklyAdGroupReportWithKeywords(
+          customer,
+          range.start,
+          range.end,
+          campaignName
+        );
+        allApiReports.push(...weeklyData);
       }
     }
-    
+
     const reportsByWeek = allApiReports.reduce((acc, report) => {
       if (!acc[report.week]) acc[report.week] = [];
       acc[report.week].push(report);
@@ -232,13 +210,13 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
 
     const combinedDataByWeek = {};
     const adGroupNamesByRow = {};
-    dynamicAdGroupRowMap.forEach(
-      (rowNumber, name) => (adGroupNamesByRow[rowNumber] = name)
-    );
+    dynamicAdGroupRowMap.forEach((rowNumber, name) => {
+      adGroupNamesByRow[rowNumber] = name;
+    });
 
     if (existingSheetValues.length > 0) {
       const existingHeaders = existingSheetValues[0] || [];
-      existingHeaders.slice(3).forEach((weekHeader, colIndex) => {
+      existingHeaders.slice(2).forEach((weekHeader, colIndex) => {
         if (weekHeader) {
           combinedDataByWeek[weekHeader] = combinedDataByWeek[weekHeader] || [];
           for (
@@ -248,7 +226,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
           ) {
             const row = existingSheetValues[rowIndex];
             const adGroupName = adGroupNamesByRow[rowIndex + 3];
-            const qsValue = row ? row[colIndex + 3] : undefined;
+            const qsValue = row ? row[colIndex + 2] : undefined;
             if (adGroupName && qsValue) {
               combinedDataByWeek[weekHeader].push({
                 adGroupName,
@@ -260,14 +238,15 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
       });
     }
 
-    for (const weekString in reportsByWeek)
+    for (const weekString in reportsByWeek) {
       combinedDataByWeek[weekString] = reportsByWeek[weekString];
+    }
 
     const sortedWeeks = Object.keys(combinedDataByWeek).sort(
       (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
     );
 
-    const clearRange = `${sheetName}!D3:ZZ`;
+    const clearRange = `${sheetName}!C3:ZZ`;
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
       range: clearRange,
@@ -275,7 +254,7 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
 
     const dataForBatchUpdate = [];
     sortedWeeks.forEach((weekString, colIndex) => {
-      const columnLetter = toColumnName(colIndex + 3);
+      const columnLetter = toColumnName(colIndex + 2);
       const weeklyReportData = combinedDataByWeek[weekString];
 
       dataForBatchUpdate.push({
@@ -289,7 +268,9 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
       weeklyReportData.forEach((report) => {
         const uniqueKey = normalizeName(report.campaignName) + normalizeName(report.adGroupName);
         const rowNumber = dynamicAdGroupRowMap.get(uniqueKey);
-        if (rowNumber) columnData[rowNumber - 1] = [report.weightedQs ?? ""];
+        if (rowNumber) {
+          columnData[rowNumber - 1] = [report.weightedQs];
+        }
       });
 
       dataForBatchUpdate.push({
@@ -309,16 +290,16 @@ const sendFinalWeeklyReportToGoogleSheetsMIVDAdG = async (req, res) => {
     }
 
     console.log(
-      "Final MIVD Ads Group Keywords weekly report sent to Google Sheets successfully!"
+      `Final National Buyers Ads Group Keywords weekly report sent to Google Sheets successfully!`
     );
   } catch (error) {
     console.error(
-      "Error sending MIVD Ads Group weekly report to Google Sheets:",
+      "Error sending National Buyers Ads Group Keywords weekly report to Google Sheets:",
       error
     );
   }
 };
 
-module.exports = { 
-  sendFinalWeeklyReportToGoogleSheetsMIVDAdG 
+module.exports = {
+  sendFinalWeeklyReportToGoogleSheetsNBAdG,
 };
