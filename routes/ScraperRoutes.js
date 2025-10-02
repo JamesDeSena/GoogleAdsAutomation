@@ -9,6 +9,10 @@ const {
   runTestStock,
 } = require('../controllers/dr_squatch/StockScraper');
 
+const {
+  validateWeekendData
+} = require('../controllers/dr_squatch/DataValidation');
+
 router.get('/stock', (req, res) => {
   try {
     runStockVerification(); 
@@ -22,6 +26,16 @@ router.get('/stock', (req, res) => {
 router.get('/rerun', (req, res) => {
   try {
     rerunFailedScrapes(); 
+    res.status(202).send("✅ Accepted: Verification process for ALL regions has been started. Monitor the 'Overview' sheet for progress.");
+  } catch (error) {
+    console.error("Error starting verification for all regions:", error);
+    res.status(500).send("❌ Error starting verification for all regions.");
+  }
+});
+
+router.get('/validate', (req, res) => {
+  try {
+    validateWeekendData(); 
     res.status(202).send("✅ Accepted: Verification process for ALL regions has been started. Monitor the 'Overview' sheet for progress.");
   } catch (error) {
     console.error("Error starting verification for all regions:", error);

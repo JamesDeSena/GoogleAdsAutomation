@@ -675,7 +675,7 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
           values: [[row[2], row[3]]],
         });
         updateRequests.push({
-          range: `Location Spend!F${rowIndex}`,
+          range: `Location Spend!G${rowIndex}`,
           values: [[row[6]]],
         });
         updateRequests.push({
@@ -683,7 +683,7 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
           values: [[row[8], row[9]]],
         });
         updateRequests.push({
-          range: `Location Spend!L${rowIndex}`,
+          range: `Location Spend!M${rowIndex}`,
           values: [[row[12]]],
         });
       } else {

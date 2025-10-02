@@ -1,12 +1,29 @@
-require("dotenv").config();
 const axios = require("axios");
-const fs = require("fs")
-const path = require("path");
 const { chromium } = require("patchright");
 const { google } = require("googleapis");
-const scraperConfig = require("./ScraperConfig");
 const { Readable } = require("stream");
+require("dotenv").config();
+
+const fs = require("fs")
+const path = require("path");
+
 const { sendSlackSummary } = require('./SlackNotifier');
+const scraperConfig = require("./ScraperConfig");
+const {
+  ROOT_OUTPUT_FOLDER_ID,
+  CONTROLLER_SHEET_ID,
+  OUTPUT_SHEET_NAME,
+  SOURCE_SHEET_NAME,
+  STATUS_SHEET_NAME,
+  STATUS_CELL,
+  USER_AGENTS,
+  CONCURRENCY,
+  STAGGER_DELAY_MS,
+  BATCH_MIN_DELAY_MS,
+  BATCH_MAX_DELAY_MS,
+  RERUN_REGIONS,
+  REGION_CONFIGS
+} = scraperConfig;
 
 const auth = new google.auth.GoogleAuth({
   keyFile: "serviceToken.json",
@@ -41,9 +58,9 @@ function normalizeUrl(url) {
 
 async function updateStatusCell(message) {
   try {
-    const range = `${scraperConfig.STATUS_SHEET_NAME}!${scraperConfig.STATUS_CELL}`;
+    const range = `${STATUS_SHEET_NAME}!${STATUS_CELL}`;
     await sheets.spreadsheets.values.update({
-      spreadsheetId: scraperConfig.CONTROLLER_SHEET_ID,
+      spreadsheetId: CONTROLLER_SHEET_ID,
       range,
       valueInputOption: "USER_ENTERED",
       resource: { values: [[message]] },
@@ -135,7 +152,7 @@ async function updateReviewSheet(spreadsheetId, sheetName, headers, data) {
   } else {
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: `${sheetName}!A2:K`,
+      range: `${sheetName}!A2:Z`,
     });
   }
 
@@ -150,8 +167,7 @@ async function updateReviewSheet(spreadsheetId, sheetName, headers, data) {
 }
 
 async function getProductsFromSheet(sheetId, sheetName) {
-  // Use the provided sheetName, or fall back to the default from the config file.
-  const sheetNameToUse = sheetName || scraperConfig.SOURCE_SHEET_NAME;
+  const sheetNameToUse = sheetName || SOURCE_SHEET_NAME;
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
@@ -179,6 +195,7 @@ async function getProductsFromSheet(sheetId, sheetName) {
       currentStatus: (statusIndex !== -1 ? r[statusIndex] : "unknown")?.toLowerCase(),
     }))
     .filter((p) => p.id && p.link);
+    // .slice(0, 10);
 }
 
 async function handleCloseIfExists(page) {
@@ -251,7 +268,7 @@ async function findVisibleButton(page, selectors) {
 async function fetchWithRetries(url, options = {}, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const randomUserAgent = scraperConfig.USER_AGENTS[Math.floor(Math.random() * scraperConfig.USER_AGENTS.length)];
+      const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
       const requestOptions = {
         ...options,
         headers: { 'User-Agent': randomUserAgent },
@@ -425,27 +442,29 @@ async function finalizeRegionRun(regionConfig, results) {
   console.log(`💾 Finalizing and uploading reports for ${regionConfig.regionCode}...`);
   await updateStatusCell(`Status: Finalizing reports for ${regionConfig.regionCode}...`);
 
-  const regionFolderId = await getOrCreateFolder(scraperConfig.ROOT_OUTPUT_FOLDER_ID, regionConfig.outputFolderName);
+  const regionFolderId = await getOrCreateFolder(ROOT_OUTPUT_FOLDER_ID, regionConfig.outputFolderName);
   const dailyFolderId = await getOrCreateFolder(regionFolderId, dateStamp);
 
   const fullCsvHeaders = ["id", "link", "detected_status", "gmc_availability_hint", "method", "http_status", "redirected_to", "evidence", "url_group", "checked_at_utc", "note"];
   const issuesCsvHeaders = ["id", "link", "issue_type", "detail", "http_status", "url_group", "checked_at_utc"];
+  const reviewHeaders = ["id", "link", "current_status", "detected_status", "gmc_availability_hint", "method", "evidence", "url_group", "checked_at_utc", "approval", "notes"];
 
   const fullCsvContent = arrayToCsv(fullCsvHeaders, fullResults.map((r) => [r.id, r.link, r.detected_status, r.gmc_availability_hint, r.method, "", "", r.evidence, r.link, r.checked_at_utc, ""]));
   const issuesCsvContent = arrayToCsv(issuesCsvHeaders, issueResults.map((r) => [r.id, r.link, r.issue_type, r.detail, "", r.link, r.checked_at_utc]));
+  const reviewCsvContent = arrayToCsv(reviewHeaders, fullResults.map((r) => [r.id, r.link, r.current_status || "", r.detected_status, r.gmc_availability_hint, r.method, r.evidence, r.link, r.checked_at_utc, "", ""]));
   const evidenceJsonlContent = evidenceResults.map((e) => JSON.stringify(e)).join("\n");
 
   await uploadFileToDrive(dailyFolderId, "stock_check_full.csv", "text/csv", fullCsvContent);
   await uploadFileToDrive(dailyFolderId, "issues_log.csv", "text/csv", issuesCsvContent);
+  await uploadFileToDrive(dailyFolderId, "review_data.csv", "text/csv", reviewCsvContent);
   if (evidenceResults.length > 0) {
     await uploadFileToDrive(dailyFolderId, "evidence_log.jsonl", "application/json", evidenceJsonlContent);
   }
 
-  const reviewSheetName = `${regionConfig.regionCode} - ${scraperConfig.OUTPUT_SHEET_NAME}`;
-  const reviewHeaders = ["id", "link", "current_status", "detected_status", "gmc_availability_hint", "method", "evidence", "url_group", "checked_at_utc", "approval", "notes"];
-  const reviewData = changeResults.map((r) => [r.id, r.link, r.current_status, r.detected_status, r.gmc_availability_hint, r.method, r.evidence, r.link, r.checked_at_utc, "---", ""]);
+  const reviewSheetName = `${regionConfig.regionCode} - ${OUTPUT_SHEET_NAME}`;
+  const reviewData = changeResults.map((r) => [r.id, r.link, r.current_status, r.detected_status, r.gmc_availability_hint, r.method, r.evidence, r.link, r.checked_at_utc, "", ""]);
 
-  await updateReviewSheet(scraperConfig.CONTROLLER_SHEET_ID, reviewSheetName, reviewHeaders, reviewData);
+  await updateReviewSheet(CONTROLLER_SHEET_ID, reviewSheetName, reviewHeaders, reviewData);
 
   await sendSlackSummary({
     region: regionConfig.regionCode,
@@ -453,7 +472,7 @@ async function finalizeRegionRun(regionConfig, results) {
     totalProducts: fullResults.length,
     changesCount: changeResults.length,
     unknownCount: fullResults.filter(r => r.detected_status.includes("UNKNOWN")).length,
-    reviewSheetUrl: `https://docs.google.com/spreadsheets/d/${scraperConfig.CONTROLLER_SHEET_ID}/edit#gid=0`,
+    reviewSheetUrl: `https://docs.google.com/spreadsheets/d/${CONTROLLER_SHEET_ID}/edit#gid=0`,
     driveFolderUrl: `https://drive.google.com/drive/folders/${dailyFolderId}`,
   });
 
@@ -462,16 +481,12 @@ async function finalizeRegionRun(regionConfig, results) {
 
 async function processSingleRegion(regionConfig, browserContext) {
   console.log(`➡️  Processing Region: ${regionConfig.regionCode}`);
-  // Pass the specific sheetName from the region's config.
-  // This works for RERUN_REGIONS (which have sheetName) and the main REGION_CONFIGS (which don't).
   const productsToCheck = await getProductsFromSheet(regionConfig.sourceSheetId, regionConfig.sheetName);
 
   if (productsToCheck.length === 0) {
     console.log(`No products found for ${regionConfig.regionCode}. Skipping.`);
     return;
   }
-
-  // Define totalProducts based on the actual count of products found to prevent crashes.
   const totalProducts = productsToCheck.length;
 
   await updateStatusCell(
@@ -483,9 +498,9 @@ async function processSingleRegion(regionConfig, browserContext) {
   // =================================================================
   const crawlerResults = [];
   const batches = [];
-  // Use the correctly defined totalProducts variable.
-  for (let i = 0; i < totalProducts; i += scraperConfig.CONCURRENCY) {
-    batches.push(productsToCheck.slice(i, i + scraperConfig.CONCURRENCY));
+
+  for (let i = 0; i < totalProducts; i += CONCURRENCY) {
+    batches.push(productsToCheck.slice(i, i + CONCURRENCY));
   }
 
   for (const [index, batch] of batches.entries()) {
@@ -493,8 +508,8 @@ async function processSingleRegion(regionConfig, browserContext) {
 
     const batchPromises = batch.map(async (product, i) => {
       const staggerDelay = getRandomDelay(
-        scraperConfig.STAGGER_DELAY_MS * i,
-        scraperConfig.STAGGER_DELAY_MS * i + 500
+        STAGGER_DELAY_MS * i,
+        STAGGER_DELAY_MS * i + 500
       );
       await sleep(staggerDelay);
 
@@ -516,7 +531,7 @@ async function processSingleRegion(regionConfig, browserContext) {
     );
 
     if (index < batches.length - 1) {
-      await sleep(getRandomDelay(scraperConfig.BATCH_MIN_DELAY_MS, scraperConfig.BATCH_MAX_DELAY_MS));
+      await sleep(getRandomDelay(BATCH_MIN_DELAY_MS, BATCH_MAX_DELAY_MS));
     }
   }
 
@@ -653,7 +668,7 @@ async function rerunFailedScrapes() {
 
     await updateStatusCell("Status: Starting verification for rerun regions...");
 
-    for (const regionConfig of scraperConfig.RERUN_REGIONS) {
+    for (const regionConfig of RERUN_REGIONS) {
       await processSingleRegion(regionConfig, browserContext);
     }
 
@@ -689,7 +704,7 @@ async function runStockVerification() {
 
     await updateStatusCell("Status: Starting verification for all regions...");
 
-    for (const regionConfig of scraperConfig.REGION_CONFIGS) {
+    for (const regionConfig of REGION_CONFIGS) {
       await processSingleRegion(regionConfig, browserContext);
     }
 
@@ -711,7 +726,7 @@ async function runSingleRegionVerification(regionCode) {
   let browserContext;
   console.log(`🚀 Initializing Single Region Verification for: ${regionCode}...`);
 
-  const regionConfig = scraperConfig.REGION_CONFIGS.find((rc) => rc.regionCode === regionCode);
+  const regionConfig = REGION_CONFIGS.find((rc) => rc.regionCode === regionCode);
   if (!regionConfig) {
     const errorMsg = `❌ Error: Region code "${regionCode}" not found in configuration.`;
     console.error(errorMsg);

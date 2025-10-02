@@ -253,6 +253,8 @@ const createFetchFunction = (campaignNameFilter, brandNBFilter = "") => {
 };
 
 const fetchFunctions = {
+  fetchReportDataWeeklySTAllBrand: createFetchFunction("_Brand", ""),
+  fetchReportDataWeeklySTAllNonbrand: createFetchFunction("_Nonbrand", ""),
   fetchReportDataWeeklySTShoppingNB: createFetchFunction("Shopping_Nonbrand", ""),
   fetchReportDataWeeklySTShoppingBrand: createFetchFunction("Shopping_Brand", ""),
   fetchReportDataWeeklySTSearchNB: createFetchFunction("Search_Nonbrand", ""),
@@ -293,6 +295,8 @@ const createThrottledFetch = (fetchFn) => async (...args) => {
 
 const throttledFetchFunctions = {
   weeklyCampaignData: createThrottledFetch(fetchReportDataWeeklyCampaignST),
+  allBrandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTAllBrand),
+  allNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTAllNonbrand),
   shoppingNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingNB),
   shoppingBrandData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTShoppingBrand),
   searchNBData: createThrottledFetch(fetchFunctions.fetchReportDataWeeklySTSearchNB),
@@ -319,6 +323,8 @@ const sendFinalWeeklyReportToGoogleSheetsST = async (req, res) => {
 
     const {
       weeklyCampaignData: throttledWeeklyCampaignDataFetch,
+      allBrandData: throttledAllBrandDataFetch,
+      allNBData: throttledAllNBDataFetch,
       shoppingNBData: throttledShoppingNBDataFetch,
       shoppingBrandData: throttledShoppingBrandDataFetch,
       searchNBData: throttledSearchNBDataFetch,
@@ -327,6 +333,8 @@ const sendFinalWeeklyReportToGoogleSheetsST = async (req, res) => {
     } = throttledFetchFunctions;
 
     const weeklyCampaignData = await throttledWeeklyCampaignDataFetch(dateRanges);
+    const allBrandData = await throttledAllBrandDataFetch(req, res, dateRanges);
+    const allNBData = await throttledAllNBDataFetch(req, res, dateRanges);
     const shoppingNBData = await throttledShoppingNBDataFetch(req, res, dateRanges);
     const shoppingBrandData = await throttledShoppingBrandDataFetch(req, res, dateRanges);
     const searchNBData = await throttledSearchNBDataFetch(req, res, dateRanges);
@@ -439,29 +447,35 @@ const sendFinalWeeklyReportToGoogleSheetsST = async (req, res) => {
     };
 
     addDataToRecords(weeklyCampaignData, "All Campaign", 1);
-    addDataToRecords(shoppingNBData, "Shopping Nonbrand", 2);
-    addDataToRecords(shoppingBrandData, "Shopping Brand", 3);
-    addDataToRecords(searchNBData, "Search Nonbrand", 4);
-    addDataToRecords(pmaxData, "Pmax", 5);
-    addDataToRecords(demandGenData, "Demand Gen", 6);
+    addDataToRecords(allBrandData, "Brand", 2);
+    addDataToRecords(allNBData, "Nonbrand", 3);
+    addDataToRecords(shoppingNBData, "Shopping Nonbrand", 4);
+    addDataToRecords(shoppingBrandData, "Shopping Brand", 5);
+    addDataToRecords(searchNBData, "Search Nonbrand", 6);
+    addDataToRecords(pmaxData, "Pmax", 7);
+    addDataToRecords(demandGenData, "Demand Gen", 8);
 
     if (!date || date.trim() === '') {
       addWoWVariance(weeklyCampaignData.slice(-2)[0], weeklyCampaignData.slice(-3)[0], "All Campaign", 1);
-      addWoWVariance(shoppingNBData.slice(-2)[0], shoppingNBData.slice(-3)[0], "Shopping Nonbrand", 2);
-      addWoWVariance(shoppingBrandData.slice(-2)[0], shoppingBrandData.slice(-3)[0], "Shopping Brand", 3);
-      addWoWVariance(searchNBData.slice(-2)[0], searchNBData.slice(-3)[0], "Search Nonbrand", 4);
-      addWoWVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], "Pmax", 5);
-      addWoWVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], "Demand Gen", 6);
+      addWoWVariance(allBrandData.slice(-2)[0], allBrandData.slice(-3)[0], "Brand", 2);
+      addWoWVariance(allNBData.slice(-2)[0], allNBData.slice(-3)[0], "Nonbrand", 3);
+      addWoWVariance(shoppingNBData.slice(-2)[0], shoppingNBData.slice(-3)[0], "Shopping Nonbrand", 4);
+      addWoWVariance(shoppingBrandData.slice(-2)[0], shoppingBrandData.slice(-3)[0], "Shopping Brand", 5);
+      addWoWVariance(searchNBData.slice(-2)[0], searchNBData.slice(-3)[0], "Search Nonbrand", 6);
+      addWoWVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], "Pmax", 7);
+      addWoWVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], "Demand Gen", 8);
     }
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
     if (!date || date.trim() === '') {
       addBiWeeklyVariance(weeklyCampaignData.slice(-2)[0], weeklyCampaignData.slice(-3)[0], weeklyCampaignData.slice(-4)[0], weeklyCampaignData.slice(-5)[0], "All Campaign", 1);
-      addBiWeeklyVariance(shoppingNBData.slice(-2)[0], shoppingNBData.slice(-3)[0], shoppingNBData.slice(-4)[0], shoppingNBData.slice(-5)[0], "Shopping Nonbrand", 2);
-      addBiWeeklyVariance(shoppingBrandData.slice(-2)[0], shoppingBrandData.slice(-3)[0], shoppingBrandData.slice(-4)[0], shoppingBrandData.slice(-5)[0], "Shopping Brand", 3);
-      addBiWeeklyVariance(searchNBData.slice(-2)[0], searchNBData.slice(-3)[0], searchNBData.slice(-4)[0], searchNBData.slice(-5)[0], "Search Nonbrand", 4);
-      addBiWeeklyVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], pmaxData.slice(-4)[0], pmaxData.slice(-5)[0], "Pmax", 5);
-      addBiWeeklyVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], demandGenData.slice(-4)[0], demandGenData.slice(-5)[0], "Demand Gen", 6);
+      addBiWeeklyVariance(allBrandData.slice(-2)[0], allBrandData.slice(-3)[0], allBrandData.slice(-4)[0], allBrandData.slice(-5)[0], "Brand", 2);
+      addBiWeeklyVariance(allNBData.slice(-2)[0], allNBData.slice(-3)[0], allNBData.slice(-4)[0], allNBData.slice(-5)[0], "Nonbrand", 3);
+      addBiWeeklyVariance(shoppingNBData.slice(-2)[0], shoppingNBData.slice(-3)[0], shoppingNBData.slice(-4)[0], shoppingNBData.slice(-5)[0], "Shopping Nonbrand", 4);
+      addBiWeeklyVariance(shoppingBrandData.slice(-2)[0], shoppingBrandData.slice(-3)[0], shoppingBrandData.slice(-4)[0], shoppingBrandData.slice(-5)[0], "Shopping Brand", 5);
+      addBiWeeklyVariance(searchNBData.slice(-2)[0], searchNBData.slice(-3)[0], searchNBData.slice(-4)[0], searchNBData.slice(-5)[0], "Search Nonbrand", 6);
+      addBiWeeklyVariance(pmaxData.slice(-2)[0], pmaxData.slice(-3)[0], pmaxData.slice(-4)[0], pmaxData.slice(-5)[0], "Pmax", 7);
+      addBiWeeklyVariance(demandGenData.slice(-2)[0], demandGenData.slice(-3)[0], demandGenData.slice(-4)[0], demandGenData.slice(-5)[0], "Demand Gen", 8);
     }
     records.sort((a, b) => a.Filter2 - b.Filter2);
 
@@ -519,7 +533,7 @@ const sendFinalWeeklyReportToGoogleSheetsST = async (req, res) => {
     ]);
 
     const dataToSend = {
-      Live: sheetData.filter(row => ["All Campaign", "Shopping Nonbrand", "Shopping Brand", "Search Nonbrand", "Pmax", "Demand Gen"].includes(row[0]) || ["All Campaign", "Shopping Nonbrand", "Shopping Brand", "Search Nonbrand", "Pmax", "Demand Gen"].includes(row[1])),
+      Live: sheetData.filter(row => ["All Campaign", "Brand", "Nonbrand", "Shopping Nonbrand", "Shopping Brand", "Search Nonbrand", "Pmax", "Demand Gen"].includes(row[0]) || ["All Campaign", "Brand", "Nonbrand", "Shopping Nonbrand", "Shopping Brand", "Search Nonbrand", "Pmax", "Demand Gen"].includes(row[1])),
     };    
 
     const formatSheets = async (sheetName, data) => {
