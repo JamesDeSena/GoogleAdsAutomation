@@ -545,9 +545,9 @@ const sendFinalWeeklyReportToGoogleSheetsNB = async (req, res) => {
       await formatSheets(sheetName, data);
     }
 
-    console.log("Final Sleepy Tie weekly report sent to Google Sheets successfully!");
+    console.log("Final National Buyers weekly report sent to Google Sheets successfully!");
   } catch (error) {
-    console.error("Error sending Sleepy Tie weekly report to Google Sheets:", error);
+    console.error("Error sending National Buyers weekly report to Google Sheets:", error);
   }
 };
 
