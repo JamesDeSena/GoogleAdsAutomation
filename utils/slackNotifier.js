@@ -57,7 +57,7 @@ const checkTokensAndNotify = () => {
   //   linkedinLinkAdded = true;
   // }
 
-  if (bingLinkAdded && googleLinkAdded && linkedinLinkAdded) {
+  if (bingLinkAdded && googleLinkAdded /*&& linkedinLinkAdded*/) {
     message += "\nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google\nLinkedin authentication link: https://googleadsautomation.onrender.com/api/auth/linkedin";
   } else {
     if (bingLinkAdded) {
