@@ -138,7 +138,7 @@ const morningJobs2 = [
   sendFinalMonthlyReportToGoogleSheetsMIV,
   sendFinalMonthlyReportToGoogleSheetsHS,
   sendBlendedCACToGoogleSheetsHS,
-  sendTWtoGoogleSheets,
+  // sendTWtoGoogleSheets,
 ];
 
 const eveningJobs2 = [

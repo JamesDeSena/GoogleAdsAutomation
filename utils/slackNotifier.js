@@ -1,7 +1,7 @@
 const { WebClient } = require('@slack/web-api');
 const { getStoredGoogleToken } = require("../controllers/GoogleAuth");
 const { getStoredBingToken } = require("../controllers/BingAuth");
-const { getStoredLinkedinToken } = require("../controllers/LinkedinAuth");
+// const { getStoredLinkedinToken } = require("../controllers/LinkedinAuth");
 
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 const slackChannel = 'C07VBABS9RT';
@@ -35,12 +35,12 @@ const sendSlackMessage = async (channel, text) => {
 const checkTokensAndNotify = () => {
   const token = getStoredBingToken();
   const refreshToken_Google = getStoredGoogleToken();
-  const accessToken_Linkedin = getStoredLinkedinToken()
+  // const accessToken_Linkedin = getStoredLinkedinToken()
 
   let message = '';
   let bingLinkAdded = false;
   let googleLinkAdded = false;
-  let linkedinLinkAdded = false;
+  // let linkedinLinkAdded = false;
 
   if (!token || !token.accessToken_Bing) {
     message += "⚠️ Bing access token is missing. Please authenticate. \n";
@@ -52,10 +52,10 @@ const checkTokensAndNotify = () => {
     googleLinkAdded = true;
   }
 
-  if (!accessToken_Linkedin) {
-    message += "⚠️ Linkedin refresh token is missing. Please authenticate. \n";
-    linkedinLinkAdded = true;
-  }
+  // if (!accessToken_Linkedin) {
+  //   message += "⚠️ Linkedin refresh token is missing. Please authenticate. \n";
+  //   linkedinLinkAdded = true;
+  // }
 
   if (bingLinkAdded && googleLinkAdded && linkedinLinkAdded) {
     message += "\nBing authentication link: https://googleadsautomation.onrender.com/api/auth/bing\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google\nLinkedin authentication link: https://googleadsautomation.onrender.com/api/auth/linkedin";
@@ -68,9 +68,9 @@ const checkTokensAndNotify = () => {
       message += "\nGoogle authentication link: https://googleadsautomation.onrender.com/api/auth/google";
     }
 
-    if (linkedinLinkAdded) {
-      message += "\nLinkedin authentication link: https://googleadsautomation.onrender.com/api/auth/linkedin";
-    }
+    // if (linkedinLinkAdded) {
+    //   message += "\nLinkedin authentication link: https://googleadsautomation.onrender.com/api/auth/linkedin";
+    // }
   }
 
   if (message) {
