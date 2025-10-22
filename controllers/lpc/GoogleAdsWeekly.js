@@ -269,9 +269,10 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       if (!createdDate || createdDate > today) return;
 
       const { label } = processWeek(createdDate);
-      const region = eventLikeStages.AZ.has(stage_id) ? "AZ" :
-                     eventLikeStages.CA.has(stage_id) ? "CA" :
-                     jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
+      const region =
+        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
+        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
+        jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
 
       const weekData = addWeekEntry(region, label);
       weekData[1]++;
@@ -456,11 +457,11 @@ async function testLawmatics() {
       BATCH_SIZE
     );
 
-    const startDate = new Date("2025-07-27T00:00:00-07:00"); 
-    const endDate = new Date("2025-08-31T23:59:59-07:00");
+    const startDate = new Date("2025-08-03T00:00:00-07:00"); 
+    const endDate = new Date("2025-10-25T23:59:59-07:00");
 
     const excludedStageIds = new Set([
-      "111631","126229","111632","111633","111634","111635","111636", "111597", "111596"
+      "111597", "111596"
     ]);
 
     const filteredCampaigns = allCampaignsData
