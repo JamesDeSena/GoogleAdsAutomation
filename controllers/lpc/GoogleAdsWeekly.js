@@ -108,7 +108,8 @@ async function getRawCampaigns() {
         if (!attributes?.created_at) return false;
         const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
         if (createdDate < new Date("2021-10-03T00:00:00-08:00")) return false;
-        if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
+        // if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
+        if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
         return true;
       })
       .map(({ attributes, relationships }) => ({
@@ -461,7 +462,7 @@ async function testLawmatics() {
     const endDate = new Date("2025-10-25T23:59:59-07:00");
 
     const excludedStageIds = new Set([
-      "111597", "111596"
+      "111631","126229","111632","111633","111634","111635","111636"
     ]);
 
     const filteredCampaigns = allCampaignsData
@@ -480,7 +481,8 @@ async function testLawmatics() {
         if (createdDate < startDate || createdDate > endDate) return false;
 
         // ✅ only allow google utm_source
-        if ((attributes?.utm_source || "").toLowerCase() !== "google") return false;
+        // if ((attributes?.utm_source || "").toLowerCase() !== "google") return false;
+        if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
 
         return true;
       })
