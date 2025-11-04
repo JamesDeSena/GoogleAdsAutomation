@@ -92,30 +92,66 @@ const executeSequentialJobs = async (jobs, jobName) => {
 
 pingRenderApp();
 
+const isDSTInLA = () => {
+  const laDate = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
+  const now = new Date(laDate);
+  const jan = new Date(now.getFullYear(), 0, 1);
+  const jul = new Date(now.getFullYear(), 6, 1);
+  const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+  return now.getTimezoneOffset() < stdOffset; // true if DST (PDT)
+};
+
+const hourBase = isDSTInLA() ? 7 : 6; // PDT → 7, PST → 6
+
 const rule1 = new schedule.RecurrenceRule();
-rule1.hour = 7;
+rule1.hour = hourBase;
 rule1.minute = 0;
 rule1.tz = 'America/Los_Angeles';
 
 const rule2 = new schedule.RecurrenceRule();
-rule2.hour = 19;
+rule2.hour = hourBase + 12;
 rule2.minute = 0;
 rule2.tz = 'America/Los_Angeles';
 
 const rule3 = new schedule.RecurrenceRule();
-rule3.hour = 7;
+rule3.hour = hourBase;
 rule3.minute = 15;
 rule3.tz = 'America/Los_Angeles';
 
 const rule4 = new schedule.RecurrenceRule();
-rule4.hour = 19;
+rule4.hour = hourBase + 12;
 rule4.minute = 15;
 rule4.tz = 'America/Los_Angeles';
 
 const rule5 = new schedule.RecurrenceRule();
-rule5.hour = 7;
+rule5.hour = hourBase;
 rule5.minute = 30;
 rule5.tz = 'America/Los_Angeles';
+
+// const rule1 = new schedule.RecurrenceRule();
+// rule1.hour = 7;
+// rule1.minute = 0;
+// rule1.tz = 'America/Los_Angeles';
+
+// const rule2 = new schedule.RecurrenceRule();
+// rule2.hour = 19;
+// rule2.minute = 0;
+// rule2.tz = 'America/Los_Angeles';
+
+// const rule3 = new schedule.RecurrenceRule();
+// rule3.hour = 7;
+// rule3.minute = 15;
+// rule3.tz = 'America/Los_Angeles';
+
+// const rule4 = new schedule.RecurrenceRule();
+// rule4.hour = 19;
+// rule4.minute = 15;
+// rule4.tz = 'America/Los_Angeles';
+
+// const rule5 = new schedule.RecurrenceRule();
+// rule5.hour = 7;
+// rule5.minute = 30;
+// rule5.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
