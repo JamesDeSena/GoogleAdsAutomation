@@ -81,18 +81,18 @@ function formatDateToYyyyMmDd(date) {
 
 function getLastSaturdayString(today = new Date()) {
   const day = today.getDay();
-  const diff = day === 6 ? 7 : day + 1;
-  const lastSaturday = new Date(today);
-  lastSaturday.setDate(today.getDate() - diff);
-  return formatDateToYyyyMmDd(lastSaturday);
+  const diff = day >= 5 ? day - 5 : day + 2; // last Friday
+  const lastFriday = new Date(today);
+  lastFriday.setDate(today.getDate() - diff);
+  return formatDateToYyyyMmDd(lastFriday);
 }
 
 function getCurrentTuesdayString(today = new Date()) {
   const day = today.getDay();
-  const diff = day - 2;
-  const tuesday = new Date(today);
-  tuesday.setDate(today.getDate() - diff);
-  return formatDateToYyyyMmDd(tuesday);
+  const diff = day - 1; // current Monday
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - diff);
+  return formatDateToYyyyMmDd(monday);
 }
 
 async function downloadCsv(fileId) {
@@ -171,29 +171,31 @@ async function validateWeekendData() {
       }
 
       const removedItems = Array.from(saturdayMap.values()).map(row => ({...row, change_status: "REMOVED"}));
+      const totalItemsCompared = sameItems.length + changedItems.length + newItems.length + removedItems.length;
       const consolidatedData = [...sameItems, ...changedItems, ...newItems, ...removedItems];
       
+      const finalReportData = consolidatedData.filter(row => row.current_status !== row.detected_status);
       console.log(`💾 Finalizing and uploading reports for ${regionFolder.name}...`);
 
       const mainReportHeaders = ["id", "link", "current_status", "detected_status", "gmc_availability_hint", "method", "evidence", "url_group", "checked_at_utc", "approval", "notes", "change_status"];
       const mainReportName = `${regionFolder.name} - ${OUTPUT_SHEET_NAME}`;
-      const mainReportData = consolidatedData.map((row) => mainReportHeaders.map((header) => row[header] || ""));
+
+      const mainReportData = finalReportData.map((row) => mainReportHeaders.map((header) => row[header] || ""));
       await updateReviewSheet(CONTROLLER_SHEET_ID, mainReportName, mainReportHeaders, mainReportData);
       
-      if (consolidatedData.length > 0 && tuesdayFolderId) {
-        const dataForCsv = consolidatedData.map((row) => mainReportHeaders.map((header) => row[header] || ""));
+      if (finalReportData.length > 0 && tuesdayFolderId) {
+        const dataForCsv = finalReportData.map((row) => mainReportHeaders.map((header) => row[header] || ""));
         const csvContent = arrayToCsv(mainReportHeaders, dataForCsv);
         await uploadFileToDrive(tuesdayFolderId, "weekend_validation_report.csv", "text/csv", csvContent);
       }
-
-      const unknownCount = consolidatedData.filter(r => r.detected_status?.toUpperCase().includes("UNKNOWN")).length;
-      const discrepancyCount = changedItems.length + newItems.length + removedItems.length;
+      
+      const unknownCount = finalReportData.filter(r => r.detected_status?.toUpperCase().includes("UNKNOWN")).length;
       
       await sendValidationSummary({
         region: regionFolder.name,
         date: new Date().toISOString().split('T')[0],
-        totalCompared: consolidatedData.length,
-        discrepancyCount: discrepancyCount,
+        totalCompared: totalItemsCompared,
+        discrepancyCount: finalReportData.length,
         changedCount: changedItems.length,
         newCount: newItems.length,
         removedCount: removedItems.length,
@@ -212,7 +214,7 @@ async function validateWeekendData() {
     console.error("❌ Validation error:", err.message);
     await updateStatusCell(`Status: ERROR! Validation failed. Check logs.`);
   } finally {
-      console.log("✅ Validation process finished.");
+    console.log("✅ Validation process finished.");
   }
 }
 

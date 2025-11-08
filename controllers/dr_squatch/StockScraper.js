@@ -203,18 +203,26 @@ async function handleCloseIfExists(page) {
     'button[aria-label="Close modal"]',
     'button[aria-label="Modal schließen"]',
     'div:has(> h2:has-text("Thanks for Visiting!")) button:has-text("OK")',
-    'div:has(> h2:has-text("Vielen Dank für Ihren Besuch!")) button:has-text("OK")'
+    'div:has(> h2:has-text("Vielen Dank für Ihren Besuch!")) button:has-text("OK")',
+    'div.block-c15a8bf3-2bc2-478d-b60b-cda5874aa8bb button.button-c15a8bf3-2bc2-478d-b60b-cda5874aa8bb:has-text("I\'m Not Interested")',
+    'div.block-29345a9f-1354-4e5b-87e2-599ede629d84 button.button-29345a9f-1354-4e5b-87e2-599ede629d84[aria-label="Dismiss popup"]',
+    'button[aria-label="Dismiss popup"][data-block-type="CLOSE_BUTTON"]'
   ];
 
-  for (const selector of closeButtonSelectors) {
-    try {
-      await page.waitForSelector(selector, { state: 'visible', timeout: 2000 })
-      
-      await page.locator(selector).click({ force: true });
-      await page.waitForTimeout(500);
+  for (let round = 0; round < 3; round++) {
+    let clicked = false;
 
-      return;
-    } catch (error) {}
+    for (const selector of closeButtonSelectors) {
+      try {
+        await page.waitForSelector(selector, { state: 'visible', timeout: 2000 });
+        await page.locator(selector).click({ force: true });
+        await page.waitForTimeout(500);
+        clicked = true;
+      } catch {}
+    }
+
+    if (!clicked) break;
+    await page.waitForTimeout(1000);
   }
 }
 
@@ -240,7 +248,7 @@ async function checkOneTimePurchase(page) {
         return input && input.getAttribute('aria-checked') === 'true';
       },
       'input[id^="onetime"]',
-      { timeout: 5000 }
+      { timeout: 7000 }
     );
 
     return true;
@@ -296,7 +304,24 @@ async function scrapeProductCrawler(browserContext, url) {
   let page;
   try {
     page = await browserContext.newPage();
-    
+
+    await page.route('**/*', route => {
+      const urlStr = route.request().url().toLowerCase();
+      if (
+        urlStr.includes('klaviyo') ||
+        urlStr.includes('privy') ||
+        urlStr.includes('justuno') ||
+        urlStr.includes('attentive') ||
+        urlStr.includes('drift') ||
+        urlStr.includes('omnisend') ||
+        urlStr.includes('yotpo') ||
+        urlStr.includes('marketing') ||
+        urlStr.includes('popup') ||
+        urlStr.includes('subscribe') ||
+        urlStr.includes('newsletter')
+      ) return route.abort();
+      route.continue();
+    });
     await page.goto(url, { timeout: 30000 });
     await page.route('**/*.{png,jpg,jpeg,webp,gif}', r => r.abort());
     await handleCloseIfExists(page);
@@ -336,7 +361,9 @@ async function scrapeProductCrawler(browserContext, url) {
           evidence = `Button text: "${buttonText}"`;
         }
       } else {
-        const lostPageLocator = page.locator('text=/(we think you might be lost|glauben wir, dass sie verloren gehen könnten)/i');
+        const lostPageLocator = page.locator(
+          'div.metafield-rich_text_field:has(h1:has-text("we think you might be lost")), div.metafield-rich_text_field:has(h1:has-text("glauben wir, dass sie verloren gehen könnten"))'
+        );
         if (await lostPageLocator.count() > 0) {
           status = "404 Not Found";
           evidence = "404/Lost page detected (Crawler)";
@@ -763,7 +790,7 @@ async function runSingleRegionVerification(regionCode) {
 }
 
 async function runTestStock() {
-  const testUrl = "";
+  const testUrl = "https://intl.drsquatch.com/products/harry-potter-4-pack";
   let browser;
   try {
     browser = await chromium.launch({
@@ -779,6 +806,26 @@ async function runTestStock() {
     });
 
     const page = await context.newPage();
+    await page.route('**/*', route => {
+      const url = route.request().url();
+      if (
+        url.includes('klaviyo') ||
+        url.includes('privy') ||
+        url.includes('justuno') ||
+        url.includes('attentive') ||
+        url.includes('drift') ||
+        url.includes('omnisend') ||
+        url.includes('yotpo') ||
+        url.includes('marketing') ||
+        url.includes('popup') ||
+        url.includes('subscribe') ||
+        url.includes('newsletter')
+      ) {
+        return route.abort();
+      }
+
+      route.continue();
+    });
     await page.goto(testUrl, { timeout: 30000 });
     await handleCloseIfExists(page);
 
@@ -820,7 +867,9 @@ async function runTestStock() {
         }
       } else {
         console.log("⚠️ No purchase element found, scanning for lost/404 page...");
-        const lostPageLocator = page.locator('text=/(we think you might be lost|glauben wir, dass sie verloren gehen könnten)/i');
+        const lostPageLocator = page.locator(
+          'div.metafield-rich_text_field:has(h1:has-text("we think you might be lost")), div.metafield-rich_text_field:has(h1:has-text("glauben wir, dass sie verloren gehen könnten"))'
+        );
         if (await lostPageLocator.count() > 0) {
           detectedStatus = "404 Not Found";
           evidence = "404/lost page detected (Crawler)";
