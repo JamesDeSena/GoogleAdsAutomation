@@ -89,7 +89,7 @@ async function getProductsToUpdate(sheetId, sheetName) {
 
   const productsToUpdate = [];
   //for (let i = 1; i < rows.length && i < 11; i++) {
-  for (let i = 1; i < rows.length && i < 11; i++) {
+  for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const labelValue = row[labelIndex] || null;
 
