@@ -19,6 +19,7 @@ const scrapeRoutes = require('./routes/ScraperRoutes');
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendPacingReportToGoogleSheets } = require('./controllers/pacing_report/PacingReport');
 const { sendTWtoGoogleSheets } = require('./controllers/pacing_report/TWPacingReport');
+const { sendFinalDailyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsHSAdG } = require('./controllers/hi_skin/GoogleAdsGroupWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsMonthly');
@@ -155,6 +156,7 @@ rule5.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
+  sendFinalDailyReportToGoogleSheetsHS,
   sendFinalDailyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsHSAdG,
   sendFinalWeeklyReportToGoogleSheetsMIVDAdG,

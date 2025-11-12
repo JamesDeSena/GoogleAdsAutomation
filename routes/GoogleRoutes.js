@@ -26,6 +26,11 @@ const {
 } = require('../controllers/lpc/GoogleAdsGroupWeekly');
 
 const {
+  runDailyLocationReport,
+  sendFinalDailyReportToGoogleSheetsHS,
+} = require('../controllers/hi_skin/GoogleAdsDaily');
+
+const {
   downloadAndExtractHSBing,
   aggregateWeeklyDataFromCSV,
   executeSpecificFetchFunctionHS,
@@ -124,6 +129,16 @@ router.get('/lpc/report-month', async (req, res) => {
 router.get('/lpc_adg/report-final', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsLPCAdG(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/hi_skin/report-daily/:date?', async (req, res) => {
+  try {
+    await sendFinalDailyReportToGoogleSheetsHS(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);
