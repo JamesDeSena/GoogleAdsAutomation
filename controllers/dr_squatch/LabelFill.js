@@ -1,26 +1,15 @@
 const axios = require("axios");
 const { chromium } = require("patchright");
 const { google } = require("googleapis");
-const { Readable } = require("stream");
 require("dotenv").config();
 
 const fs = require("fs")
 const path = require("path");
 
-const { sendSlackSummary } = require('./SlackNotifier');
 const scraperConfig = require("./ScraperConfig");
 const {
-  ROOT_OUTPUT_FOLDER_ID,
-  CONTROLLER_SHEET_ID,
-  OUTPUT_SHEET_NAME,
-  SOURCE_SHEET_NAME,
-  STATUS_SHEET_NAME,
-  STATUS_CELL,
   USER_AGENTS,
   CONCURRENCY,
-  STAGGER_DELAY_MS,
-  BATCH_MIN_DELAY_MS,
-  BATCH_MAX_DELAY_MS,
   REGION_CONFIGS
 } = scraperConfig;
 
@@ -125,60 +114,68 @@ async function updateSheetValue(spreadsheetId, range, value) {
   }
 }
 
-async function formatSheetCell(spreadsheetId, sheetId, rowIndex, colIndex) {
-  const yellowColor = {
-    red: 1.0,   // 255
-    green: 1.0, // 255
-    blue: 0.0,  // 0
-  };
+async function formatSheetCell(spreadsheetId, sheetId, cells) {
+  const yellowColor = { red: 1, green: 1, blue: 0 };
+  const batchSize = 20;
 
-  try {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: spreadsheetId,
-      resource: {
-        requests: [
-          {
-            updateCells: {
-              rows: [
-                {
-                  values: [
-                    {
-                      userEnteredFormat: {
-                        backgroundColor: yellowColor,
-                      },
-                    },
-                  ],
-                },
-              ],
-              range: {
-                sheetId: sheetId,
-                startRowIndex: rowIndex,
-                endRowIndex: rowIndex + 1,
-                startColumnIndex: colIndex,
-                endColumnIndex: colIndex + 1,
-              },
-              fields: "userEnteredFormat.backgroundColor",
-            },
+  for (let i = 0; i < cells.length; i += batchSize) {
+    const chunk = cells.slice(i, i + batchSize);
+
+    const requests = chunk.map(({ row, col }) => ({
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: row,
+          endRowIndex: row + 1,
+          startColumnIndex: col,
+          endColumnIndex: col + 1,
+        },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: yellowColor,
           },
-        ],
+        },
+        fields: "userEnteredFormat.backgroundColor",
       },
-    });
-  } catch (err) {
-    console.error(`Failed to format cell [${rowIndex}, ${colIndex}]: ${err.message}`);
+    }));
+
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: { requests },
+      });
+    } catch (err) {
+      console.error(`Failed to format batch starting at cell ${chunk[0].row}: ${err.message}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
 }
 
 async function extractMetaTitle(page) {
   try {
-    const metaSelector = 'meta[property="og:title"]';
-    
-    await page.waitForSelector(metaSelector, { state: "attached", timeout: 10000 });
-    
-    const titleContent = await page.getAttribute(metaSelector, 'content');
-    
-    return titleContent;
+    await page.waitForSelector('script[type="application/ld+json"]', { state: "attached", timeout: 10000 });
+
+    const scripts = await page.$$eval('script[type="application/ld+json"]', els =>
+      els.map(e => e.textContent)
+    );
+
+    const productScript = scripts.find(text => {
+      try {
+        const data = JSON.parse(text);
+        return data["@type"] === "Product";
+      } catch {
+        return false;
+      }
+    });
+
+    if (!productScript) return null;
+
+    const productData = JSON.parse(productScript);
+    return productData.name || null;
+
   } catch (error) {
-    console.error("Error extracting og:title:", error.message);
+    console.error("Error extracting Product name from ld+json:", error.message);
     return null;
   }
 }
@@ -458,17 +455,19 @@ async function processRegionTitles(regionConfig, browserContext) {
 
   const updatePromises = [];
 
+  // Write all values first
   for (const result of successfulUpdates) {
     const title = result.evidence;
     const range = `'Google Shopping Feed Test'!${result.labelColumnLetter}${result.rowNumber}`;
-    const rowIndex = result.rowNumber - 1;
-    const colIndex = result.labelColumnIndex;
-
-    updatePromises.push(updateSheetValue(regionConfig.sourceSheetId, range, title));
-    updatePromises.push(formatSheetCell(regionConfig.sourceSheetId, sheetGid, rowIndex, colIndex));
+    await updateSheetValue(regionConfig.sourceSheetId, range, title);
   }
 
-  await Promise.all(updatePromises);
+  // Then color all updated cells yellow
+  const cellsToFormat = successfulUpdates.map(r => ({
+    row: r.rowNumber - 1,
+    col: r.labelColumnIndex,
+  }));
+  await formatSheetCell(regionConfig.sourceSheetId, sheetGid, cellsToFormat);
 
   console.log(`✅ Finished updating ${successfulUpdates.length} product titles for ${regionConfig.regionCode}.`);
 }
@@ -508,7 +507,7 @@ async function runSingleRegionLabel(regionCode) {
 }
 
 async function runTestLabel() {
-  const testUrl = "https://www.drsquatch.com/products/hair-to-toe-coconut-castaway-1";
+  const testUrl = "https://intl.drsquatch.com/products/adamantium-scrub-3-pack";
   let browser;
   
   try {

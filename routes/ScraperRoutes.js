@@ -73,7 +73,7 @@ router.get('/stocktest', (req, res) => {
 
 router.get('/labeltest', (req, res) => {
   try {
-    runPayloadLabelCheck(); 
+    runTestLabel(); 
     res.status(202).send("✅ Accepted: Verification process for ALL regions has been started. Monitor the 'Overview' sheet for progress.");
   } catch (error) {
     console.error("Error starting verification for all regions:", error);

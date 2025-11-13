@@ -254,9 +254,9 @@ const calculateMonthlyTotals = async () => {
   const lines = fileContent.trim().split('\n');
 
   const monthlyTotals = {
-    bingDataNoAZ: {},
     bingDataCA: {},
-    bingDataAZ: {}
+    bingDataAZ: {},
+    bingDataWA: {},
   };
 
   lines.slice(1).forEach(line => {
@@ -270,14 +270,15 @@ const calculateMonthlyTotals = async () => {
 
     const isCA = campaignName.includes('CA');
     const isAZ = campaignName.includes('AZ');
+    const isWA = campaignName.includes('WA');
 
-    if (!monthlyTotals.bingDataNoAZ[monthYear]) monthlyTotals.bingDataNoAZ[monthYear] = 0;
     if (!monthlyTotals.bingDataCA[monthYear]) monthlyTotals.bingDataCA[monthYear] = 0;
     if (!monthlyTotals.bingDataAZ[monthYear]) monthlyTotals.bingDataAZ[monthYear] = 0;
+    if (!monthlyTotals.bingDataWA[monthYear]) monthlyTotals.bingDataWA[monthYear] = 0;
 
     if (isCA) monthlyTotals.bingDataCA[monthYear] += spendValue;
     if (isAZ) monthlyTotals.bingDataAZ[monthYear] += spendValue;
-    if (!isAZ) monthlyTotals.bingDataNoAZ[monthYear] += spendValue;
+    if (isWA) monthlyTotals.bingDataWA[monthYear] += spendValue;
   });
 
   const toArray = (obj) =>
@@ -286,9 +287,9 @@ const calculateMonthlyTotals = async () => {
       .map(date => ({ date, cost: Math.round(obj[date] * 100) / 100 }));
 
   const result = {
-    bingDataNoAZ: toArray(monthlyTotals.bingDataNoAZ),
     bingDataCA: toArray(monthlyTotals.bingDataCA),
-    bingDataAZ: toArray(monthlyTotals.bingDataAZ)
+    bingDataAZ: toArray(monthlyTotals.bingDataAZ),
+    bingDataWA: toArray(monthlyTotals.bingDataWA)
   };
 
   return result;
@@ -375,7 +376,7 @@ async function getAmountBing() {
   }
 }
 
-const aggregateDataForMonth = async (customer, condition, campaignNameFilter, startDate, endDate ) => {
+const aggregateDataForMonth = async (customer, campaignNameFilter, startDate, endDate) => {
   const startDateObj = new Date(startDate);
   const formattedDate = `${startDateObj.toLocaleString('en-US', { month: 'short' })}-${startDateObj.getFullYear().toString().slice(-2)}`;
 
@@ -386,18 +387,18 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
   };
 
   const metricsQuery = `
-      SELECT
-        campaign.name,
-        metrics.cost_micros,
-        segments.date
-      FROM
-        campaign
-      WHERE
-        segments.date BETWEEN '${startDate}' AND '${endDate}'
-        AND campaign.name ${condition} '%${campaignNameFilter}%'
-      ORDER BY
-        segments.date DESC
-    `;
+    SELECT
+      campaign.name,
+      metrics.cost_micros,
+      segments.date
+    FROM
+      campaign
+    WHERE
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND campaign.name LIKE '%${campaignNameFilter}%'
+    ORDER BY
+      segments.date DESC
+  `;
 
   let metricsPageToken = null;
   do {
@@ -410,7 +411,6 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
       } else {
         aggregatedData.cost += cost;
       }
-
     });
     metricsPageToken = metricsResponse.next_page_token;
   } while (metricsPageToken);
@@ -418,7 +418,7 @@ const aggregateDataForMonth = async (customer, condition, campaignNameFilter, st
   return aggregatedData;
 };
 
-const fetchReportDataMonthlyFilter = async (req, res, condition, campaignNameFilter) => {
+const fetchReportDataMonthlyFilter = async (req, res, campaignNameFilter) => {
   const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
@@ -432,31 +432,28 @@ const fetchReportDataMonthlyFilter = async (req, res, condition, campaignNameFil
       refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
-    
-    const dateRanges = getOrGenerateDateRanges();
 
-    const allMonthlyDataPromises = dateRanges.map(({ start, end }) => {
-      return aggregateDataForMonth(customer, condition, campaignNameFilter, start, end);
-    });
+    const dateRanges = getOrGenerateDateRanges();
+    const allMonthlyDataPromises = dateRanges.map(({ start, end }) =>
+      aggregateDataForMonth(customer, campaignNameFilter, start, end)
+    );
 
     const allMonthlyData = await Promise.all(allMonthlyDataPromises);
-
     return allMonthlyData;
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(500).send("Error fetching report data");
   }
 };
 
-const createFetchFunction = (condition, campaignNameFilter) => {
-  return (req, res) => fetchReportDataMonthlyFilter(req, res, condition, campaignNameFilter);
+const createFetchFunction = (campaignNameFilter) => {
+  return (req, res) => fetchReportDataMonthlyFilter(req, res, campaignNameFilter);
 };
 
 const fetchFunctions = {
-  fetchReportDataMonthly: createFetchFunction("LIKE", ""),
-  fetchReportDataMonthlyNoAZ: createFetchFunction("NOT LIKE", "AZ_"),
-  fetchReportDataMonthlyCA: createFetchFunction("LIKE", "CA_"),
-  fetchReportDataMonthlyAZ: createFetchFunction("LIKE", "AZ_"),
+  fetchReportDataMonthly: createFetchFunction(""),
+  fetchReportDataMonthlyCA: createFetchFunction("CA_"),
+  fetchReportDataMonthlyAZ: createFetchFunction("AZ_"),
+  fetchReportDataMonthlyWA: createFetchFunction("WA_"),
 };
 
 const executeSpecificFetchFunctionLPC = async (req, res) => {
@@ -472,24 +469,24 @@ const executeSpecificFetchFunctionLPC = async (req, res) => {
 
 async function fetchAndSaveAdCosts() {
   try {
-    const [bingData, { bingDataNoAZ, bingDataCA, bingDataAZ }, googleData, googleDataNoAZ, googleDataCA, googleDataAZ] = await Promise.all([
+    const [bingData, { bingDataCA, bingDataAZ, bingDataWA }, googleData, googleDataCA, googleDataAZ, googleDataWA] = await Promise.all([
       getAmountBing(),
       calculateMonthlyTotals(),
       fetchFunctions.fetchReportDataMonthly(),
-      fetchFunctions.fetchReportDataMonthlyNoAZ(),
       fetchFunctions.fetchReportDataMonthlyCA(),
       fetchFunctions.fetchReportDataMonthlyAZ(),
+      fetchFunctions.fetchReportDataMonthlyWA(),
     ]);
 
     const result = {
       bing: bingData,
-      bingNoAZ: bingDataNoAZ,
       bingCA: bingDataCA,
       bingAZ: bingDataAZ,
+      bingWA: bingDataWA,
       google: googleData,
-      googleNoAZ: googleDataNoAZ,
       googleCA: googleDataCA,
       googleAZ: googleDataAZ,
+      googleWA: googleDataWA,
     };
 
     saveMetricsToFile(result);
@@ -611,7 +608,7 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
   });
   const sheets = google.sheets({ version: 'v4', auth });
   const spreadsheetId = process.env.SHEET_LPC;
-  const readRange = 'Location Spend!A2:J';
+  const readRange = 'Location Spend!A2:S';
 
   try {
     const record = getStoredMetrics();
@@ -628,19 +625,21 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
         return map;
       }, {});
 
-    const googleNoAzMap = mapGoogleData(record.googleNoAZ);
     const googleCAMap = mapGoogleData(record.googleCA);
     const googleAZMap = mapGoogleData(record.googleAZ);
+    const googleWAMap = mapGoogleData(record.googleWA);
     
-    const bingNoAZMap = mapBingData(record.bingNoAZ);
     const bingCAMap = mapBingData(record.bingCA);
     const bingAZMap = mapBingData(record.bingAZ);
+    const bingWAMap = mapBingData(record.bingWA);
 
     const allMonths = Array.from(new Set([
-      ...Object.keys(googleNoAzMap),
+      ...Object.keys(googleCAMap),
       ...Object.keys(googleAZMap),
-      ...Object.keys(bingNoAZMap),
+      ...Object.keys(googleWAMap),
+      ...Object.keys(bingCAMap),
       ...Object.keys(bingAZMap),
+      ...Object.keys(bingWAMap),
     ]));
 
     const sheetData = await sheets.spreadsheets.values.get({
@@ -661,12 +660,15 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
     for (const date of allMonths) {
       const row = [];
       row[0] = date;
-      row[2] = googleNoAzMap[date]?.cost || 0;
-      row[3] = bingNoAZMap[date] || 0;
-      row[6] = googleNoAzMap[date]?.localServices || 0;
+      row[2] = googleCAMap[date]?.cost || 0;
+      row[3] = bingCAMap[date] || 0;
+      row[6] = googleCAMap[date]?.localServices || 0;
       row[8] = googleAZMap[date]?.cost || 0;
       row[9] = bingAZMap[date] || 0;
       row[12] = googleAZMap[date]?.localServices || 0;
+      row[14] = googleWAMap[date]?.cost || 0;
+      row[15] = bingWAMap[date] || 0;
+      row[18] = googleWAMap[date]?.localServices || 0;
 
       if (labelToRow[date]) {
         const rowIndex = labelToRow[date];
@@ -686,6 +688,14 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
           range: `Location Spend!M${rowIndex}`,
           values: [[row[12]]],
         });
+        updateRequests.push({
+          range: `Location Spend!O${rowIndex}:P${rowIndex}`,
+          values: [[row[14], row[15]]],
+        });
+        updateRequests.push({
+          range: `Location Spend!S${rowIndex}`,
+          values: [[row[18]]],
+        });
       } else {
         rowsToAppend.push(row);
       }
@@ -704,7 +714,7 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
     if (rowsToAppend.length > 0) {
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Location Spend!A:M',
+        range: 'Location Spend!A:S',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         resource: { values: rowsToAppend },

@@ -47,7 +47,7 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
-const fetchDailyPostalCodeCostReport = async (customer, dateRanges) => {
+const fetchDailyRegionCostReport = async (customer, dateRanges) => {
   const finalReportByDate = {};
   const allGeoTargetIds = new Set();
   const dailyRowsMap = {};
@@ -58,7 +58,7 @@ const fetchDailyPostalCodeCostReport = async (customer, dateRanges) => {
     const reportQuery = `
       SELECT
         segments.date,
-        segments.geo_target_postal_code,
+        segments.geo_target_region,
         metrics.cost_micros
       FROM
         geographic_view
@@ -72,12 +72,11 @@ const fetchDailyPostalCodeCostReport = async (customer, dateRanges) => {
       const rowsForThisDate = [];
 
       for (const row of rows) {
-        const geoId = row.segments.geo_target_postal_code;
+        const geoId = row.segments.geo_target_region; 
         const cost = parseFloat((row.metrics.cost_micros / 1_000_000).toFixed(2));
         if (!geoId) continue;
 
         allGeoTargetIds.add(geoId);
-
         rowsForThisDate.push({
           date: row.segments.date,
           geoId,
@@ -101,8 +100,7 @@ const fetchDailyPostalCodeCostReport = async (customer, dateRanges) => {
       const geoQuery = `
         SELECT
           geo_target_constant.resource_name,
-          geo_target_constant.name,
-          geo_target_constant.canonical_name
+          geo_target_constant.name
         FROM geo_target_constant
         WHERE geo_target_constant.resource_name IN (${placeholders})
       `;
@@ -110,57 +108,57 @@ const fetchDailyPostalCodeCostReport = async (customer, dateRanges) => {
       try {
         const geoRows = await customer.query(geoQuery);
         for (const g of geoRows) {
-          geoInfoMap[g.geo_target_constant.resource_name] = {
-            name: g.geo_target_constant.name,
-            canonical_name: g.geo_target_constant.canonical_name,
-          };
+          geoInfoMap[g.geo_target_constant.resource_name] = g.geo_target_constant.name;
         }
       } catch {}
     }
   }
 
   for (const [date, rows] of Object.entries(dailyRowsMap)) {
-    const combinedMap = new Map();
+    
+    const regionTotals = {
+      TX: { date: date, regionName: "TX", cost: 0 },
+      AZ: { date: date, regionName: "AZ", cost: 0 },
+      DMV: { date: date, regionName: "DMV", cost: 0 }
+    };
 
     for (const row of rows) {
-      const geoInfo = geoInfoMap[row.geoId] || {};
-      const postalCode = geoInfo.name || row.geoId;
-      const canonicalName = geoInfo.canonical_name || null;
-
-      const key = `${postalCode}_${canonicalName}`;
-      if (!combinedMap.has(key)) {
-        combinedMap.set(key, { date: row.date, postalCode, canonicalName, cost: 0 });
+      const regionName = geoInfoMap[row.geoId] || "Unknown"; 
+      
+      if (regionName === 'Texas') {
+        regionTotals.TX.cost += row.cost;
+      } else if (regionName === 'Arizona') {
+        regionTotals.AZ.cost += row.cost;
+      } else if (regionName === 'Virginia' || regionName === 'Maryland' || regionName === 'District of Columbia') {
+        regionTotals.DMV.cost += row.cost;
       }
-      combinedMap.get(key).cost += row.cost;
     }
 
-    const entries = Array.from(combinedMap.values());
+    const finalEntries = [
+      regionTotals.TX,
+      regionTotals.AZ,
+      regionTotals.DMV
+    ]
+    .filter(region => region.cost > 0)
+    .map(region => ({
+      ...region,
+      cost: parseFloat(region.cost.toFixed(2))
+    }));
 
-    const totals = { TX: 0, AZ: 0, DMV: 0 };
-    for (const item of entries) {
-      const postal = item.postalCode.toString();
-      if (postal.startsWith("77")) totals.TX += item.cost;
-      else if (postal.startsWith("85")) totals.AZ += item.cost;
-      else if (postal.startsWith("20") || postal.startsWith("22")) totals.DMV += item.cost;
-    }
-
-    entries.push({
-      regionTotals: {
-        TX: parseFloat(totals.TX.toFixed(2)),
-        AZ: parseFloat(totals.AZ.toFixed(2)),
-        DMV: parseFloat(totals.DMV.toFixed(2)),
-      },
-    });
-
-    finalReportByDate[date] = entries;
+    finalReportByDate[date] = finalEntries;
   }
 
-  // const jsonFilePath = path.join(__dirname, "daily_postal_code_cost_report.json");
+  // const jsonFilePath = path.join(__dirname, "daily_region_cost_report.json");
   // try {
-  //   if (Object.keys(finalReportByDate).length > 0) {
+  //   if (Object.keys(finalReportByDate).length === 0) {
+  //     console.log("⚠️ No data found. JSON file not written.");
+  //   } else {
   //     fs.writeFileSync(jsonFilePath, JSON.stringify(finalReportByDate, null, 2));
+  //     console.log(`📁 Report saved to ${jsonFilePath}`);
   //   }
-  // } catch {}
+  // } catch (err) {
+  //   console.error(`❌ Failed to write JSON file:`, err?.message || err);
+  // }
 
   return finalReportByDate;
 };
@@ -181,7 +179,7 @@ const runDailyLocationReport = async (req, res) => {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    await fetchDailyPostalCodeCostReport(customer, dateRanges);
+    await fetchDailyRegionCostReport(customer, dateRanges);
     console.log("✅ Final Hi Skin daily report sent successfully!");
   } catch (error) {
     console.error("❌ Error sending Hi Skin daily report:", error?.message || error);
@@ -221,16 +219,19 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
       return { start: `2025-${mm}-${dd}` };
     });
 
-    const dailyReport = await fetchDailyPostalCodeCostReport(customer, dateRanges);
+    const dailyReport = await fetchDailyRegionCostReport(customer, dateRanges);
 
     // Prepare L, M, N columns only
     const sheetData = dateRanges.map(({ start }) => {
       const entries = dailyReport[start] || [];
-      const regionTotals = entries.find(e => e.regionTotals)?.regionTotals || {};
+      const regionTotals = {};
+      for (const entry of entries) {
+        regionTotals[entry.regionName] = entry.cost;
+      }
       return [
-        regionTotals.AZ || 0, // Column L
-        regionTotals.TX || 0, // Column M
-        regionTotals.DMV || 0 // Column N
+        regionTotals.AZ || null, // Column L
+        regionTotals.TX || null, // Column M
+        regionTotals.DMV || null // Column N
       ];
     });
 
@@ -238,7 +239,7 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     if (sheetData.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${sheetName}!L4:N33`,
+        range: `${sheetName}!I4:K33`,
         valueInputOption: "USER_ENTERED",
         requestBody: { values: sheetData },
       });

@@ -173,9 +173,11 @@ const fetchAndAggregateLPCData = async (filter) => {
         let whereClause = `segments.date BETWEEN '${start}' AND '${end}'`;
 
         if (filter === "%CA%") {
-          whereClause += ` AND campaign.name NOT LIKE '%AZ%'`;
+          whereClause += ` AND campaign.name NOT LIKE '%AZ%' AND campaign.name NOT LIKE '%WA%'`;
         } else if (filter === "%AZ%") {
           whereClause += ` AND campaign.name LIKE '%AZ%'`;
+        } else if (filter === "%WA%") {
+          whereClause += ` AND campaign.name LIKE '%WA%'`;
         } else {
           whereClause += ` AND campaign.name LIKE '${filter}'`;
         }
@@ -221,26 +223,30 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
-  const dataRanges = { CA: "CA Weekly Report", AZ: "AZ Weekly Report" };
+  const dataRanges = { CA: "CA Weekly Report", AZ: "AZ Weekly Report", WA: "WA Weekly Report" };
 
   try {
     const { campaigns, events } = await getRawCampaigns();
     const caData = await fetchAndAggregateLPCData("%CA%");
     await new Promise((r) => setTimeout(r, 10000));
     const azData = await fetchAndAggregateLPCData("%AZ%");
+    await new Promise((r) => setTimeout(r, 10000));
+    const waData = await fetchAndAggregateLPCData("%WA%");
 
     const startDate = new Date("2021-10-03");
     const today = new Date();
-    const weeks = { CA: {}, AZ: {} };
+    const weeks = { CA: {}, AZ: {}, WA: {} };
 
     const nopeStages = {
-      CA: new Set(["80193", "113690", "21589"]),
-      AZ: new Set(["111597", "111596"]),
+      CA: new Set(["80193", "113690", "21589"]), //CA - Initial Call - Not something we handle, CA - At Capacity - Refer Out, CA - Initial Call - Not Moving Forward
+      AZ: new Set(["111596", "111597"]), //AZ - Initial Call Not Moving Forward, AZ - Initial Call Not Something We Handle, 
+      WA: new Set(["110790", "110790", "110793"]), //WA - Initial Call - Not Moving Forward, WA - Initial Call - Not Something We Handle, WA - At Capacity - Refer Out
     };
 
     const eventLikeStages = {
-      CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]),
-      AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]),
+      CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]), //Strategy Session xStrategy Session - Completed xOn Hold / Asked to reach out at a later date
+      AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]), //Strategy Session xAZ - Strategy Session - Completed xAZ - On Hold
+      WA: new Set(["144176","144177","143884","144179","144180","144181","144182", "144183"]), //Strategy Session xAZ - Strategy Session - Completed
     };
 
     const formatDate = (date) =>
@@ -273,7 +279,9 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       const region =
         (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
         (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
-        jurisdiction?.toLowerCase() === "arizona" ? "AZ" : "CA";
+        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
+        jurisdiction?.toLowerCase() === "arizona" ? "AZ" :
+        jurisdiction?.toLowerCase() === "washington" ? "WA" : "CA";
 
       const weekData = addWeekEntry(region, label);
       weekData[1]++;
@@ -281,12 +289,19 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       if (eventLikeStages[region].has(stage_id)) weekData[4]++;
     });
 
-    events.forEach(({ event_start, jurisdiction }) => {
+    events.forEach(({ event_start, stage_id, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
 
-      const region = /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" : "CA";
       const { label } = processWeek(eventDate);
+
+      const region =
+        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
+        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
+        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
+        /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" :
+        /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
+
       const weekData = addWeekEntry(region, label);
       weekData[4]++;
     });
@@ -302,6 +317,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
     if (Array.isArray(caData)) applyLPCData(caData, "CA");
     if (Array.isArray(azData)) applyLPCData(azData, "AZ");
+    if (Array.isArray(waData)) applyLPCData(waData, "WA");
 
     Object.keys(weeks).forEach((region) => {
       Object.values(weeks[region]).forEach((week) => {
@@ -458,11 +474,11 @@ async function testLawmatics() {
       BATCH_SIZE
     );
 
-    const startDate = new Date("2025-08-03T00:00:00-07:00"); 
-    const endDate = new Date("2025-10-25T23:59:59-07:00");
+    const startDate = new Date("2025-10-01T00:00:00-07:00"); 
+    const endDate = new Date("2025-11-30T23:59:59-07:00");
 
     const excludedStageIds = new Set([
-      "111631","126229","111632","111633","111634","111635","111636"
+      "144176","144177","143884","144179","144180","144181","144182", "144183"
     ]);
 
     const filteredCampaigns = allCampaignsData
