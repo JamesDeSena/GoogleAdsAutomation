@@ -172,14 +172,14 @@ const fetchAndAggregateLPCData = async (filter) => {
 
         let whereClause = `segments.date BETWEEN '${start}' AND '${end}'`;
 
-        if (filter === "%CA%") {
-          whereClause += ` AND campaign.name NOT LIKE '%AZ%' AND campaign.name NOT LIKE '%WA%'`;
-        } else if (filter === "%AZ%") {
-          whereClause += ` AND campaign.name LIKE '%AZ%'`;
-        } else if (filter === "%WA%") {
-          whereClause += ` AND campaign.name LIKE '%WA%'`;
+        if (filter === "%CA\\_%") {
+          whereClause += ` AND campaign.name LIKE '%CA\\_%' ESCAPE '\\'`;
+        } else if (filter === "%AZ\\_%") {
+          whereClause += ` AND campaign.name LIKE '%AZ\\_%' ESCAPE '\\'`;
+        } else if (filter === "%WA\\_%") {
+          whereClause += ` AND campaign.name LIKE '%WA\\_%' ESCAPE '\\'`;
         } else {
-          whereClause += ` AND campaign.name LIKE '${filter}'`;
+          whereClause += ` AND campaign.name LIKE '${filter}' ESCAPE '\\'`;
         }
 
         const metricsQuery = `
@@ -227,11 +227,11 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   try {
     const { campaigns, events } = await getRawCampaigns();
-    const caData = await fetchAndAggregateLPCData("%CA%");
+    const caData = await fetchAndAggregateLPCData("%CA\\_%");
     await new Promise((r) => setTimeout(r, 10000));
-    const azData = await fetchAndAggregateLPCData("%AZ%");
+    const azData = await fetchAndAggregateLPCData("%AZ\\_%");
     await new Promise((r) => setTimeout(r, 10000));
-    const waData = await fetchAndAggregateLPCData("%WA%");
+    const waData = await fetchAndAggregateLPCData("%WA\\_%");
 
     const startDate = new Date("2021-10-03");
     const today = new Date();

@@ -395,7 +395,7 @@ const aggregateDataForMonth = async (customer, campaignNameFilter, startDate, en
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}%'
+      AND campaign.name LIKE '%${campaignNameFilter}\\_%' ESCAPE '\\'
     ORDER BY
       segments.date DESC
   `;
