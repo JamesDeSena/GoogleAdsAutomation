@@ -395,7 +395,7 @@ const aggregateDataForMonth = async (customer, campaignNameFilter, startDate, en
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}\\_%' ESCAPE '\\'
+      AND campaign.name REGEXP_MATCH '.*${campaignNameFilter}_.*'
     ORDER BY
       segments.date DESC
   `;
@@ -451,9 +451,9 @@ const createFetchFunction = (campaignNameFilter) => {
 
 const fetchFunctions = {
   fetchReportDataMonthly: createFetchFunction(""),
-  fetchReportDataMonthlyCA: createFetchFunction("CA_"),
-  fetchReportDataMonthlyAZ: createFetchFunction("AZ_"),
-  fetchReportDataMonthlyWA: createFetchFunction("WA_"),
+  fetchReportDataMonthlyCA: createFetchFunction("CA"),
+  fetchReportDataMonthlyAZ: createFetchFunction("AZ"),
+  fetchReportDataMonthlyWA: createFetchFunction("WA"),
 };
 
 const executeSpecificFetchFunctionLPC = async (req, res) => {
@@ -522,6 +522,84 @@ const getStoredMetrics = () => {
     return null;
   }
 };
+
+async function getRawCampaigns() {
+  const fetchPaginatedData = async (baseUrl, token, batchSize) => {
+    const allData = [];
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const initialResponse = await axios.get(`${baseUrl}&page=1`, { headers, maxBodyLength: Infinity });
+    const totalPages = initialResponse.data.meta?.total_pages || 1;
+
+    for (let i = 0; i < totalPages; i += batchSize) {
+      const batchPromises = [];
+      const endOfBatch = Math.min(i + batchSize, totalPages);
+
+      for (let j = i; j < endOfBatch; j++) {
+        const pageNumber = j + 1;
+        batchPromises.push(
+          axios.get(`${baseUrl}&page=${pageNumber}`, { headers, maxBodyLength: Infinity })
+        );
+      }
+      const batchResponses = await Promise.all(batchPromises);
+      batchResponses.forEach(response => allData.push(...(response.data.data || [])));
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return allData;
+  };
+
+  try {
+    const LAWMATICS_TOKEN = process.env.LAWMATICS_TOKEN;
+    const BATCH_SIZE = 20;
+
+    const [allCampaignsData, allEventsData] = await Promise.all([
+      fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values,utm_source", LAWMATICS_TOKEN, BATCH_SIZE),
+      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date", LAWMATICS_TOKEN, BATCH_SIZE)
+    ]);
+    
+    const filteredCampaigns = allCampaignsData
+      .filter(({ attributes }) => {
+        if (!attributes?.created_at) return false;
+        const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        if (createdDate < new Date("2024-01-01T00:00:00-08:00")) return false;
+        // if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
+        if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
+        return true;
+      })
+      .map(({ attributes, relationships }) => ({
+        created_at: attributes.created_at,
+        stage_id: relationships?.stage?.data?.id || null,
+        jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+        source: attributes?.utm_source || null,
+      }));
+
+    const strategySessions = allEventsData
+      .filter(event => {
+        const { name, start_date } = event.attributes || {};
+        if (!name || !start_date) return false;
+        const eventDate = new Date(new Date(start_date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        return (name === "Strategy Session" || (/^AZ\b/.test(name))) && eventDate >= new Date("2024-01-01T00:00:00-08:00");
+      })
+      .map(event => ({
+        event_start: event.attributes?.start_date,
+        event_id: event.id,
+        jurisdiction: event.attributes?.name,
+      }));
+
+    return { campaigns: filteredCampaigns, events: strategySessions };
+  } catch (error) {
+    if (error.response) {
+      console.error("API Error:", error.response.status, error.response.data);
+      throw new Error(`API returned status ${error.response.status}`);
+    } else if (error.request) {
+      console.error("Network Error:", error.message);
+      throw new Error("Network error or timeout connecting to API.");
+    } else {
+      console.error("Script Error:", error.message);
+      throw new Error(`Script error: ${error.message}`);
+    }
+  }
+}
 
 const sendLPCBudgettoGoogleSheets = async (req, res) => {
   const auth = new google.auth.GoogleAuth({
@@ -598,6 +676,284 @@ const sendLPCBudgettoGoogleSheets = async (req, res) => {
     console.log("LP+C Monthly Budget updated in Google Sheets successfully!");
   } catch (err) {
     console.error("Error updating LP+C budget in Google Sheets:", err);
+  }
+};
+
+const sendLPCCACToGoogleSheets = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: "serviceToken.json",
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+  const spreadsheetId = process.env.SHEET_LPC;
+  const sheetName = "Customer Acquisition Costs";
+  const readRange = `${sheetName}!A2:R`;
+
+  const blackFontFormat = {
+    userEnteredFormat: {
+      textFormat: {
+        foregroundColor: { red: 0, green: 0, blue: 0 },
+      },
+    },
+  };
+
+  const getGridRange = (sheetId, rowIndex, startCol, endCol) => ({
+    sheetId: sheetId,
+    startRowIndex: rowIndex - 1,
+    endRowIndex: rowIndex,
+    startColumnIndex: startCol,
+    endColumnIndex: endCol,
+  });
+
+  try {
+    const { campaigns, events } = await getRawCampaigns();
+
+    const startDate = new Date("2024-01-01");
+    const today = new Date();
+    const months = {};
+
+    const nopeStages = {
+      CA: new Set(["80193", "113690", "21589"]),
+      AZ: new Set(["111596", "111597"]),
+      WA: new Set(["110790", "110790", "110793"]),
+    };
+    const eventLikeStages = {
+      CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]),
+      AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]),
+      WA: new Set(["144176","144177","143884","144179","144180","144181","144182", "144183"]),
+    };
+    
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    const processDate = (date) => {
+      if (!date) return null;
+      const parsedDate = new Date(new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+      return parsedDate < startDate ? null : parsedDate;
+    };
+    
+    const getMonthEntry = (date) => {
+      const year = date.getFullYear();     // <-- Changed
+      const monthIndex = date.getMonth();  // <-- Changed
+      const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+      if (!months[key]) {
+        months[key] = {
+          year: String(year), month: monthNames[monthIndex],
+          leadsCA: 0, leadsAZ: 0, leadsWA: 0,
+          nopesCA: 0, nopesAZ: 0, nopesWA: 0,
+          sqlsCA: 0, sqlsAZ: 0, sqlsWA: 0,
+          ssCA: 0, ssAZ: 0, ssWA: 0,
+        };
+      }
+      return months[key];
+    };
+
+    campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
+      const createdDate = processDate(created_at);
+      if (!createdDate || createdDate > today) return;
+      const monthData = getMonthEntry(createdDate);
+      const region =
+        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
+        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
+        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
+        jurisdiction?.toLowerCase() === "arizona" ? "AZ" :
+        jurisdiction?.toLowerCase() === "washington" ? "WA" : "CA";
+
+      if (region === "CA") {
+        monthData.leadsCA++;
+        if (nopeStages.CA.has(stage_id)) monthData.nopesCA++;
+        if (eventLikeStages.CA.has(stage_id)) monthData.sqlsCA++;
+      } else if (region === "AZ") {
+        monthData.leadsAZ++;
+        if (nopeStages.AZ.has(stage_id)) monthData.nopesAZ++;
+        if (eventLikeStages.AZ.has(stage_id)) monthData.sqlsAZ++;
+      } else if (region === "WA") {
+        monthData.leadsWA++;
+        if (nopeStages.WA.has(stage_id)) monthData.nopesWA++;
+        if (eventLikeStages.WA.has(stage_id)) monthData.sqlsWA++;
+      }
+    });
+    events.forEach(({ event_start, stage_id, jurisdiction }) => {
+      const eventDate = processDate(event_start);
+      if (!eventDate || eventDate > today) return;
+      const monthData = getMonthEntry(eventDate);
+      const region =
+        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
+        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
+        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
+        /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" :
+        /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
+      
+      if (region === "CA") monthData.ssCA++;
+      else if (region === "AZ") monthData.ssAZ++;
+      else if (region === "WA") monthData.ssWA++;
+    });
+
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheet = spreadsheet.data.sheets.find(s => s.properties.title === sheetName);
+    const sheetId = sheet?.properties.sheetId;
+
+    if (typeof sheetId === 'undefined') {
+      throw new Error(`Could not find sheet with name "${sheetName}"`);
+    }
+
+    const sheetData = await sheets.spreadsheets.values.get({ spreadsheetId, range: readRange });
+    const rows = sheetData.data.values || [];
+    const labelToRow = {};
+    let lastDataRowIndex = 1;
+    rows.forEach((r, i) => {
+      const year = r[0]; const month = r[1];
+      const currentRowIndex = i + 2;
+      if (year && month) {
+        labelToRow[year + month] = currentRowIndex;
+        lastDataRowIndex = currentRowIndex;
+      }
+    });
+
+    const valueUpdateRequests = [];
+    const masterBatchRequests = [];
+    const newMonthData = []; 
+
+    const sortedMonthKeys = Object.keys(months).sort();
+
+    for (const monthKey of sortedMonthKeys) {
+      const data = months[monthKey];
+      const key = data.year + data.month;
+
+      if (labelToRow[key]) {
+        const rowIndex = labelToRow[key];
+  
+        valueUpdateRequests.push({
+          range: `${sheetName}!D${rowIndex}:F${rowIndex}`,
+          values: [[data.leadsCA || null, data.leadsAZ || null, data.leadsWA || null]],
+        });
+        valueUpdateRequests.push({
+          range: `${sheetName}!H${rowIndex}:J${rowIndex}`,
+          values: [[data.nopesCA || null, data.nopesAZ || null, data.nopesWA || null]],
+        });
+        valueUpdateRequests.push({
+          range: `${sheetName}!L${rowIndex}:N${rowIndex}`,
+          values: [[data.sqlsCA || null, data.sqlsAZ || null, data.sqlsWA || null]],
+        });
+        valueUpdateRequests.push({
+          range: `${sheetName}!P${rowIndex}:R${rowIndex}`,
+          values: [[data.ssCA || null, data.ssAZ || null, data.ssWA || null]],
+        });
+
+        const fields = "userEnteredFormat.textFormat.foregroundColor";
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, rowIndex, 3, 6), cell: blackFontFormat, fields: fields } // D-F
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, rowIndex, 7, 10), cell: blackFontFormat, fields: fields } // H-J
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, rowIndex, 11, 14), cell: blackFontFormat, fields: fields } // L-N
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, rowIndex, 15, 18), cell: blackFontFormat, fields: fields } // P-R
+        });
+
+      } else {
+        newMonthData.push(data);
+      }
+    }
+
+    // --- Execute Google Sheets API Calls ---
+
+    // 1. Update all existing row VALUES
+    if (valueUpdateRequests.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: "USER_ENTERED",
+          data: valueUpdateRequests,
+        },
+      });
+    }
+
+    // 2. Insert new rows (if any)
+    if (newMonthData.length > 0) {
+      const insertionStartIndex = lastDataRowIndex;
+
+      // Add row insertion request to our master list
+      masterBatchRequests.push({
+        insertDimension: {
+          range: {
+            sheetId: sheetId,
+            dimension: "ROWS",
+            startIndex: insertionStartIndex,
+            endIndex: insertionStartIndex + newMonthData.length,
+          },
+        },
+      });
+
+      // Prepare value and format requests for the *newly inserted* rows
+      const newDataValueRequests = [];
+      newMonthData.forEach((data, i) => {
+        const newRowIndex = insertionStartIndex + 1 + i; // 1-based row number
+        
+        const newRow = new Array(18).fill(null);
+        newRow[0] = data.year;    // Col A
+        newRow[1] = data.month;   // Col B
+        newRow[3] = data.leadsCA || null; // Col D
+        newRow[4] = data.leadsAZ || null; // Col E
+        newRow[5] = data.leadsWA || null; // Col F
+        newRow[7] = data.nopesCA || null; // Col H
+        newRow[8] = data.nopesAZ || null; // Col I
+        newRow[9] = data.nopesWA || null; // Col J
+        newRow[11] = data.sqlsCA || null; // Col L
+        newRow[12] = data.sqlsAZ || null; // Col M
+        newRow[13] = data.sqlsWA || null; // Col N
+        newRow[15] = data.ssCA || null; // Col P
+        newRow[16] = data.ssAZ || null; // Col Q
+        newRow[17] = data.ssWA || null; // Col R
+
+        newDataValueRequests.push({
+          range: `${sheetName}!A${newRowIndex}:R${newRowIndex}`,
+          values: [newRow],
+        });
+
+        const fields = "userEnteredFormat.textFormat.foregroundColor";
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, newRowIndex, 3, 6), cell: blackFontFormat, fields: fields } // D-F
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, newRowIndex, 7, 10), cell: blackFontFormat, fields: fields } // H-J
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, newRowIndex, 11, 14), cell: blackFontFormat, fields: fields } // L-N
+        });
+        masterBatchRequests.push({
+          repeatCell: { range: getGridRange(sheetId, newRowIndex, 15, 18), cell: blackFontFormat, fields: fields } // P-R
+        });
+      });
+
+      // 3. Populate the new rows with data
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: "USER_ENTERED",
+          data: newDataValueRequests,
+        },
+      });
+    }
+
+    // 4. Send all formatting and row-insertion requests at once
+    if (masterBatchRequests.length > 0) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: { requests: masterBatchRequests },
+      });
+    }
+
+    if (valueUpdateRequests.length === 0 && newMonthData.length === 0) {
+      console.log("No new data to update or insert.");
+    }
+
+    console.log("Monthly CAC report data successfully updated!");
+  } catch (error) {
+    console.error("Error processing monthly CAC report:", error);
   }
 };
 
@@ -731,10 +1087,9 @@ const sendLPCMonthlyReport = async (req, res) => {
   try {
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    await sendLPCBudgettoGoogleSheets(req, res);
+    await sendLPCCACToGoogleSheets(req, res);
     await delay(500);
     await sendLPCDetailedBudgettoGoogleSheets(req, res);
-    await delay(500);
 
     console.log("LP+C Monthly Budget & Monthly Detailed Budget successfully");
   } catch (error) {
@@ -746,7 +1101,7 @@ module.exports = {
   generateLPCBing,
   fetchAndSaveAdCosts,
   executeSpecificFetchFunctionLPC,
+  sendLPCCACToGoogleSheets,
   sendLPCDetailedBudgettoGoogleSheets,
-  sendLPCBudgettoGoogleSheets,
   sendLPCMonthlyReport,
 };

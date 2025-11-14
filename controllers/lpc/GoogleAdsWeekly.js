@@ -107,7 +107,7 @@ async function getRawCampaigns() {
       .filter(({ attributes }) => {
         if (!attributes?.created_at) return false;
         const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-        if (createdDate < new Date("2021-10-03T00:00:00-08:00")) return false;
+        if (createdDate < new Date("2024-01-T00:00:00-08:00")) return false;
         // if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
         if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
         return true;
@@ -172,14 +172,14 @@ const fetchAndAggregateLPCData = async (filter) => {
 
         let whereClause = `segments.date BETWEEN '${start}' AND '${end}'`;
 
-        if (filter === "%CA\\_%") {
-          whereClause += ` AND campaign.name LIKE '%CA\\_%' ESCAPE '\\'`;
-        } else if (filter === "%AZ\\_%") {
-          whereClause += ` AND campaign.name LIKE '%AZ\\_%' ESCAPE '\\'`;
-        } else if (filter === "%WA\\_%") {
-          whereClause += ` AND campaign.name LIKE '%WA\\_%' ESCAPE '\\'`;
+        if (filter === "CA") {
+          whereClause += ` AND campaign.name REGEXP_MATCH '.*CA_.*'`;
+        } else if (filter === "AZ") {
+          whereClause += ` AND campaign.name REGEXP_MATCH '.*AZ_.*'`;
+        } else if (filter === "WA") {
+          whereClause += ` AND campaign.name REGEXP_MATCH '.*WA_.*'`;
         } else {
-          whereClause += ` AND campaign.name LIKE '${filter}' ESCAPE '\\'`;
+          whereClause += ` AND campaign.name REGEXP_MATCH '.*${filter}.*'`;
         }
 
         const metricsQuery = `
@@ -227,11 +227,11 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   try {
     const { campaigns, events } = await getRawCampaigns();
-    const caData = await fetchAndAggregateLPCData("%CA\\_%");
+    const caData = await fetchAndAggregateLPCData("CA");
     await new Promise((r) => setTimeout(r, 10000));
-    const azData = await fetchAndAggregateLPCData("%AZ\\_%");
+    const azData = await fetchAndAggregateLPCData("AZ");
     await new Promise((r) => setTimeout(r, 10000));
-    const waData = await fetchAndAggregateLPCData("%WA\\_%");
+    const waData = await fetchAndAggregateLPCData("WA");
 
     const startDate = new Date("2021-10-03");
     const today = new Date();

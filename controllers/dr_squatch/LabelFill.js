@@ -101,16 +101,32 @@ async function getProductsToUpdate(sheetId, sheetName) {
   return productsToUpdate;
 }
 
-async function updateSheetValue(spreadsheetId, range, value) {
-  try {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: spreadsheetId,
-      range: range,
-      valueInputOption: "USER_ENTERED",
-      resource: { values: [[value]] },
-    });
-  } catch (err) {
-    console.error(`Failed to update cell ${range}: ${err.message}`);
+async function batchUpdateSheetValues(spreadsheetId, updates, sheetName) {
+  const batchSize = 200; // A single batchUpdate can handle many updates. 200 is a safe number.
+
+  for (let i = 0; i < updates.length; i += batchSize) {
+    const chunk = updates.slice(i, i + batchSize);
+
+    // Create the data payload for the batchUpdate API
+    const dataToUpdate = chunk.map(result => ({
+      range: `'${sheetName}'!${result.labelColumnLetter}${result.rowNumber}`,
+      values: [[result.evidence]], // result.evidence is the title
+    }));
+
+    try {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: spreadsheetId,
+        resource: {
+          valueInputOption: "USER_ENTERED",
+          data: dataToUpdate,
+        },
+      });
+    } catch (err) {
+      console.error(`Failed to batch update values: ${err.message}`);
+    }
+
+    // Add a small delay between batches to be safe with rate limits
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 }
 
@@ -453,16 +469,11 @@ async function processRegionTitles(regionConfig, browserContext) {
   }
   const sheetGid = sheet.properties.sheetId;
 
-  const updatePromises = [];
+  console.log(`Batch updating ${successfulUpdates.length} cell values...`);
+  await batchUpdateSheetValues(regionConfig.sourceSheetId, successfulUpdates, "Google Shopping Feed Test");
 
-  // Write all values first
-  for (const result of successfulUpdates) {
-    const title = result.evidence;
-    const range = `'Google Shopping Feed Test'!${result.labelColumnLetter}${result.rowNumber}`;
-    await updateSheetValue(regionConfig.sourceSheetId, range, title);
-  }
-
-  // Then color all updated cells yellow
+  // 2. Then, format all the cells
+  console.log(`Batch formatting ${successfulUpdates.length} cells...`);
   const cellsToFormat = successfulUpdates.map(r => ({
     row: r.rowNumber - 1,
     col: r.labelColumnIndex,
