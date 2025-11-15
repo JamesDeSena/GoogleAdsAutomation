@@ -563,7 +563,7 @@ async function getRawCampaigns() {
         const createdDate = new Date(new Date(attributes.created_at).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
         if (createdDate < new Date("2024-01-01T00:00:00-08:00")) return false;
         // if (!/(google|bing)/i.test(attributes?.utm_source || "")) return false;
-        if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
+        // if ((attributes?.utm_source || "").toLowerCase() === "metaads") return false;
         return true;
       })
       .map(({ attributes, relationships }) => ({
@@ -950,8 +950,6 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
     if (valueUpdateRequests.length === 0 && newMonthData.length === 0) {
       console.log("No new data to update or insert.");
     }
-
-    console.log("Monthly CAC report data successfully updated!");
   } catch (error) {
     console.error("Error processing monthly CAC report:", error);
   }
@@ -1091,7 +1089,7 @@ const sendLPCMonthlyReport = async (req, res) => {
     await delay(500);
     await sendLPCDetailedBudgettoGoogleSheets(req, res);
 
-    console.log("LP+C Monthly Budget & Monthly Detailed Budget successfully");
+    console.log("LP+C CAC & Monthly Detailed Budget successfully");
   } catch (error) {
     console.error("Error sending reports:", error);
   }
