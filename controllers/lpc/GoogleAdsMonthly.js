@@ -965,6 +965,8 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
   const readRange = 'Location Spend!A2:S';
 
   try {
+    await fetchAndSaveAdCosts();
+    await new Promise((r) => setTimeout(r, 1000));
     const record = getStoredMetrics();
 
     const mapGoogleData = (arr) =>
