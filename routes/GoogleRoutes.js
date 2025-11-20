@@ -96,6 +96,16 @@ const {
   sendFinalWeeklyReportToGoogleSheetsNBAdG,
 } = require('../controllers/national_buyers/GoogleAdsGroupWeekly');
 
+const {
+  executeSpecificFetchFunctionFLX,
+  sendFinalWeeklyReportToGoogleSheetsFLX,
+} = require('../controllers/flexfits/GoogleAdsWeekly');
+
+const {
+  executeSpecificFetchFunctionNPL,
+  sendFinalWeeklyReportToGoogleSheetsNPL,
+} = require('../controllers/nations_photolab/GoogleAdsWeekly');
+
 router.get('/lpc/report-daily', async (req, res) => {
   try {
     await runDailyExportAndReport(req, res);
@@ -269,6 +279,26 @@ router.get('/national_buyers/report-final/:date?', async (req, res) => {
 router.get('/national_buyers_adg/report-final', async (req, res) => {
   try {
     await sendFinalWeeklyReportToGoogleSheetsNBAdG(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/flexfits/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsFLX(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/nations_photolab/report-final/:date?', async (req, res) => {
+  try {
+    await sendFinalWeeklyReportToGoogleSheetsNPL(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

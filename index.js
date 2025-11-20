@@ -37,6 +37,8 @@ const { sendFinalWeeklyReportToGoogleSheetsMNR } = require('./controllers/menera
 const { sendFinalWeeklyReportToGoogleSheetsST } = require('./controllers/sleepy_tie/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsNB } = require('./controllers/national_buyers/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsNBAdG } = require('./controllers/national_buyers/GoogleAdsGroupWeekly');
+const { sendFinalWeeklyReportToGoogleSheetsFLX } = require('./controllers/flexfits/GoogleAdsWeekly');
+const { sendFinalWeeklyReportToGoogleSheetsNPL } = require('./controllers/nations_photolab/GoogleAdsWeekly');
 
 const { highlightErrorHandler, highlightJobErrorHandler } = require('./utils/highlightIO');
 
@@ -187,6 +189,8 @@ const eveningJobs2 = [
 const morningJobs3 = [
   sendFinalWeeklyReportToGoogleSheetsGC,
   sendFinalWeeklyReportToGoogleSheetsMNR,
+  sendFinalWeeklyReportToGoogleSheetsFLX,
+  sendFinalWeeklyReportToGoogleSheetsNPL,
   sendFinalWeeklyReportToGoogleSheetsST,
   sendFinalWeeklyReportToGoogleSheetsNB,
   sendFinalWeeklyReportToGoogleSheetsMIV,
