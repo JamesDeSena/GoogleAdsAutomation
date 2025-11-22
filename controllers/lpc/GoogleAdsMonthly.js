@@ -773,6 +773,7 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
         if (eventLikeStages.WA.has(stage_id)) monthData.sqlsWA++;
       }
     });
+    
     events.forEach(({ event_start, stage_id, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;

@@ -303,7 +303,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
 
       const weekData = addWeekEntry(region, label);
-      weekData[4]++;
+      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
     });
 
     const applyLPCData = (data, region) => {

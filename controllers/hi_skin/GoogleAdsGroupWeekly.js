@@ -75,7 +75,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (
       keyword_view
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name = '${exactCampaignName}'
+      AND campaign.name REGEXP_MATCH '.*${exactCampaignName}_.*'
       AND metrics.cost_micros > 0
   `;
 
@@ -227,7 +227,6 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
         let rowNumber = dynamicAdGroupRowMap.get(uniqueKey);
 
         if (!rowNumber) {
-          // Insert a new row for the ad group
           const lastRow = lastRowByCampaign.get(report.campaignName) || maxRow;
           rowNumber = lastRow + 1;
 
