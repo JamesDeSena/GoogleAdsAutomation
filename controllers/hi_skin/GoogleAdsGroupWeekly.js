@@ -75,7 +75,7 @@ const fetchWeeklyAdGroupReportWithKeywords = async (
       keyword_view
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name REGEXP_MATCH '.*${exactCampaignName}_.*'
+      AND campaign.name REGEXP_MATCH '.*${exactCampaignName}.*'
       AND metrics.cost_micros > 0
   `;
 
