@@ -71,7 +71,7 @@ async function getAmountBing(accountId) {
   }
 };
 
-async function getGoogleAdsCost(customerId) {
+async function getGoogleAdsCost(customerId, channelTypes = []) {
   const refreshToken_Google = getStoredGoogleToken();
 
   if (!refreshToken_Google) {
@@ -95,6 +95,13 @@ async function getGoogleAdsCost(customerId) {
 
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
+
+  const typeFilterQuery =
+    channelTypes.length > 0
+      ? "AND campaign.advertising_channel_type IN (" +
+        channelTypes.map(t => `'${t}'`).join(",") +
+        ")"
+      : "";
   
   const metricsQuery = `
     SELECT
@@ -105,6 +112,7 @@ async function getGoogleAdsCost(customerId) {
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
+      ${typeFilterQuery}
     ORDER BY
       segments.date DESC
   `;
@@ -371,6 +379,24 @@ async function getAmountGoogleST() {
   }
 };
 
+async function getAmountGoogleFLX1() {
+  const types = ["SHOPPING", "SEARCH", "PERFORMANCE_MAX"];
+  const totalCost = await getGoogleAdsCost(
+    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
+    types
+  );
+  return { GoogleFLX1: totalCost };
+}
+
+async function getAmountGoogleFLX2() {
+  const types = ["DEMAND_GEN", "VIDEO"];
+  const totalCost = await getGoogleAdsCost(
+    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
+    types
+  );
+  return { GoogleFLX2: totalCost };
+}
+
 async function getAmountBingTotal() {
   try {
     const BingLPC = await getAmountBing(
@@ -402,6 +428,8 @@ async function getAllMetrics() {
     const googleMNR = await getAmountGoogleMNR();
     const googleNB = await getAmountGoogleNB();
     const googleST = await getAmountGoogleST();
+    const googleFLX1 = await getAmountGoogleFLX1();
+    const googleFLX2 = await getAmountGoogleFLX2();
     
     const metrics = {
       data: {
@@ -417,6 +445,8 @@ async function getAllMetrics() {
         ...googleMNR,
         ...googleNB,
         ...googleST,
+        ...googleFLX1,
+        ...googleFLX2,
       },
     };
 
@@ -472,8 +502,10 @@ const sendPacingReportToGoogleSheets = async () => {
       // ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
       ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
-      ["National Buyers", "Google", dateCST, datePST, record.data.GoogleNB],
+      // ["National Buyers", "Google", dateCST, datePST, record.data.GoogleNB],
       ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
+      ["Flex", "Search, Shopping, Pmax", dateCST, datePST, record.data.GoogleFLX1],
+      ["Flex", "DemandGen, Video", dateCST, datePST, record.data.GoogleFLX2],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({
