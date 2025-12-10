@@ -66,13 +66,12 @@ const fetchReportDataWeeklyCampaignGC = async (dateRanges) => {
 
   try {
     const customer = client.Customer({
-      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_ST,
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_GC,
       refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
     // const dateRanges = getOrGenerateDateRanges();
-
     const aggregateDataForWeek = async (startDate, endDate) => {
       const aggregatedData = {
         date: `${startDate} - ${endDate}`,

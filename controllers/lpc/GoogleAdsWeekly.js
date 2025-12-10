@@ -284,9 +284,10 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         jurisdiction?.toLowerCase() === "washington" ? "WA" : "CA";
 
       const weekData = addWeekEntry(region, label);
-      weekData[1]++;
-      if (nopeStages[region].has(stage_id)) weekData[2]++;
-      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
+
+      weekData.leads++;
+      if (nopeStages[region].has(stage_id)) weekData.nopes++;
+      if (eventLikeStages[region].has(stage_id)) weekData.sqls++;
     });
 
     events.forEach(({ event_start, stage_id, jurisdiction }) => {
@@ -303,7 +304,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
 
       const weekData = addWeekEntry(region, label);
-      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
+      weekData.ss++;
     });
 
     const applyLPCData = (data, region) => {
