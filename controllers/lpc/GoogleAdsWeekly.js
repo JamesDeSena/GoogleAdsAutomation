@@ -100,7 +100,7 @@ async function getRawCampaigns() {
 
     const [allCampaignsData, allEventsData] = await Promise.all([
       fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values,utm_source", LAWMATICS_TOKEN, BATCH_SIZE),
-      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date", LAWMATICS_TOKEN, BATCH_SIZE)
+      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date,canceled_at,attendee_name", LAWMATICS_TOKEN, BATCH_SIZE)
     ]);
     
     const filteredCampaigns = allCampaignsData
@@ -115,21 +115,23 @@ async function getRawCampaigns() {
       .map(({ attributes, relationships }) => ({
         created_at: formatDateToMMDDYYYY(attributes.created_at),
         stage_id: relationships?.stage?.data?.id || null,
-        jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+        jurisdiction: attributes?.custom_field_values?.["635624"]?.formatted_value || null,
         source: attributes?.utm_source || null,
       }));
 
     const strategySessions = allEventsData
       .filter(event => {
-        const { name, start_date } = event.attributes || {};
+        const { name, start_date, canceled_at } = event.attributes || {};
         if (!name || !start_date) return false;
+        if (canceled_at) return false;
         const eventDate = new Date(new Date(start_date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-        return (name === "Strategy Session" || (/^AZ\b/.test(name))) && eventDate >= new Date("2021-10-03T00:00:00-08:00");
+        return eventDate >= new Date("2021-10-03T00:00:00-08:00");
       })
       .map(event => ({
         event_start: formatDateToMMDDYYYY(event.attributes?.start_date),
         event_id: event.id,
         jurisdiction: event.attributes?.name,
+        name: event.attributes?.attendee_name
       }));
 
     return { campaigns: filteredCampaigns, events: strategySessions };
@@ -285,26 +287,30 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       const weekData = addWeekEntry(region, label);
 
-      weekData.leads++;
-      if (nopeStages[region].has(stage_id)) weekData.nopes++;
-      if (eventLikeStages[region].has(stage_id)) weekData.sqls++;
+      weekData[1]++;
+      if (nopeStages[region].has(stage_id)) weekData[2]++;
+      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
     });
 
-    events.forEach(({ event_start, stage_id, jurisdiction }) => {
+    events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate || eventDate > today) return;
 
       const { label } = processWeek(eventDate);
+      const weekData = addWeekEntry(label);
 
-      const region =
-        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
-        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
-        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
-        /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" :
-        /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
+      let region = null;
+      const j = jurisdiction.trim();
 
-      const weekData = addWeekEntry(region, label);
-      weekData.ss++;
+      if (j === "AZ - Strategy Session" || j.startsWith("AZ - Strategy Session -")) region = "AZ";
+      else if (j === "CA - Strategy Session" || j.startsWith("CA - Strategy Session -")) region = "CA";
+      else if (j === "WA - Strategy Session" || j.startsWith("WA - Strategy Session -")) region = "WA";
+
+      if (!region && j === "Strategy Session" && eventDate.getFullYear() === 2025 && eventDate.getMonth() < 11) {
+        region = "CA";
+      }
+
+      if (region) weekData[4]++;
     });
 
     const applyLPCData = (data, region) => {

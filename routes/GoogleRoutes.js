@@ -17,8 +17,8 @@ const {
   fetchAndSaveAdCosts,
   executeSpecificFetchFunctionLPC,
   sendLPCDetailedBudgettoGoogleSheets,
-  sendLPCBudgettoGoogleSheets,
-  sendLPCMonthlyReport
+  sendLPCMonthlyReport,
+  testLawmaticsMonthly
 } = require("../controllers/lpc/GoogleAdsMonthly");
 
 const {

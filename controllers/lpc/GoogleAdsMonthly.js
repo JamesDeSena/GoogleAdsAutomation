@@ -554,7 +554,7 @@ async function getRawCampaigns() {
 
     const [allCampaignsData, allEventsData] = await Promise.all([
       fetchPaginatedData("https://api.lawmatics.com/v1/prospects?fields=created_at,stage,custom_field_values,utm_source", LAWMATICS_TOKEN, BATCH_SIZE),
-      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date", LAWMATICS_TOKEN, BATCH_SIZE)
+      fetchPaginatedData("https://api.lawmatics.com/v1/events?fields=id,name,start_date,canceled_at,attendee_name", LAWMATICS_TOKEN, BATCH_SIZE)
     ]);
     
     const filteredCampaigns = allCampaignsData
@@ -569,21 +569,23 @@ async function getRawCampaigns() {
       .map(({ attributes, relationships }) => ({
         created_at: attributes.created_at,
         stage_id: relationships?.stage?.data?.id || null,
-        jurisdiction: attributes?.custom_field_values?.["562886"]?.formatted_value || null,
+        jurisdiction: attributes?.custom_field_values?.["635624"]?.formatted_value || null,
         source: attributes?.utm_source || null,
       }));
 
     const strategySessions = allEventsData
       .filter(event => {
-        const { name, start_date } = event.attributes || {};
+        const { name, start_date, canceled_at } = event.attributes || {};
         if (!name || !start_date) return false;
+        if (canceled_at) return false;
         const eventDate = new Date(new Date(start_date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-        return (name === "Strategy Session" || (/^AZ\b/.test(name))) && eventDate >= new Date("2024-01-01T00:00:00-08:00");
+        return eventDate >= new Date("2024-01-01T00:00:00-08:00");
       })
       .map(event => ({
         event_start: event.attributes?.start_date,
         event_id: event.id,
         jurisdiction: event.attributes?.name,
+        name: event.attributes?.attendee_name
       }));
 
     return { campaigns: filteredCampaigns, events: strategySessions };
@@ -718,6 +720,7 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
       AZ: new Set(["111596", "111597"]),
       WA: new Set(["110790", "110790", "110793"]),
     };
+
     const eventLikeStages = {
       CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]),
       AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]),
@@ -774,17 +777,27 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
       }
     });
     
-    events.forEach(({ event_start, stage_id, jurisdiction }) => {
+    events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
-      if (!eventDate || eventDate > today) return;
+      if (!eventDate) return;
+
+      if (eventDate > today && 
+          (eventDate.getMonth() !== today.getMonth() || eventDate.getFullYear() !== today.getFullYear())
+      ) return;
+
       const monthData = getMonthEntry(eventDate);
-      const region =
-        (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
-        (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
-        (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
-        /^AZ - Strategy Session/i.test(jurisdiction) ? "AZ" :
-        /^WA - Strategy Session/i.test(jurisdiction) ? "WA" : "CA";
-      
+
+      let region = null;
+      const j = jurisdiction.trim();
+
+      if (j === "AZ - Strategy Session" || j.startsWith("AZ - Strategy Session -")) region = "AZ";
+      else if (j === "CA - Strategy Session" || j.startsWith("CA - Strategy Session -")) region = "CA";
+      else if (j === "WA - Strategy Session" || j.startsWith("WA - Strategy Session -")) region = "WA";
+
+      if (!region && j === "Strategy Session" && eventDate.getFullYear() === 2025 && eventDate.getMonth() < 11) {
+        region = "CA";
+      }
+
       if (region === "CA") monthData.ssCA++;
       else if (region === "AZ") monthData.ssAZ++;
       else if (region === "WA") monthData.ssWA++;
@@ -1098,6 +1111,118 @@ const sendLPCMonthlyReport = async (req, res) => {
   }
 };
 
+async function testLawmaticsMonthly() {
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const nopeStages = {
+    CA: new Set(["80193", "113690", "21589"]),
+    AZ: new Set(["111596", "111597"]),
+    WA: new Set(["110790", "110790", "110793"]),
+  };
+  const eventLikeStages = {
+    CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]),
+    AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]),
+    WA: new Set(["144176","144177","143884","144179","144180","144181","144182", "144183"]),
+  };
+
+  const processDate = (date) => {
+    if (!date) return null;
+    return new Date(new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  };
+
+  const getMonthEntry = (months, date) => {
+    const year = date.getFullYear();
+    const monthIndex = date.getMonth();
+    const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+    if (!months[key]) {
+      months[key] = {
+        year: String(year),
+        month: monthNames[monthIndex],
+        leads: { CA: [], AZ: [], WA: [] },
+        nopes: { CA: [], AZ: [], WA: [] },
+        sqls: { CA: [], AZ: [], WA: [] },
+        ss: { CA: [], AZ: [], WA: [] },
+      };
+    }
+    return months[key];
+  };
+
+  try {
+    const { campaigns, events } = await getRawCampaigns();
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const months = {};
+
+    // Process campaigns (leads, nopes, SQLs)
+    campaigns.forEach(c => {
+      const date = processDate(c.created_at);
+      if (!date) return;
+
+      // Skip past campaigns beyond today only for past months
+      if (date > today && (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear)) return;
+
+      const monthData = getMonthEntry(months, date);
+      let region =
+        (eventLikeStages.AZ.has(c.stage_id) || nopeStages.AZ.has(c.stage_id)) ? "AZ" :
+        (eventLikeStages.CA.has(c.stage_id) || nopeStages.CA.has(c.stage_id)) ? "CA" :
+        (eventLikeStages.WA.has(c.stage_id) || nopeStages.WA.has(c.stage_id)) ? "WA" :
+        c.jurisdiction?.toLowerCase() === "arizona" ? "AZ" :
+        c.jurisdiction?.toLowerCase() === "washington" ? "WA" : "CA";
+
+      monthData.leads[region].push(c);
+      if (nopeStages[region].has(c.stage_id)) monthData.nopes[region].push(c);
+      if (eventLikeStages[region].has(c.stage_id)) monthData.sqls[region].push(c);
+    });
+
+    events.forEach(e => {
+      const date = processDate(e.event_start);
+      if (!date) return;
+
+      if (date > today && (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear)) return;
+
+      const monthData = getMonthEntry(months, date);
+
+      let region = null;
+      const jurisdiction = e.jurisdiction.trim(); // remove trailing spaces
+
+      // Strict match for standard "X - Strategy Session"
+      if (jurisdiction === "AZ - Strategy Session" || jurisdiction.startsWith("AZ - Strategy Session -")) region = "AZ";
+      else if (jurisdiction === "CA - Strategy Session" || jurisdiction.startsWith("CA - Strategy Session -")) region = "CA";
+      else if (jurisdiction === "WA - Strategy Session" || jurisdiction.startsWith("WA - Strategy Session -")) region = "WA";
+
+      // Special case: generic "Strategy Session" (historical, only CA before November)
+      if (!region && jurisdiction === "Strategy Session") {
+          if (date.getFullYear() === 2025 && date.getMonth() < 11) region = "CA"; // month < 10 means Jan-Oct
+      }
+
+      if (region) monthData.ss[region].push(e);
+    });
+
+    // Convert arrays to counts for reporting
+    const monthlyReport = {};
+    Object.keys(months).forEach(key => {
+      monthlyReport[key] = {
+        year: months[key].year,
+        month: months[key].month,
+        leads: { CA: months[key].leads.CA.length, AZ: months[key].leads.AZ.length, WA: months[key].leads.WA.length },
+        nopes: { CA: months[key].nopes.CA.length, AZ: months[key].nopes.AZ.length, WA: months[key].nopes.WA.length },
+        sqls: { CA: months[key].sqls.CA.length, AZ: months[key].sqls.AZ.length, WA: months[key].sqls.WA.length },
+        ss: { CA: months[key].ss.CA.length, AZ: months[key].ss.AZ.length, WA: months[key].ss.WA.length },
+        details: months[key]
+      };
+    });
+
+    fs.writeFileSync("campaigns_monthly_report.json", JSON.stringify(monthlyReport, null, 2));
+    console.log("Monthly report generated:", Object.keys(monthlyReport));
+
+    return monthlyReport;
+
+  } catch (error) {
+    console.error("Error processing campaigns:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   generateLPCBing,
   fetchAndSaveAdCosts,
@@ -1105,4 +1230,5 @@ module.exports = {
   sendLPCCACToGoogleSheets,
   sendLPCDetailedBudgettoGoogleSheets,
   sendLPCMonthlyReport,
+  testLawmaticsMonthly,
 };
