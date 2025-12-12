@@ -275,7 +275,8 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
-      if (!createdDate || createdDate > today) return;
+      if (!createdDate) return;
+      if (createdDate > today && (createdDate.getMonth() !== currentMonth || createdDate.getFullYear() !== currentYear)) return;
 
       const { label } = processWeek(createdDate);
       const region =
@@ -283,7 +284,10 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
         (eventLikeStages.WA.has(stage_id) || nopeStages.WA.has(stage_id)) ? "WA" :
         jurisdiction?.toLowerCase() === "arizona" ? "AZ" :
-        jurisdiction?.toLowerCase() === "washington" ? "WA" : "CA";
+        jurisdiction?.toLowerCase() === "california" ? "CA" :
+        jurisdiction?.toLowerCase() === "washington" ? "WA" : null;
+
+      if (!region) return;
 
       const weekData = addWeekEntry(region, label);
 
