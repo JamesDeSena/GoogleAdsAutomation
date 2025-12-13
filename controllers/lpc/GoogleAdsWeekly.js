@@ -301,20 +301,27 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       if (!eventDate || eventDate > today) return;
 
       const { label } = processWeek(eventDate);
-      const weekData = addWeekEntry(label);
 
       let region = null;
-      const j = jurisdiction.trim();
+      const j = jurisdiction?.trim();
 
-      if (j === "AZ - Strategy Session" || j.startsWith("AZ - Strategy Session -")) region = "AZ";
-      else if (j === "CA - Strategy Session" || j.startsWith("CA - Strategy Session -")) region = "CA";
-      else if (j === "WA - Strategy Session" || j.startsWith("WA - Strategy Session -")) region = "WA";
+      if (j === "AZ - Strategy Session" || j?.startsWith("AZ - Strategy Session -")) region = "AZ";
+      else if (j === "CA - Strategy Session" || j?.startsWith("CA - Strategy Session -")) region = "CA";
+      else if (j === "WA - Strategy Session" || j?.startsWith("WA - Strategy Session -")) region = "WA";
 
-      if (!region && j === "Strategy Session" && eventDate.getFullYear() === 2025 && eventDate.getMonth() < 11) {
+      // Hard-coded CA fallback
+      if (!region && j === "Strategy Session" &&
+          eventDate.getFullYear() === 2025 &&
+          eventDate.getMonth() < 11) {
         region = "CA";
       }
 
-      if (region) weekData[4]++;
+      if (!region) return;
+
+      // Now region is guaranteed to exist
+      const weekData = addWeekEntry(region, label);
+
+      weekData[4]++;
     });
 
     const applyLPCData = (data, region) => {
