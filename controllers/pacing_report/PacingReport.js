@@ -106,7 +106,6 @@ async function getGoogleAdsCost(customerId, channelTypes = [], campaignFilter = 
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.status = 'ENABLED'
       ${typeFilterQuery}
       ${campaignFilter}
   `;
@@ -202,7 +201,6 @@ async function getAmountGoogleHSCampaigns() {
           campaign
         WHERE
           ${whereClause}
-          AND campaign.status = 'ENABLED'
         ORDER BY
           segments.date DESC
       `;
