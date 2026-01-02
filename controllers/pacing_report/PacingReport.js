@@ -395,6 +395,17 @@ async function getAmountGoogleFLX3() {
   return { GoogleFLX3: totalCost };
 }
 
+async function getAmountGoogleNPL() {
+  try {
+    const totalCost = await getGoogleAdsCost(
+      process.env.GOOGLE_ADS_CUSTOMER_ID_NPL
+    );
+    return { GoogleNPL: totalCost };
+  } catch (error) {
+    throw new Error("Error fetching Google Ads Sleeping Tie data");
+  }
+};
+
 async function getAmountBingTotal() {
   try {
     const BingLPC = await getAmountBing(
@@ -429,6 +440,7 @@ async function getAllMetrics() {
     const googleFLX1 = await getAmountGoogleFLX1();
     const googleFLX2 = await getAmountGoogleFLX2();
     const googleFLX3 = await getAmountGoogleFLX3();
+    const googleNPL = await getAmountGoogleNPL();
     
     const metrics = {
       data: {
@@ -447,6 +459,7 @@ async function getAllMetrics() {
         ...googleFLX1,
         ...googleFLX2,
         ...googleFLX3,
+        ...googleNPL,
       },
     };
 
@@ -507,6 +520,7 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Flex", "Search, Shopping, Pmax (Excl PadLiner)", dateCST, datePST, record.data.GoogleFLX1],
       ["Flex", "DemandGen, Video", dateCST, datePST, record.data.GoogleFLX2],
       ["Flex", "PadLiner", dateCST, datePST, record.data.GoogleFLX3],
+      ["Nations Photo Lab", "Google", dateCST, datePST, record.data.GoogleNPL],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({
