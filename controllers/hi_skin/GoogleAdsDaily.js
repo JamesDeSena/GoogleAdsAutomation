@@ -200,9 +200,12 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     // Read Column B (Dates) from Row 4 to Row 33
     const dateColumnResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!B4:B33`,
+      range: `${sheetName}!B4:B`,
     });
-    const dateRows = dateColumnResponse.data.values || [];
+    const rawDateRows = dateColumnResponse.data.values || [];
+    const dateRows = rawDateRows
+      .map(r => r[0])
+      .filter(v => v && v.toLowerCase() !== "total");
 
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
@@ -211,9 +214,9 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     });
 
     // Convert sheet dates to yyyy-mm-dd format for API
-    const dateRanges = dateRows.map(([dateText]) => {
+    const dateRanges = dateRows.map(dateText => {
       const [monthName, day] = dateText.split(" ");
-      const month = new Date(`${monthName} 1, 2025`).getMonth() + 1; // 1-indexed
+      const month = new Date(`${monthName} 1, 2025`).getMonth() + 1;
       const dd = String(day).padStart(2, "0");
       const mm = String(month).padStart(2, "0");
       return { start: `2025-${mm}-${dd}` };
@@ -236,14 +239,15 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     });
 
     // Update only Columns L, M, N (Rows 4-33)
-    if (sheetData.length > 0) {
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${sheetName}!I4:K33`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: sheetData },
-      });
-    }
+    const startRow = 4;
+    const endRow = startRow + dateRanges.length - 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!I${startRow}:K${endRow}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: sheetData },
+    });
 
     console.log(`Final Hi Skin daily report sent to Google Sheets successfully!`);
   } catch (error) {

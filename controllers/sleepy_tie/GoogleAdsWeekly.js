@@ -254,10 +254,10 @@ const createFetchFunction = (campaignNameFilter, brandNBFilter = "") => {
 
 const fetchFunctions = {
   fetchReportDataWeeklySTAllBrand: createFetchFunction("_Brand", ""),
-  fetchReportDataWeeklySTAllNonbrand: createFetchFunction("_Nonbrand", ""),
-  fetchReportDataWeeklySTShoppingNB: createFetchFunction("Shopping_Nonbrand", ""),
+  fetchReportDataWeeklySTAllNonbrand: createFetchFunction("_NB", ""),
+  fetchReportDataWeeklySTShoppingNB: createFetchFunction("Shopping_NB", ""),
   fetchReportDataWeeklySTShoppingBrand: createFetchFunction("Shopping_Brand", ""),
-  fetchReportDataWeeklySTSearchNB: createFetchFunction("Search_Nonbrand", ""),
+  fetchReportDataWeeklySTSearchNB: createFetchFunction("Search_NB", ""),
   fetchReportDataWeeklySTPmax: createFetchFunction("Pmax", ""),
   fetchReportDataWeeklySTDemandGen: createFetchFunction("Demand Gen", ""),
 };
