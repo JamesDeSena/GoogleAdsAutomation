@@ -4,49 +4,6 @@ const { getStoredGoogleToken } = require("../GoogleAuth");
 const fs = require("fs");
 const path = require("path");
 
-let storedDateRanges = null;
-
-const generateDailyDateRanges = (startDate, endDate) => {
-  const dateRanges = [];
-  let currentStartDate = new Date(startDate + 'T00:00:00Z');
-  const adjustedEndDate = new Date(endDate + 'T00:00:00Z');
-
-  while (currentStartDate <= adjustedEndDate) {
-    const dateStr = currentStartDate.toISOString().split("T")[0];
-    dateRanges.push({
-      start: dateStr,
-      end: dateStr,
-    });
-    currentStartDate.setUTCDate(currentStartDate.getUTCDate() + 1);
-  }
-  return dateRanges;
-};
-
-const getOrGenerateDateRanges = (inputStartDate = null) => {
-  if (inputStartDate) {
-    return generateDailyDateRanges(inputStartDate, inputStartDate);
-  }
-
-  const today = new Date(); 
-  const dayOfWeek = today.getDay();
-  const daysUntilSunday = (7 - dayOfWeek) % 7; 
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + daysUntilSunday); 
-  const endDateString = endDate.toISOString().split("T")[0];
-
-  const startDate = "2025-11-01";
-
-  if (
-    !storedDateRanges ||
-    new Date(storedDateRanges[storedDateRanges.length - 1].end) < endDate
-  ) {
-    storedDateRanges = generateDailyDateRanges(startDate, endDateString);
-  }
-  return storedDateRanges;
-};
-
-setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
-
 const fetchDailyRegionCostReport = async (customer, dateRanges) => {
   const finalReportByDate = {};
   const allGeoTargetIds = new Set();
@@ -148,30 +105,56 @@ const fetchDailyRegionCostReport = async (customer, dateRanges) => {
     finalReportByDate[date] = finalEntries;
   }
 
-  // const jsonFilePath = path.join(__dirname, "daily_region_cost_report.json");
-  // try {
-  //   if (Object.keys(finalReportByDate).length === 0) {
-  //     console.log("⚠️ No data found. JSON file not written.");
-  //   } else {
-  //     fs.writeFileSync(jsonFilePath, JSON.stringify(finalReportByDate, null, 2));
-  //     console.log(`📁 Report saved to ${jsonFilePath}`);
-  //   }
-  // } catch (err) {
-  //   console.error(`❌ Failed to write JSON file:`, err?.message || err);
-  // }
+  const jsonFilePath = path.join(__dirname, "daily_region_cost_report.json");
+  try {
+    if (Object.keys(finalReportByDate).length === 0) {
+      console.log("⚠️ No data found. JSON file not written.");
+    } else {
+      fs.writeFileSync(jsonFilePath, JSON.stringify(finalReportByDate, null, 2));
+      console.log(`📁 Report saved to ${jsonFilePath}`);
+    }
+  } catch (err) {
+    console.error(`❌ Failed to write JSON file:`, err?.message || err);
+  }
 
   return finalReportByDate;
 };
 
 const runDailyLocationReport = async (req, res) => {
   try {
-    const date = req?.params?.date;
-    const dateRanges = getOrGenerateDateRanges(date);
+    const auth = new google.auth.GoogleAuth({
+      keyFile: "serviceToken.json",
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    if (!dateRanges?.length) {
-      console.log("⚠️ No date ranges to process.");
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.SHEET_HI_SKIN_TL;
+    const sheetName = "MTD Market Spend";
+
+    const dateColumnResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!B4:B`,
+    });
+
+    const rawDateRows = dateColumnResponse.data.values || [];
+    const dateRows = rawDateRows
+      .map(r => r[0])
+      .filter(v => v && v.toLowerCase() !== "total");
+
+    if (!dateRows.length) {
+      console.log("⚠️ No dates found in sheet.");
       return;
     }
+
+    const CURRENT_YEAR = new Date().getFullYear();
+
+    const dateRanges = dateRows.map(dateText => {
+      const [monthName, day] = dateText.split(" ");
+      const month = new Date(`${monthName} 1`).getMonth() + 1;
+      return {
+        start: `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      };
+    });
 
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
@@ -180,9 +163,10 @@ const runDailyLocationReport = async (req, res) => {
     });
 
     await fetchDailyRegionCostReport(customer, dateRanges);
-    console.log("✅ Final Hi Skin daily report sent successfully!");
+
+    console.log("✅ Final Hi Skin daily report generated using sheet dates!");
   } catch (error) {
-    console.error("❌ Error sending Hi Skin daily report:", error?.message || error);
+    console.error("❌ Error running Hi Skin daily location report:", error?.message || error);
   }
 };
 
@@ -214,12 +198,14 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     });
 
     // Convert sheet dates to yyyy-mm-dd format for API
+    const CURRENT_YEAR = new Date().getFullYear();
+
     const dateRanges = dateRows.map(dateText => {
       const [monthName, day] = dateText.split(" ");
-      const month = new Date(`${monthName} 1, 2025`).getMonth() + 1;
+      const month = new Date(`${monthName} 1`).getMonth() + 1;
       const dd = String(day).padStart(2, "0");
       const mm = String(month).padStart(2, "0");
-      return { start: `2025-${mm}-${dd}` };
+      return { start: `${CURRENT_YEAR}-${mm}-${dd}` };
     });
 
     const dailyReport = await fetchDailyRegionCostReport(customer, dateRanges);

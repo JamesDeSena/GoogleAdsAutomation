@@ -352,9 +352,9 @@ async function scrapeProductCrawler(browserContext, url) {
         const buttonText = (await buttonInfo.buttonLocator.innerText()).trim().toLowerCase();
         evidence = buttonText;
 
-        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig")) {
+        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig") || buttonText.includes("ausverkauft")) {
           status = "out of stock";
-        } else if (buttonText.includes("add to cart") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren")) {
+        } else if (buttonText.includes("add to cart") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren") || buttonText.includes("zum warenkorb hinzufügen")) {
           status = "in stock";
         } else {
           status = "UNKNOWN";
@@ -858,9 +858,9 @@ async function runTestStock() {
         const buttonText = (await buttonInfo.buttonLocator.innerText()).trim().toLowerCase();
         evidence = buttonText;
 
-        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig")) {
+        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig") || buttonText.includes("ausverkauft")) {
           detectedStatus = "out of stock";
-        } else if (buttonText.includes("add to cart") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren")) {
+        } else if (buttonText.includes("add to cart") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren") || buttonText.includes("zum warenkorb hinzufügen")) {
           detectedStatus = "in stock";
         } else {
           detectedStatus = `UNKNOWN (Button text: "${buttonText}")`;
