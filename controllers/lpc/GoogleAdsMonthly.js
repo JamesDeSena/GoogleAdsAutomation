@@ -395,7 +395,7 @@ const aggregateDataForMonth = async (customer, campaignNameFilter, startDate, en
       campaign
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name REGEXP_MATCH '.*${campaignNameFilter}_.*'
+      AND campaign.name REGEXP_MATCH '.*${campaignNameFilter}_.*|.*LocalServicesCampaign:SystemGenerated.*'
     ORDER BY
       segments.date DESC
   `;
@@ -1038,10 +1038,10 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
       row[6] = googleCAMap[date]?.localServices || 0;
       row[8] = googleAZMap[date]?.cost || 0;
       row[9] = bingAZMap[date] || 0;
-      row[12] = googleAZMap[date]?.localServices || 0;
+      // row[12] = googleAZMap[date]?.localServices || 0;
       row[14] = googleWAMap[date]?.cost || 0;
       row[15] = bingWAMap[date] || 0;
-      row[18] = googleWAMap[date]?.localServices || 0;
+      // row[18] = googleWAMap[date]?.localServices || 0;
 
       if (labelToRow[date]) {
         const rowIndex = labelToRow[date];
@@ -1057,18 +1057,18 @@ const sendLPCDetailedBudgettoGoogleSheets = async (req, res) => {
           range: `Location Spend!I${rowIndex}:J${rowIndex}`,
           values: [[row[8], row[9]]],
         });
-        updateRequests.push({
-          range: `Location Spend!M${rowIndex}`,
-          values: [[row[12]]],
-        });
+        // updateRequests.push({
+        //   range: `Location Spend!M${rowIndex}`,
+        //   values: [[row[12]]],
+        // });
         updateRequests.push({
           range: `Location Spend!O${rowIndex}:P${rowIndex}`,
           values: [[row[14], row[15]]],
         });
-        updateRequests.push({
-          range: `Location Spend!S${rowIndex}`,
-          values: [[row[18]]],
-        });
+        // updateRequests.push({
+        //   range: `Location Spend!S${rowIndex}`,
+        //   values: [[row[18]]],
+        // });
       } else {
         rowsToAppend.push(row);
       }
