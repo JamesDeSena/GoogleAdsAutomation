@@ -71,9 +71,12 @@ async function getAmountBing(accountId) {
   }
 };
 
-async function getGoogleAdsCost(customerId, channelTypes = [], campaignFilter = "") {
+async function getGoogleAdsCost(customerId, channelTypes = []) {
   const refreshToken_Google = getStoredGoogleToken();
-  if (!refreshToken_Google) return;
+  if (!refreshToken_Google) {
+    console.error("Refresh token is missing. Please authenticate.");
+    return;
+  }
 
   const customer = client.Customer({
     customer_id: customerId,
@@ -94,7 +97,9 @@ async function getGoogleAdsCost(customerId, channelTypes = [], campaignFilter = 
 
   const typeFilterQuery =
     channelTypes.length > 0
-      ? `AND campaign.advertising_channel_type IN (${channelTypes.map(t => `'${t}'`).join(",")})`
+      ? "AND campaign.advertising_channel_type IN (" +
+      channelTypes.map(t => `'${t}'`).join(",") +
+      ")"
       : "";
 
   const metricsQuery = `
@@ -107,18 +112,24 @@ async function getGoogleAdsCost(customerId, channelTypes = [], campaignFilter = 
     WHERE
       segments.date BETWEEN '${startDate}' AND '${endDate}'
       ${typeFilterQuery}
-      ${campaignFilter}
+    ORDER BY
+      segments.date DESC
   `;
 
-  const metricsResponse = await customer.query(metricsQuery);
+  try {
+    const metricsResponse = await customer.query(metricsQuery);
 
-  const totalCost = metricsResponse.reduce(
-    (sum, r) => sum + r.metrics.cost_micros / 1_000_000,
-    0
-  );
+    const totalCost = metricsResponse.reduce((total, campaign) => {
+      const costInDollars = campaign.metrics.cost_micros / 1_000_000;
+      return total + costInDollars;
+    }, 0);
 
-  return parseFloat(totalCost.toFixed(2));
-}
+    return parseFloat(totalCost.toFixed(2));
+  } catch (error) {
+    console.error("Error fetching Google Ads data:", error);
+    throw error;
+  }
+};
 
 async function getAmountGoogleLPC() {
   try {
@@ -371,8 +382,7 @@ async function getAmountGoogleFLX1() {
   const types = ["SHOPPING", "SEARCH", "PERFORMANCE_MAX"];
   const totalCost = await getGoogleAdsCost(
     process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
-    types,
-    "AND campaign.name NOT LIKE '%PadLiners%'"
+    types
   );
   return { GoogleFLX1: totalCost };
 }
@@ -380,19 +390,9 @@ async function getAmountGoogleFLX1() {
 async function getAmountGoogleFLX2() {
   const types = ["DEMAND_GEN", "VIDEO"];
   const totalCost = await getGoogleAdsCost(
-    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
-    types
+    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX
   );
   return { GoogleFLX2: totalCost };
-}
-
-async function getAmountGoogleFLX3() {
-  const totalCost = await getGoogleAdsCost(
-    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
-    [],
-    "AND campaign.name LIKE '%PadLiners%'"
-  );
-  return { GoogleFLX3: totalCost };
 }
 
 async function getAmountGoogleNPL() {
@@ -439,7 +439,6 @@ async function getAllMetrics() {
     const googleST = await getAmountGoogleST();
     const googleFLX1 = await getAmountGoogleFLX1();
     const googleFLX2 = await getAmountGoogleFLX2();
-    const googleFLX3 = await getAmountGoogleFLX3();
     const googleNPL = await getAmountGoogleNPL();
     
     const metrics = {
@@ -458,7 +457,6 @@ async function getAllMetrics() {
         ...googleST,
         ...googleFLX1,
         ...googleFLX2,
-        ...googleFLX3,
         ...googleNPL,
       },
     };
@@ -517,9 +515,8 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
       // ["National Buyers", "Google", dateCST, datePST, record.data.GoogleNB],
       ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
-      ["Flex", "Search, Shopping, Pmax (Excl PadLiner)", dateCST, datePST, record.data.GoogleFLX1],
+      ["Flex", "Search, Shopping, Pmax", dateCST, datePST, record.data.GoogleFLX1],
       ["Flex", "DemandGen, Video", dateCST, datePST, record.data.GoogleFLX2],
-      ["Flex", "PadLiner", dateCST, datePST, record.data.GoogleFLX3],
       ["Nations Photo Lab", "Google", dateCST, datePST, record.data.GoogleNPL],
     ];
 
