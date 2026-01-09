@@ -390,7 +390,8 @@ async function getAmountGoogleFLX1() {
 async function getAmountGoogleFLX2() {
   const types = ["DEMAND_GEN", "VIDEO"];
   const totalCost = await getGoogleAdsCost(
-    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX
+    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
+    types
   );
   return { GoogleFLX2: totalCost };
 }

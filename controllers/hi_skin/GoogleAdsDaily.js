@@ -105,17 +105,17 @@ const fetchDailyRegionCostReport = async (customer, dateRanges) => {
     finalReportByDate[date] = finalEntries;
   }
 
-  const jsonFilePath = path.join(__dirname, "daily_region_cost_report.json");
-  try {
-    if (Object.keys(finalReportByDate).length === 0) {
-      console.log("⚠️ No data found. JSON file not written.");
-    } else {
-      fs.writeFileSync(jsonFilePath, JSON.stringify(finalReportByDate, null, 2));
-      console.log(`📁 Report saved to ${jsonFilePath}`);
-    }
-  } catch (err) {
-    console.error(`❌ Failed to write JSON file:`, err?.message || err);
-  }
+  // const jsonFilePath = path.join(__dirname, "daily_region_cost_report.json");
+  // try {
+  //   if (Object.keys(finalReportByDate).length === 0) {
+  //     console.log("⚠️ No data found. JSON file not written.");
+  //   } else {
+  //     fs.writeFileSync(jsonFilePath, JSON.stringify(finalReportByDate, null, 2));
+  //     console.log(`📁 Report saved to ${jsonFilePath}`);
+  //   }
+  // } catch (err) {
+  //   console.error(`❌ Failed to write JSON file:`, err?.message || err);
+  // }
 
   return finalReportByDate;
 };
@@ -181,15 +181,31 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
     const spreadsheetId = process.env.SHEET_HI_SKIN_TL;
     const sheetName = "MTD Market Spend";
 
-    // Read Column B (Dates) from Row 4 to Row 33
     const dateColumnResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetName}!B4:B`,
     });
-    const rawDateRows = dateColumnResponse.data.values || [];
-    const dateRows = rawDateRows
-      .map(r => r[0])
-      .filter(v => v && v.toLowerCase() !== "total");
+
+    const rawRows = dateColumnResponse.data.values || [];
+    const dateRows = [];
+
+    for (const r of rawRows) {
+      if (!r[0]) continue;
+      if (r[0].toLowerCase() === "total") break;
+      dateRows.push(r[0]);
+    }
+
+    if (!dateRows.length) return;
+
+    const CURRENT_YEAR = new Date().getFullYear();
+
+    const dateRanges = dateRows.map(dateText => {
+      const [monthName, day] = dateText.split(" ");
+      const month = new Date(`${monthName} 1`).getMonth() + 1;
+      return {
+        start: `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      };
+    });
 
     const customer = client.Customer({
       customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
@@ -197,36 +213,26 @@ const sendFinalDailyReportToGoogleSheetsHS = async (req, res) => {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    // Convert sheet dates to yyyy-mm-dd format for API
-    const CURRENT_YEAR = new Date().getFullYear();
-
-    const dateRanges = dateRows.map(dateText => {
-      const [monthName, day] = dateText.split(" ");
-      const month = new Date(`${monthName} 1`).getMonth() + 1;
-      const dd = String(day).padStart(2, "0");
-      const mm = String(month).padStart(2, "0");
-      return { start: `${CURRENT_YEAR}-${mm}-${dd}` };
-    });
-
     const dailyReport = await fetchDailyRegionCostReport(customer, dateRanges);
 
-    // Prepare L, M, N columns only
     const sheetData = dateRanges.map(({ start }) => {
       const entries = dailyReport[start] || [];
       const regionTotals = {};
-      for (const entry of entries) {
-        regionTotals[entry.regionName] = entry.cost;
-      }
+      for (const e of entries) regionTotals[e.regionName] = e.cost;
       return [
-        regionTotals.AZ || null, // Column L
-        regionTotals.TX || null, // Column M
-        regionTotals.DMV || null // Column N
+        regionTotals.AZ ?? "",
+        regionTotals.TX ?? "",
+        regionTotals.DMV ?? ""
       ];
     });
 
-    // Update only Columns L, M, N (Rows 4-33)
     const startRow = 4;
     const endRow = startRow + dateRanges.length - 1;
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: `${sheetName}!I${startRow}:K${endRow}`,
+    });
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
