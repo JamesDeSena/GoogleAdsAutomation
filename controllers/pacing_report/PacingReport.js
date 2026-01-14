@@ -433,7 +433,7 @@ async function getAllMetrics() {
     const googleDripAZ = await getAmountGoogleAZ();
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
-    const googleTW = await getAmountGoogleTWCampaigns();
+    // const googleTW = await getAmountGoogleTWCampaigns();
     const googleGC = await getAmountGoogleGC();
     const googleMNR = await getAmountGoogleMNR();
     const googleNB = await getAmountGoogleNB();
@@ -451,7 +451,7 @@ async function getAllMetrics() {
         ...googleDripAZ,
         ...googleDripLV,
         ...googleDripNYC,
-        ...googleTW,
+        // ...googleTW,
         ...googleGC,
         ...googleMNR,
         ...googleNB,
