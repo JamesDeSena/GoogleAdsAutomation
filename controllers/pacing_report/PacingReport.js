@@ -268,72 +268,6 @@ async function getAmountGoogleNYC() {
   }
 };
 
-async function getAmountGoogleTWCampaigns() {
-  const refreshToken_Google = getStoredGoogleToken();
-
-  if (!refreshToken_Google) {
-    console.error("Refresh token is missing. Please authenticate.");
-    return;
-  }
-
-  const customer = client.Customer({
-    customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_TW,
-    refresh_token: refreshToken_Google,
-    login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
-  });
-
-  const now = new Date();
-  const firstDayOfMonth = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-  );
-  const yesterday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)
-  );
-
-  const startDate = formatDateUTC(firstDayOfMonth);
-  const endDate = formatDateUTC(yesterday);
-
-  const campaigns = [
-    "Search",
-    "Youtube",
-  ];
-
-  try {
-    let totalCosts = {};
-
-    for (let campaignName of campaigns) {
-      const metricsQuery = `
-        SELECT
-          campaign.name,
-          metrics.cost_micros,
-          segments.date
-        FROM
-          campaign
-        WHERE
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND campaign.name LIKE '%${campaignName}%'
-        ORDER BY
-          segments.date DESC
-      `;
-
-      const metricsResponse = await customer.query(metricsQuery);
-
-      let campaignTotalCost = 0;
-
-      metricsResponse.forEach((campaign) => {
-        const costInDollars = campaign.metrics.cost_micros / 1_000_000;
-        campaignTotalCost += parseFloat(costInDollars);
-      });
-
-      totalCosts[campaignName] = parseFloat(campaignTotalCost.toFixed(2));
-    }
-
-    return totalCosts;
-  } catch (error) {
-    throw new Error("Error fetching Google Ads Triple Whale data");
-  }
-};
-
 async function getAmountGoogleGC() {
   try {
     const totalCost = await getGoogleAdsCost(
@@ -504,17 +438,13 @@ const sendPacingReportToGoogleSheets = async () => {
       ["The Vault", "Bing", dateCST, datePST, record.data.BingVault],
       ["Hi, Skin", "Brand", dateCST, datePST, record.data.Brand],
       ["Hi, Skin", "NB", dateCST, datePST, record.data.NB],
-      // ["Hi, Skin", "Pmax", dateCST, datePST, record.data.Pmax],
       ["Hi, Skin", "Pmax Brand", dateCST, datePST, record.data.PmaxBrand],
       ["Hi, Skin", "Pmax NB", dateCST, datePST, record.data.PmaxNB],
       ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
       ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
-      // ["Triple Whale", "Google - Paid Search", dateCST, datePST, record.data.Search],
-      // ["Triple Whale", "Google - Youtube", dateCST, datePST, record.data.Youtube],
       ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
-      // ["National Buyers", "Google", dateCST, datePST, record.data.GoogleNB],
       ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
       ["Flex", "Search, Shopping, Pmax", dateCST, datePST, record.data.GoogleFLX1],
       ["Flex", "DemandGen, Video", dateCST, datePST, record.data.GoogleFLX2],

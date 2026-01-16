@@ -18,7 +18,6 @@ const scrapeRoutes = require('./routes/ScraperRoutes');
 
 const { pingRenderApp } = require('./utils/renderPing');
 const { sendPacingReportToGoogleSheets } = require('./controllers/pacing_report/PacingReport');
-const { sendTWtoGoogleSheets } = require('./controllers/pacing_report/TWPacingReport');
 const { sendFinalDailyReportToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsHS, sendBlendedCACToGoogleSheetsHS } = require('./controllers/hi_skin/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsHSAdG } = require('./controllers/hi_skin/GoogleAdsGroupWeekly');
@@ -130,31 +129,6 @@ const rule5 = new schedule.RecurrenceRule();
 rule5.hour = hourBase;
 rule5.minute = 30;
 rule5.tz = 'America/Los_Angeles';
-
-// const rule1 = new schedule.RecurrenceRule();
-// rule1.hour = 7;
-// rule1.minute = 0;
-// rule1.tz = 'America/Los_Angeles';
-
-// const rule2 = new schedule.RecurrenceRule();
-// rule2.hour = 19;
-// rule2.minute = 0;
-// rule2.tz = 'America/Los_Angeles';
-
-// const rule3 = new schedule.RecurrenceRule();
-// rule3.hour = 7;
-// rule3.minute = 15;
-// rule3.tz = 'America/Los_Angeles';
-
-// const rule4 = new schedule.RecurrenceRule();
-// rule4.hour = 19;
-// rule4.minute = 15;
-// rule4.tz = 'America/Los_Angeles';
-
-// const rule5 = new schedule.RecurrenceRule();
-// rule5.hour = 7;
-// rule5.minute = 30;
-// rule5.tz = 'America/Los_Angeles';
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
