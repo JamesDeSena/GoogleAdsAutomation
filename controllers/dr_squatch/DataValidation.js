@@ -89,7 +89,7 @@ function getLastSaturdayString(today = new Date()) {
 
 function getCurrentTuesdayString(today = new Date()) {
   const day = today.getDay();
-  const diff = day - 1; // current Monday
+  const diff = day - 1; // current Monday US time
   const monday = new Date(today);
   monday.setDate(today.getDate() - diff);
   return formatDateToYyyyMmDd(monday);

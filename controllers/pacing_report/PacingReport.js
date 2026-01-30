@@ -268,17 +268,6 @@ async function getAmountGoogleNYC() {
   }
 };
 
-async function getAmountGoogleGC() {
-  try {
-    const totalCost = await getGoogleAdsCost(
-      process.env.GOOGLE_ADS_CUSTOMER_ID_GC
-    );
-    return { GoogleGuardian: totalCost };
-  } catch (error) {
-    throw new Error("Error fetching Google Ads Guardian Carers data");
-  }
-};
-
 async function getAmountGoogleMNR() {
   try {
     const totalCost = await getGoogleAdsCost(
@@ -367,8 +356,6 @@ async function getAllMetrics() {
     const googleDripAZ = await getAmountGoogleAZ();
     const googleDripLV = await getAmountGoogleLV();
     const googleDripNYC = await getAmountGoogleNYC();
-    // const googleTW = await getAmountGoogleTWCampaigns();
-    const googleGC = await getAmountGoogleGC();
     const googleMNR = await getAmountGoogleMNR();
     const googleNB = await getAmountGoogleNB();
     const googleST = await getAmountGoogleST();
@@ -385,8 +372,6 @@ async function getAllMetrics() {
         ...googleDripAZ,
         ...googleDripLV,
         ...googleDripNYC,
-        // ...googleTW,
-        ...googleGC,
         ...googleMNR,
         ...googleNB,
         ...googleST,
@@ -443,7 +428,6 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
       ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
-      ["Guardian Carers", "Google", dateCST, datePST, record.data.GoogleGuardian],
       ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
       ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
       ["Flex", "Search, Shopping, Pmax", dateCST, datePST, record.data.GoogleFLX1],
