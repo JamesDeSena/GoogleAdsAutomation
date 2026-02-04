@@ -210,6 +210,28 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
 
     const dataForBatchUpdate = [];
 
+    const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheet = sheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+    const currentCols = sheet.properties.gridProperties.columnCount;
+    const requiredCols = sortedWeeks.length + 2;
+    if (requiredCols > currentCols) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              appendDimension: {
+                sheetId: sheet.properties.sheetId,
+                dimension: "COLUMNS",
+                length: requiredCols - currentCols,
+              },
+            },
+          ],
+        },
+      });
+    }
+
     for (let colIndex = 0; colIndex < sortedWeeks.length; colIndex++) {
       const weekString = sortedWeeks[colIndex];
       const columnLetter = toColumnName(colIndex + 2);

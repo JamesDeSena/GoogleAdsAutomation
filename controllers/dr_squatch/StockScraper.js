@@ -354,7 +354,7 @@ async function scrapeProductCrawler(browserContext, url) {
 
         if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig") || buttonText.includes("ausverkauft")) {
           status = "out of stock";
-        } else if (buttonText.includes("add to cart") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren") || buttonText.includes("zum warenkorb hinzufügen")) {
+        } else if (buttonText.includes("add to cart") || buttonText.includes("add gift card") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren") || buttonText.includes("zum warenkorb hinzufügen")) {
           status = "in stock";
         } else {
           status = "UNKNOWN";

@@ -313,14 +313,14 @@ const sendFinalMonthlyReportToGoogleSheetsMIV = async (req, res) => {
             : formatPercentage(calculateMoMVariance(bookingLastRecord.data.count1, bookingSecondToLastRecord.data.count1)),
           "New Requests CAC": filter === "AZ"
             ? formatPercentage(calculateMoMVariance(
-                lastRecord.cost / ((bookingLastRecord.data?.Phoenix.count1 || 0) + (bookingLastRecord.data?.Tucson.count1 || 0)),
-                secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson.count1 || 0))
+                lastRecord.cost / ((bookingLastRecord.data?.Phoenix?.count1 || 0) + (bookingLastRecord.data?.Tucson?.count1 || 0)),
+                secondToLastRecord.cost / ((bookingSecondToLastRecord.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count1 || 0))
               ))
             : formatPercentage(calculateMoMVariance(lastRecord.cost / (bookingLastRecord.data.count1 || 1), secondToLastRecord.cost / (bookingSecondToLastRecord.data.count1 || 0))),
           "New Requests Conv Rate": filter === "AZ"
             ? formatPercentage(calculateMoMVariance(
-                ((bookingLastRecord.data?.Phoenix.count1 || 0) + (bookingLastRecord.data?.Tucson.count1 || 0)) / lastRecord.clicks,
-                ((bookingSecondToLastRecord.data?.Phoenix.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson.count1 || 0)) / secondToLastRecord.clicks
+                ((bookingLastRecord.data?.Phoenix?.count1 || 0) + (bookingLastRecord.data?.Tucson?.count1 || 0)) / lastRecord.clicks,
+                ((bookingSecondToLastRecord.data?.Phoenix?.count1 || 0) + (bookingSecondToLastRecord.data?.Tucson?.count1 || 0)) / secondToLastRecord.clicks
               ))
             : formatPercentage(calculateMoMVariance((bookingLastRecord.data.count1 || 1) / lastRecord.clicks, (bookingSecondToLastRecord.data.count1 || 0)) / secondToLastRecord.clicks),
           "Daily Requests": filter === "AZ"
