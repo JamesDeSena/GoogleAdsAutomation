@@ -225,60 +225,85 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
+  // Keeps your 3 separate tabs
   const dataRanges = { CA: "CA Weekly Report", AZ: "AZ Weekly Report", WA: "WA Weekly Report" };
 
   try {
     const { campaigns, events } = await getRawCampaigns();
-    const caData = await fetchAndAggregateLPCData("CA");
-    await new Promise((r) => setTimeout(r, 10000));
-    const azData = await fetchAndAggregateLPCData("AZ");
-    await new Promise((r) => setTimeout(r, 10000));
-    const waData = await fetchAndAggregateLPCData("WA");
+    
+    // Fetch LPC Marketing Data (Cost/Clicks)
+    const caLpc = await fetchAndAggregateLPCData("CA");
+    await new Promise((r) => setTimeout(r, 5000)); 
+    const azLpc = await fetchAndAggregateLPCData("AZ");
+    await new Promise((r) => setTimeout(r, 5000));
+    const waLpc = await fetchAndAggregateLPCData("WA");
 
     const startDate = new Date("2021-10-03");
     const today = new Date();
+    
+    // 1. Initialize Object-Based Storage (Like Monthly Report)
     const weeks = { CA: {}, AZ: {}, WA: {} };
 
+    // --- Definitions from Monthly Report ---
     const nopeStages = {
-      CA: new Set(["80193", "113690", "21589"]), //CA - Initial Call - Not something we handle, CA - At Capacity - Refer Out, CA - Initial Call - Not Moving Forward
-      AZ: new Set(["111596", "111597"]), //AZ - Initial Call Not Moving Forward, AZ - Initial Call Not Something We Handle, 
-      WA: new Set(["110790", "110790", "110793"]), //WA - Initial Call - Not Moving Forward, WA - Initial Call - Not Something We Handle, WA - At Capacity - Refer Out
+      CA: new Set(["21589", "80193", "113690", "26783"]),
+      AZ: new Set(["111596", "111597", "111599"]),
+      WA: new Set(["110790", "110791", "110793", "110794"]),
     };
 
     const eventLikeStages = {
-      CA: new Set(["21590","37830","21574","81918","60522","21576","21600","36749","58113","21591","21575"]), //Strategy Session xStrategy Session - Completed xOn Hold / Asked to reach out at a later date
-      AZ: new Set(["111631","126229","111632","111633","111634","111635","111636"]), //Strategy Session xAZ - Strategy Session - Completed xAZ - On Hold
-      WA: new Set(["144176","144177","143884","144179","144180","144181","144182", "144183"]), //Strategy Session xAZ - Strategy Session - Completed
+      CA: new Set(["21590", "37830", "21574", "135261", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]),
+      AZ: new Set(["111631", "126229", "111632", "111633", "111634", "129101", "111635", "111636"]),
+      WA: new Set(["144176", "144177", "143884", "144178", "144179", "144180", "144181", "144182", "144183"]),
     };
 
+    // --- Helper Functions ---
+
     const formatDate = (date) =>
-      `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
     const processDate = (date) => {
       if (!date) return null;
       const parsedDate = new Date(new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+      // Filter out future dates immediately
+      if (parsedDate > today) return null; 
       return parsedDate < startDate ? null : parsedDate;
     };
 
-    const processWeek = (date) => {
+    const getWeekLabel = (date) => {
       const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
+      weekStart.setDate(date.getDate() - date.getDay()); // Sunday
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      return { label: `${formatDate(weekStart)} - ${formatDate(weekEnd)}`, weekStart };
+      weekEnd.setDate(weekStart.getDate() + 6); // Saturday
+      return { 
+        label: `${formatDate(weekStart)} - ${formatDate(weekEnd)}`, 
+        sortDate: weekStart 
+      };
     };
 
-    const addWeekEntry = (region, label) => {
-      if (!weeks[region][label]) weeks[region][label] = [label,0,0,0,0,0,0,0,0];
+    // Initialize or retrieve a week object
+    const getWeekEntry = (region, label) => {
+      if (!weeks[region][label]) {
+        weeks[region][label] = {
+          label: label,
+          leads: 0, 
+          nopes: 0, 
+          ss: 0,
+          cost: 0, 
+          clicks: 0
+        };
+      }
       return weeks[region][label];
     };
 
+    // --- 2. Process Campaigns (Leads & Stage Metrics) ---
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
       if (!createdDate) return;
-      if (createdDate > today && (createdDate.getMonth() !== currentMonth || createdDate.getFullYear() !== currentYear)) return;
 
-      const { label } = processWeek(createdDate);
+      const { label } = getWeekLabel(createdDate);
+
+      // Region detection logic from Monthly/Weekly hybrid
       const region =
         (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
         (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
@@ -289,25 +314,28 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       if (!region) return;
 
-      const weekData = addWeekEntry(region, label);
+      const weekData = getWeekEntry(region, label);
 
-      weekData[1]++;
-      if (nopeStages[region].has(stage_id)) weekData[2]++;
-      if (eventLikeStages[region].has(stage_id)) weekData[4]++;
+      weekData.leads++;
+      if (nopeStages[region].has(stage_id)) weekData.nopes++;
+      
+      // In your original weekly, "EventLikeStages" counted towards the SS/Event column (Index 4)
+      if (eventLikeStages[region].has(stage_id)) weekData.ss++;
     });
 
+    // --- 3. Process Events (Strategy Sessions) - Improved Monthly Logic ---
     events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
-      if (!eventDate || eventDate > today) return;
+      if (!eventDate) return;
 
-      const { label } = processWeek(eventDate);
-
+      const { label } = getWeekLabel(eventDate);
+      const j = jurisdiction?.trim() || "";
       let region = null;
-      const j = jurisdiction?.trim();
 
-      if (j === "AZ - Strategy Session" || j?.startsWith("AZ - Strategy Session -")) region = "AZ";
-      else if (j === "CA - Strategy Session" || j?.startsWith("CA - Strategy Session -")) region = "CA";
-      else if (j === "WA - Strategy Session" || j?.startsWith("WA - Strategy Session -")) region = "WA";
+      // Robust Monthly Report Region Detection
+      if (j === "AZ - Strategy Session" || j.startsWith("AZ - Strategy Session -")) region = "AZ";
+      else if (j === "CA - Strategy Session" || j.startsWith("CA - Strategy Session -")) region = "CA";
+      else if (j === "WA - Strategy Session" || j.startsWith("WA - Strategy Session -")) region = "WA";
 
       // Hard-coded CA fallback
       if (!region && j === "Strategy Session" &&
@@ -316,119 +344,125 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
         region = "CA";
       }
 
-      if (!region) return;
-
-      // Now region is guaranteed to exist
-      const weekData = addWeekEntry(region, label);
-
-      weekData[4]++;
+      if (region) {
+        const weekData = getWeekEntry(region, label);
+        weekData.ss++; // Increment SS count
+      }
     });
 
-    const applyLPCData = (data, region) => {
+    // --- 4. Integrate LPC Marketing Data ---
+    const applyLPC = (data, region) => {
+      if (!Array.isArray(data)) return;
       data.forEach(({ date, clicks, cost }) => {
         if (weeks[region][date]) {
-          weeks[region][date][5] = cost;
-          weeks[region][date][6] = clicks;
+          weeks[region][date].cost = parseFloat(cost) || 0;
+          weeks[region][date].clicks = parseFloat(clicks) || 0;
         }
       });
     };
 
-    if (Array.isArray(caData)) applyLPCData(caData, "CA");
-    if (Array.isArray(azData)) applyLPCData(azData, "AZ");
-    if (Array.isArray(waData)) applyLPCData(waData, "WA");
+    applyLPC(caLpc, "CA");
+    applyLPC(azLpc, "AZ");
+    applyLPC(waLpc, "WA");
 
-    Object.keys(weeks).forEach((region) => {
-      Object.values(weeks[region]).forEach((week) => {
-        const totalForms = week[1], noShows = week[2];
-        const confirmed = totalForms - noShows;
-        const cost = parseFloat(week[5]) || 0;
-        const clicks = parseFloat(week[6]) || 0;
+    // --- 5. Format Data for Google Sheets ---
+    
+    const formatRowForSheets = (weekData) => {
+      const confirmed = weekData.leads - weekData.nopes;
+      const cpl = confirmed > 0 ? weekData.cost / confirmed : 0;
+      const cvr = weekData.clicks > 0 ? (weekData.leads / weekData.clicks) * 100 : 0;
 
-        week[3] = confirmed;
-        week[7] = confirmed > 0 ? cost / confirmed : 0;
-        week[8] = clicks > 0 ? (totalForms / clicks) * 100 : 0;
-      });
-    });
+      // Columns: [Date, Total Forms, No Shows, Confirmed, SS, Cost, Clicks, CPL, CVR]
+      return [
+        weekData.label,
+        "'" + weekData.leads,
+        "'" + weekData.nopes,
+        "'" + confirmed,
+        "'" + weekData.ss,
+        "$" + (weekData.cost || 0).toFixed(2),
+        "'" + weekData.clicks,
+        "$" + cpl.toFixed(2),
+        cvr.toFixed(2) + "%"
+      ];
+    };
 
     const calculateVariance = (current, previous) => {
-      current = parseFloat(current) || 0;
-      previous = parseFloat(previous) || 0;
-      if (previous === 0) return null;
-      return ((current - previous) / previous) * 100;
-    };
-
-    const addWoWRow = (records) => {
-      if (records.length < 3) return;
-      const lastWeek = records[records.length-2].map(v => parseFloat(v) || 0);
-      const twoWeeksAgo = records[records.length-3].map(v => parseFloat(v) || 0);
-      records.push(["WoW Variance %", ...[1,2,3,4,5,6,7,8].map(i => calculateVariance(lastWeek[i], twoWeeksAgo[i]))]);
-    };
-
-    const addBiWeeklyRow = (records) => {
-      if (records.length < 6) return;
-      const last2Weeks = [records[records.length-3], records[records.length-4]];
-      const prev2Weeks = [records[records.length-5], records[records.length-6]];
-      const avg = (idx, weeksArr) => weeksArr.reduce((s,r)=>s+(parseFloat(r[idx])||0),0)/weeksArr.length;
-      records.push(["Biweekly Variance %", ...[1,2,3,4,5,6,7,8].map(i => calculateVariance(avg(i,last2Weeks), avg(i,prev2Weeks)))]);
+      const clean = (val) => parseFloat(String(val).replace(/[$,%']/g, '')) || 0;
+      const currVal = clean(current);
+      const prevVal = clean(previous);
+      
+      if (prevVal === 0) return null;
+      return ((currVal - prevVal) / prevVal) * 100;
     };
 
     const finalData = {};
 
     Object.keys(weeks).forEach((region) => {
-      const records = Object.values(weeks[region]).sort((a,b)=>new Date(a[0].split(" - ")[0]) - new Date(b[0].split(" - ")[0]));
+      const sortedKeys = Object.keys(weeks[region]).sort((a, b) => 
+        new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
+      );
 
-      addWoWRow(records);
-      addBiWeeklyRow(records);
+      let records = sortedKeys.map(key => formatRowForSheets(weeks[region][key]));
+      
+      if (records.length >= 3) {
+        
+        const lastComplete = records[records.length - 2];
+        const prevComplete = records[records.length - 3];
+
+        const wowRow = ["WoW Variance %"];
+        for (let i = 1; i <= 8; i++) {
+          const v = calculateVariance(lastComplete[i], prevComplete[i]);
+          wowRow.push(v === null ? "N/A" : v.toFixed(2) + "%");
+        }
+        records.push(wowRow);
+      }
+
+      if (records.length >= 6) {
+        const last2 = [records[records.length - 2], records[records.length - 3]];
+        const prev2 = [records[records.length - 4], records[records.length - 5]];
+
+        const avg = (idx, arr) => {
+          const sum = arr.reduce((acc, row) => acc + (parseFloat(String(row[idx]).replace(/[$,%']/g, '')) || 0), 0);
+          return sum / arr.length;
+        };
+
+        const biRow = ["Biweekly Variance %"];
+        for (let i = 1; i <= 8; i++) {
+          const v = calculateVariance(avg(i, last2), avg(i, prev2));
+          biRow.push(v === null ? "N/A" : v.toFixed(2) + "%");
+        }
+        records.push(biRow);
+      }
 
       finalData[region] = records;
     });
 
-    const columnSigns = ["date","number","number","number","number","currency","number","currency","percent"];
-    const formatRow = (row) => {
-      const isVarianceRow = /variance %/i.test(row[0]);
-
-      return row.map((value, idx) => {
-        if (idx === 0) return value;
-        if (isVarianceRow) {
-          return value === null ? "N/A" : parseFloat(value).toFixed(2) + "%";
-        }
-
-        const type = columnSigns[idx];
-        if (type === "currency")
-          return "$" + (parseFloat(value) || 0).toFixed(2);
-        if (type === "percent") {
-          return value === null ? "N/A" : parseFloat(value).toFixed(2) + "%";
-        }
-        if (type === "number") return "'" + (parseFloat(value) || 0);
-
-        return value;
-      });
-    };
-
-    Object.keys(finalData).forEach((region) => {
-      finalData[region] = finalData[region].map((row) => formatRow(row));
-    });
-
+    // --- 6. Sync to Sheets (Legacy Update/Append Logic) ---
     await Promise.all(Object.entries(finalData).map(async ([region, sortedWeeks]) => {
       const existingData = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges[region] });
       const existingRows = existingData.data.values || [];
-      const existingWeeks = new Map(existingRows.map((row,i)=>[row[0]?.trim(),i]));
+      const existingWeeks = new Map(existingRows.map((row, i) => [row[0]?.trim(), i]));
 
-      const batchUpdates = [], newValues = [];
+      const batchUpdates = [];
+      const newValues = [];
       
       sortedWeeks.forEach(weekData => {
         const label = weekData[0].trim();
-        if(existingWeeks.has(label)) {
-          batchUpdates.push({ range: `${dataRanges[region]}!A${existingWeeks.get(label)+1}`, values:[weekData] });
+        
+        if (existingWeeks.has(label)) {
+          batchUpdates.push({ 
+            range: `${dataRanges[region]}!A${existingWeeks.get(label) + 1}`, 
+            values: [weekData] 
+          });
         } else {
           newValues.push(weekData);
         }
       });
 
-      if(batchUpdates.length > 0) {
-        await sheets.spreadsheets.values.batchUpdate({ 
-          spreadsheetId, 
-          resource:{ valueInputOption:"USER_ENTERED", data:batchUpdates }
+      if (batchUpdates.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId,
+          resource: { valueInputOption: "USER_ENTERED", data: batchUpdates }
         });
       }
       if (newValues.length > 0) {
@@ -445,7 +479,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
   } catch (error) {
     console.error("Error processing weekly campaigns:", error);
   }
-}
+};
 
 async function testLawmatics() {
   const formatDateToMMDDYYYY = (dateString) => {

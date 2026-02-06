@@ -658,8 +658,8 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
     };
     
     const getMonthEntry = (date) => {
-      const year = date.getFullYear();     // <-- Changed
-      const monthIndex = date.getMonth();  // <-- Changed
+      const year = date.getFullYear();
+      const monthIndex = date.getMonth();
       const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
       if (!months[key]) {
         months[key] = {
