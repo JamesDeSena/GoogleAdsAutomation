@@ -34,8 +34,6 @@ const { sendFinalWeeklyReportToGoogleSheetsGCAdG } = require('./controllers/guar
 const { sendFinalWeeklyReportToGoogleSheetsGC } = require('./controllers/guardian_carers/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsMNR } = require('./controllers/menerals/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsST } = require('./controllers/sleepy_tie/GoogleAdsWeekly');
-const { sendFinalWeeklyReportToGoogleSheetsNB } = require('./controllers/national_buyers/GoogleAdsWeekly');
-const { sendFinalWeeklyReportToGoogleSheetsNBAdG } = require('./controllers/national_buyers/GoogleAdsGroupWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsFLX } = require('./controllers/flexfits/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsNPL } = require('./controllers/nations_photolab/GoogleAdsWeekly');
 
@@ -138,7 +136,6 @@ const morningJobs = [
   sendFinalWeeklyReportToGoogleSheetsMIVDAdG,
   sendFinalWeeklyReportToGoogleSheetsLPCAdG,
   sendFinalWeeklyReportToGoogleSheetsGCAdG,
-  sendFinalWeeklyReportToGoogleSheetsNBAdG,
 ];
 
 const eveningJobs = [
@@ -166,7 +163,6 @@ const morningJobs3 = [
   sendFinalWeeklyReportToGoogleSheetsFLX,
   sendFinalWeeklyReportToGoogleSheetsNPL,
   sendFinalWeeklyReportToGoogleSheetsST,
-  sendFinalWeeklyReportToGoogleSheetsNB,
   sendFinalWeeklyReportToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsLPC,
   sendFinalWeeklyReportToGoogleSheetsHS,

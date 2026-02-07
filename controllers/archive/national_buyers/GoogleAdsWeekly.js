@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
-const { client } = require("../../configs/googleAdsConfig");
-const { getStoredGoogleToken } = require("../GoogleAuth");
+const { client } = require("../../../configs/googleAdsConfig");
+const { getStoredGoogleToken } = require("../../GoogleAuth");
 
 let storedDateRanges = null;
 
