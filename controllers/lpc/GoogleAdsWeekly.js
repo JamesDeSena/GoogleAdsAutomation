@@ -225,13 +225,11 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.SHEET_LPC;
-  // Keeps your 3 separate tabs
   const dataRanges = { CA: "CA Weekly Report", AZ: "AZ Weekly Report", WA: "WA Weekly Report" };
 
   try {
     const { campaigns, events } = await getRawCampaigns();
     
-    // Fetch LPC Marketing Data (Cost/Clicks)
     const caLpc = await fetchAndAggregateLPCData("CA");
     await new Promise((r) => setTimeout(r, 5000)); 
     const azLpc = await fetchAndAggregateLPCData("AZ");
@@ -239,12 +237,12 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     const waLpc = await fetchAndAggregateLPCData("WA");
 
     const startDate = new Date("2021-10-03");
-    const today = new Date();
     
-    // 1. Initialize Object-Based Storage (Like Monthly Report)
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+
+    // 1. Initialize Object-Based Storage
     const weeks = { CA: {}, AZ: {}, WA: {} };
 
-    // --- Definitions from Monthly Report ---
     const nopeStages = {
       CA: new Set(["21589", "80193", "113690", "26783"]),
       AZ: new Set(["111596", "111597", "111599"]),
@@ -257,16 +255,15 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       WA: new Set(["144176", "144177", "143884", "144178", "144179", "144180", "144181", "144182", "144183"]),
     };
 
-    // --- Helper Functions ---
-
     const formatDate = (date) =>
       `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
     const processDate = (date) => {
       if (!date) return null;
       const parsedDate = new Date(new Date(date).toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-      // Filter out future dates immediately
+      
       if (parsedDate > today) return null; 
+      
       return parsedDate < startDate ? null : parsedDate;
     };
 
@@ -281,14 +278,13 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       };
     };
 
-    // Initialize or retrieve a week object
     const getWeekEntry = (region, label) => {
       if (!weeks[region][label]) {
         weeks[region][label] = {
           label: label,
           leads: 0, 
           nopes: 0, 
-          ss: 0,
+          ss: 0, // Events only
           cost: 0, 
           clicks: 0
         };
@@ -296,14 +292,14 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       return weeks[region][label];
     };
 
-    // --- 2. Process Campaigns (Leads & Stage Metrics) ---
+    // --- 2. Process Campaigns (Leads & Nopes Only) ---
     campaigns.forEach(({ created_at, stage_id, jurisdiction }) => {
       const createdDate = processDate(created_at);
       if (!createdDate) return;
 
       const { label } = getWeekLabel(createdDate);
 
-      // Region detection logic from Monthly/Weekly hybrid
+      // Region Detection
       const region =
         (eventLikeStages.AZ.has(stage_id) || nopeStages.AZ.has(stage_id)) ? "AZ" :
         (eventLikeStages.CA.has(stage_id) || nopeStages.CA.has(stage_id)) ? "CA" :
@@ -318,12 +314,9 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       weekData.leads++;
       if (nopeStages[region].has(stage_id)) weekData.nopes++;
-      
-      // In your original weekly, "EventLikeStages" counted towards the SS/Event column (Index 4)
-      if (eventLikeStages[region].has(stage_id)) weekData.ss++;
     });
 
-    // --- 3. Process Events (Strategy Sessions) - Improved Monthly Logic ---
+    // --- 3. Process Events (Strategy Sessions) ---
     events.forEach(({ event_start, jurisdiction }) => {
       const eventDate = processDate(event_start);
       if (!eventDate) return;
@@ -332,12 +325,10 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       const j = jurisdiction?.trim() || "";
       let region = null;
 
-      // Robust Monthly Report Region Detection
       if (j === "AZ - Strategy Session" || j.startsWith("AZ - Strategy Session -")) region = "AZ";
       else if (j === "CA - Strategy Session" || j.startsWith("CA - Strategy Session -")) region = "CA";
       else if (j === "WA - Strategy Session" || j.startsWith("WA - Strategy Session -")) region = "WA";
 
-      // Hard-coded CA fallback
       if (!region && j === "Strategy Session" &&
           eventDate.getFullYear() === 2025 &&
           eventDate.getMonth() < 11) {
@@ -346,7 +337,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       if (region) {
         const weekData = getWeekEntry(region, label);
-        weekData.ss++; // Increment SS count
+        weekData.ss++;
       }
     });
 
@@ -366,7 +357,6 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
     applyLPC(waLpc, "WA");
 
     // --- 5. Format Data for Google Sheets ---
-    
     const formatRowForSheets = (weekData) => {
       const confirmed = weekData.leads - weekData.nopes;
       const cpl = confirmed > 0 ? weekData.cost / confirmed : 0;
@@ -404,8 +394,9 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
 
       let records = sortedKeys.map(key => formatRowForSheets(weeks[region][key]));
       
+      // Variance Logic: Compare Last Completed Week vs Week Before That
+      // (Excludes the "Current" incomplete week from variance calc)
       if (records.length >= 3) {
-        
         const lastComplete = records[records.length - 2];
         const prevComplete = records[records.length - 3];
 
@@ -437,7 +428,7 @@ const sendFinalWeeklyReportToGoogleSheetsLPC = async (req, res) => {
       finalData[region] = records;
     });
 
-    // --- 6. Sync to Sheets (Legacy Update/Append Logic) ---
+    // --- 6. Sync to Sheets ---
     await Promise.all(Object.entries(finalData).map(async ([region, sortedWeeks]) => {
       const existingData = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRanges[region] });
       const existingRows = existingData.data.values || [];
