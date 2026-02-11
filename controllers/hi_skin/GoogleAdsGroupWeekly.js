@@ -142,10 +142,24 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       keyFile: "serviceToken.json",
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
-
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.SHEET_HS_QS;
     const sheetName = "Quality Score Automation";
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    
+    const sheetObj = spreadsheetMeta.data.sheets.find(
+      (s) => s.properties.title === sheetName
+    );
+
+    if (!sheetObj) {
+      throw new Error(`Sheet with name "${sheetName}" not found.`);
+    }
+
+    const sheetId = sheetObj.properties.sheetId;
+    const currentColumnCount = sheetObj.properties.gridProperties.columnCount;
 
     const structureRange = `${sheetName}!A4:B`;
     const structureResponse = await sheets.spreadsheets.values.get({
@@ -155,18 +169,22 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     const structureRows = structureResponse.data.values || [];
 
     const dynamicAdGroupRowMap = new Map();
-    const lastRowByCampaign = new Map();
+    const campaignsToFetch = new Map();
     let currentCampaign = "";
 
     structureRows.forEach((row, index) => {
       const campaignName = row[0] || currentCampaign;
       const adGroupName = row[1];
       currentCampaign = campaignName;
+
       if (adGroupName) {
         const rowNumber = index + 4;
         const uniqueKey = normalizeName(campaignName) + normalizeName(adGroupName);
         dynamicAdGroupRowMap.set(uniqueKey, rowNumber);
-        lastRowByCampaign.set(campaignName, rowNumber);
+        if (!campaignsToFetch.has(campaignName)) {
+          campaignsToFetch.set(campaignName, []);
+        }
+        campaignsToFetch.get(campaignName).push(adGroupName);
       }
     });
 
@@ -179,7 +197,7 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
     });
 
     const allApiReports = [];
-    for (const [campaignName] of lastRowByCampaign.entries()) {
+    for (const [campaignName] of campaignsToFetch.entries()) {
       for (const range of dateRanges) {
         const weeklyData = await fetchWeeklyAdGroupReportWithKeywords(
           customer,
@@ -197,34 +215,68 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       return acc;
     }, {});
 
-    let maxRow = structureRows.length + 3;
-
-    await sheets.spreadsheets.values.clear({
+    const maxRow = structureRows.length + 3;
+    const readRange = `${sheetName}!A3:ZZ${maxRow}`;
+    const sheetDataResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!C3:ZZ`,
+      range: readRange,
+    });
+    const existingSheetValues = sheetDataResponse.data.values || [];
+
+    const combinedDataByWeek = {};
+    const adGroupNamesByRow = {};
+    dynamicAdGroupRowMap.forEach((rowNumber, name) => {
+      adGroupNamesByRow[rowNumber] = name;
     });
 
-    const sortedWeeks = Object.keys(reportsByWeek).sort(
+    if (existingSheetValues.length > 0) {
+      const existingHeaders = existingSheetValues[0] || [];
+      existingHeaders.slice(2).forEach((weekHeader, colIndex) => {
+        if (weekHeader) {
+          combinedDataByWeek[weekHeader] = combinedDataByWeek[weekHeader] || [];
+          for (
+            let rowIndex = 1;
+            rowIndex < existingSheetValues.length;
+            rowIndex++
+          ) {
+            const row = existingSheetValues[rowIndex];
+            const adGroupName = adGroupNamesByRow[rowIndex + 3];
+            const qsValue = row ? row[colIndex + 2] : undefined;
+            if (adGroupName && qsValue) {
+              combinedDataByWeek[weekHeader].push({
+                adGroupName,
+                weightedQs: qsValue,
+              });
+            }
+          }
+        }
+      });
+    }
+
+    for (const weekString in reportsByWeek) {
+      combinedDataByWeek[weekString] = reportsByWeek[weekString];
+    }
+
+    const sortedWeeks = Object.keys(combinedDataByWeek).sort(
       (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
     );
 
-    const dataForBatchUpdate = [];
+    const requiredColumns = 2 + sortedWeeks.length;
 
-    const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
-    const sheet = sheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
-    const currentCols = sheet.properties.gridProperties.columnCount;
-    const requiredCols = sortedWeeks.length + 2;
-    if (requiredCols > currentCols) {
+    if (requiredColumns > currentColumnCount) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
-        requestBody: {
+        resource: {
           requests: [
             {
-              appendDimension: {
-                sheetId: sheet.properties.sheetId,
-                dimension: "COLUMNS",
-                length: requiredCols - currentCols,
+              updateSheetProperties: {
+                properties: {
+                  sheetId: sheetId,
+                  gridProperties: {
+                    columnCount: requiredColumns + 2,
+                  },
+                },
+                fields: "gridProperties.columnCount",
               },
             },
           ],
@@ -232,68 +284,38 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       });
     }
 
-    for (let colIndex = 0; colIndex < sortedWeeks.length; colIndex++) {
-      const weekString = sortedWeeks[colIndex];
+    const clearRange = `${sheetName}!C3:ZZ`;
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: clearRange,
+    });
+
+    const dataForBatchUpdate = [];
+    sortedWeeks.forEach((weekString, colIndex) => {
       const columnLetter = toColumnName(colIndex + 2);
-      const weeklyReportData = reportsByWeek[weekString];
+      const weeklyReportData = combinedDataByWeek[weekString];
 
       dataForBatchUpdate.push({
         range: `${sheetName}!${columnLetter}3`,
         values: [[weekString]],
       });
 
-      const columnData = Array(maxRow).fill(null).map(() => [null]);
-
-      for (const report of weeklyReportData) {
+      const columnData = Array(maxRow)
+        .fill(null)
+        .map(() => [null]);
+      weeklyReportData.forEach((report) => {
         const uniqueKey = normalizeName(report.campaignName) + normalizeName(report.adGroupName);
-        let rowNumber = dynamicAdGroupRowMap.get(uniqueKey);
-
-        if (!rowNumber) {
-          const lastRow = lastRowByCampaign.get(report.campaignName) || maxRow;
-          rowNumber = lastRow + 1;
-
-          await sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-              requests: [
-                {
-                  insertDimension: {
-                    range: {
-                      sheetId: 459752368,
-                      dimension: "ROWS",
-                      startIndex: rowNumber - 1,
-                      endIndex: rowNumber,
-                    },
-                    inheritFromBefore: true,
-                  },
-                },
-              ],
-            },
-          });
-
-          await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: `${sheetName}!A${rowNumber}:B${rowNumber}`,
-            valueInputOption: "USER_ENTERED",
-            requestBody: {
-              values: [[report.campaignName, report.adGroupName]],
-            },
-          });
-
-          dynamicAdGroupRowMap.set(uniqueKey, rowNumber);
-          lastRowByCampaign.set(report.campaignName, rowNumber);
-
-          if (rowNumber > maxRow) maxRow = rowNumber;
+        const rowNumber = dynamicAdGroupRowMap.get(uniqueKey);
+        if (rowNumber) {
+          columnData[rowNumber - 1] = [report.weightedQs];
         }
-
-        columnData[rowNumber - 1] = [report.weightedQs];
-      }
+      });
 
       dataForBatchUpdate.push({
         range: `${sheetName}!${columnLetter}4:${columnLetter}${maxRow}`,
         values: columnData.slice(3),
       });
-    }
+    });
 
     if (dataForBatchUpdate.length > 0) {
       await sheets.spreadsheets.values.batchUpdate({
@@ -305,9 +327,14 @@ const sendFinalWeeklyReportToGoogleSheetsHSAdG = async (req, res) => {
       });
     }
 
-    console.log(`Final Hi Skin Ads Group Keywords weekly report sent to Google Sheets successfully!`);
+    console.log(
+      `Final Hi Skin Ads Group Keywords weekly report sent to Google Sheets successfully!`
+    );
   } catch (error) {
-    console.error("Error sending Hi Skin Ads Group Keywords weekly report to Google Sheets:", error);
+    console.error(
+      "Error sending Hi Skin Ads Group Keywords weekly report to Google Sheets:",
+      error
+    );
   }
 };
 

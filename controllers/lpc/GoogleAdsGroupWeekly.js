@@ -146,6 +146,21 @@ const sendFinalWeeklyReportToGoogleSheetsLPCAdG = async (req, res) => {
     const spreadsheetId = process.env.SHEET_LPC_QS;
     const sheetName = "Quality Score Automation";
 
+    const spreadsheetMeta = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    
+    const sheetObj = spreadsheetMeta.data.sheets.find(
+      (s) => s.properties.title === sheetName
+    );
+
+    if (!sheetObj) {
+      throw new Error(`Sheet with name "${sheetName}" not found.`);
+    }
+
+    const sheetId = sheetObj.properties.sheetId;
+    const currentColumnCount = sheetObj.properties.gridProperties.columnCount;
+
     const structureRange = `${sheetName}!A4:B`;
     const structureResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -245,6 +260,29 @@ const sendFinalWeeklyReportToGoogleSheetsLPCAdG = async (req, res) => {
     const sortedWeeks = Object.keys(combinedDataByWeek).sort(
       (a, b) => new Date(a.split(" - ")[0]) - new Date(b.split(" - ")[0])
     );
+
+    const requiredColumns = 2 + sortedWeeks.length;
+
+    if (requiredColumns > currentColumnCount) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: {
+                  sheetId: sheetId,
+                  gridProperties: {
+                    columnCount: requiredColumns + 2,
+                  },
+                },
+                fields: "gridProperties.columnCount",
+              },
+            },
+          ],
+        },
+      });
+    }
 
     const clearRange = `${sheetName}!C3:ZZ`;
     await sheets.spreadsheets.values.clear({
