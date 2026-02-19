@@ -645,8 +645,8 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
 
     const eventLikeStages = {
       CA: new Set(["21590", "37830", "21574", "135261", "81918", "60522", "21576", "21600", "36749", "58113", "21591", "21575"]),
-      AZ: new Set(["111631", "126229", "111632", "111633", "111634", "129101", "111635", "111636"]),
-      WA: new Set(["144176", "144177", "143884", "144178", "144179", "144180", "144181", "144182", "144183"]),
+      AZ: new Set(["111631", "126229", "111632", "111633", "111634", "129101", "111635", "111636", "111592"]),
+      WA: new Set(["144176", "144177", "143884", "144178", "144179", "144180", "144181", "144182", "144183", "110785"]),
     };
     
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -690,15 +690,15 @@ const sendLPCCACToGoogleSheets = async (req, res) => {
       if (region === "CA") {
         monthData.leadsCA++;
         if (nopeStages.CA.has(stage_id)) monthData.nopesCA++;
-        if (eventLikeStages.CA.has(stage_id)) monthData.sqlsCA++;
+        monthData.sqlsCA = monthData.leadsCA - monthData.nopesCA;
       } else if (region === "AZ") {
         monthData.leadsAZ++;
         if (nopeStages.AZ.has(stage_id)) monthData.nopesAZ++;
-        if (eventLikeStages.AZ.has(stage_id)) monthData.sqlsAZ++;
+        monthData.sqlsAZ = monthData.leadsAZ - monthData.nopesAZ;
       } else if (region === "WA") {
         monthData.leadsWA++;
         if (nopeStages.WA.has(stage_id)) monthData.nopesWA++;
-        if (eventLikeStages.WA.has(stage_id)) monthData.sqlsWA++;
+        monthData.sqlsWA = monthData.leadsWA - monthData.nopesWA;
       }
     });
     

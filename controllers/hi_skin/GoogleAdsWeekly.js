@@ -831,45 +831,87 @@ const sendFinalWeeklyReportToGoogleSheetsHS = async (req, res) => {
       bingData: throttledBingDataFetch,
     } = throttledFetchFunctions;
 
-    const weeklyCampaignData = await throttledWeeklyCampaignDataFetch(dateRanges);
-    const weeklySearchData = await throttledWeeklySearchDataFetch(dateRanges);
-    const brandData = await throttledBrandDataFetch(req, res, dateRanges);
-    const noBrandTotalData = await throttledNoBrandTotalDataFetch(req, res, dateRanges);
-    const noBrandSearchData = await throttledNoBrandSearchDataFetch(req, res, dateRanges);
-    const dsaData = await throttledDSADataFetch(req, res, dateRanges);
-    const gilbertData = await throttledGilbertDataFetch(req, res, dateRanges);
-    const gilbertDataBrand = await throttledGilbertDataBrandFetch(req, res, dateRanges);
-    const gilbertDataNB = await throttledGilbertDataNBFetch(req, res, dateRanges);
-    const mktData = await throttledMktDataFetch(req, res, dateRanges);
-    const mktDataBrand = await throttledMktDataBrandFetch(req, res, dateRanges);
-    const mktDataNB = await throttledMktDataNBFetch(req, res, dateRanges);
-    const phoenixData = await throttledPhoenixDataFetch(req, res, dateRanges);
-    const phoenixDataBrand = await throttledPhoenixDataBrandFetch(req, res, dateRanges);
-    const phoenixDataNB = await throttledPhoenixDataNBFetch(req, res, dateRanges);
-    const scottsdaleData = await throttledScottsdaleDataFetch(req, res, dateRanges);
-    const scottsdaleDataBrand = await throttledScottsdaleDataBrandFetch(req, res, dateRanges);
-    const scottsdaleDataNB = await throttledScottsdaleDataNBFetch(req, res, dateRanges);
-    const uptownParkData = await throttledUptownParkDataFetch(req, res, dateRanges);
-    const uptownParkDataBrand = await throttledUptownParkDataBrandFetch(req, res, dateRanges);
-    const uptownParkDataNB = await throttledUptownParkDataNBFetch(req, res, dateRanges);
-    const montroseData = await throttledMontroseDataFetch(req, res, dateRanges);
-    const montroseDataBrand = await throttledMontroseDataBrandFetch(req, res, dateRanges);
-    const montroseDataNB = await throttledMontroseDataNBFetch(req, res, dateRanges);
-    const riceVillageData = await throttledRiceVillageDataFetch(req, res, dateRanges);
-    const riceVillageDataBrand = await throttledRiceVillageDataBrandFetch(req, res, dateRanges);
-    const riceVillageDataNB = await throttledRiceVillageDataNBFetch(req, res, dateRanges);
-    const mosaicData = await throttledMosaicDataFetch(req, res, dateRanges);
-    const mosaicDataBrand = await throttledMosaicDataBrandFetch(req, res, dateRanges);
-    const mosaicDataNB = await throttledMosaicDataNBFetch(req, res, dateRanges);
-    const fourteenthStData = await throttledFourteenthStDataFetch(req, res, dateRanges);
-    const fourteenthStDataBrand = await throttledFourteenthStDataBrandFetch(req, res, dateRanges);
-    const fourteenthStDataNB = await throttledFourteenthStDataNBFetch(req, res, dateRanges);
-    const pmaxData = await throttledPmaxDataFetch(req, res, dateRanges);
-    const pmaxDataBrand = await throttledPmaxDataBrandFetch(req, res, dateRanges);
-    const pmaxDataNB = await throttledPmaxDataNBFetch(req, res, dateRanges);
-    const shoppingData = await throttledShoppingDataFetch(req, res, dateRanges);
-    const demandGenData = await throttledDemandGenFetch(req, res, dateRanges);
-    const bingData = await throttledBingDataFetch();
+    const [
+      weeklyCampaignData,
+      weeklySearchData,
+      brandData,
+      noBrandTotalData,
+      noBrandSearchData,
+      dsaData,
+      gilbertData,
+      gilbertDataBrand,
+      gilbertDataNB,
+      mktData,
+      mktDataBrand,
+      mktDataNB,
+      phoenixData,
+      phoenixDataBrand,
+      phoenixDataNB,
+      scottsdaleData,
+      scottsdaleDataBrand,
+      scottsdaleDataNB,
+      uptownParkData,
+      uptownParkDataBrand,
+      uptownParkDataNB,
+      montroseData,
+      montroseDataBrand,
+      montroseDataNB,
+      riceVillageData,
+      riceVillageDataBrand,
+      riceVillageDataNB,
+      mosaicData,
+      mosaicDataBrand,
+      mosaicDataNB,
+      fourteenthStData,
+      fourteenthStDataBrand,
+      fourteenthStDataNB,
+      pmaxData,
+      pmaxDataBrand,
+      pmaxDataNB,
+      shoppingData,
+      demandGenData,
+      bingData
+    ] = await Promise.all([
+      throttledWeeklyCampaignDataFetch(dateRanges),
+      throttledWeeklySearchDataFetch(dateRanges),
+      throttledBrandDataFetch(req, res, dateRanges),
+      throttledNoBrandTotalDataFetch(req, res, dateRanges),
+      throttledNoBrandSearchDataFetch(req, res, dateRanges),
+      throttledDSADataFetch(req, res, dateRanges),
+      throttledGilbertDataFetch(req, res, dateRanges),
+      throttledGilbertDataBrandFetch(req, res, dateRanges),
+      throttledGilbertDataNBFetch(req, res, dateRanges),
+      throttledMktDataFetch(req, res, dateRanges),
+      throttledMktDataBrandFetch(req, res, dateRanges),
+      throttledMktDataNBFetch(req, res, dateRanges),
+      throttledPhoenixDataFetch(req, res, dateRanges),
+      throttledPhoenixDataBrandFetch(req, res, dateRanges),
+      throttledPhoenixDataNBFetch(req, res, dateRanges),
+      throttledScottsdaleDataFetch(req, res, dateRanges),
+      throttledScottsdaleDataBrandFetch(req, res, dateRanges),
+      throttledScottsdaleDataNBFetch(req, res, dateRanges),
+      throttledUptownParkDataFetch(req, res, dateRanges),
+      throttledUptownParkDataBrandFetch(req, res, dateRanges),
+      throttledUptownParkDataNBFetch(req, res, dateRanges),
+      throttledMontroseDataFetch(req, res, dateRanges),
+      throttledMontroseDataBrandFetch(req, res, dateRanges),
+      throttledMontroseDataNBFetch(req, res, dateRanges),
+      throttledRiceVillageDataFetch(req, res, dateRanges),
+      throttledRiceVillageDataBrandFetch(req, res, dateRanges),
+      throttledRiceVillageDataNBFetch(req, res, dateRanges),
+      throttledMosaicDataFetch(req, res, dateRanges),
+      throttledMosaicDataBrandFetch(req, res, dateRanges),
+      throttledMosaicDataNBFetch(req, res, dateRanges),
+      throttledFourteenthStDataFetch(req, res, dateRanges),
+      throttledFourteenthStDataBrandFetch(req, res, dateRanges),
+      throttledFourteenthStDataNBFetch(req, res, dateRanges),
+      throttledPmaxDataFetch(req, res, dateRanges),
+      throttledPmaxDataBrandFetch(req, res, dateRanges),
+      throttledPmaxDataNBFetch(req, res, dateRanges),
+      throttledShoppingDataFetch(req, res, dateRanges),
+      throttledDemandGenFetch(req, res, dateRanges),
+      throttledBingDataFetch()
+    ]);
 
     const records = [];
     const calculateWoWVariance = (current, previous) => ((current - previous) / previous) * 100;
