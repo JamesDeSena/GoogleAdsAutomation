@@ -352,7 +352,7 @@ async function scrapeProductCrawler(browserContext, url) {
         const buttonText = (await buttonInfo.buttonLocator.innerText()).trim().toLowerCase();
         evidence = buttonText;
 
-        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig") || buttonText.includes("ausverkauft")) {
+        if (buttonText.includes("out of stock") || buttonText.includes("sold out") || buttonText.includes("nicht vorrätig") || buttonText.includes("ausverkauft") || buttonText.includes("nicht auf lager")) {
           status = "out of stock";
         } else if (buttonText.includes("add to cart") || buttonText.includes("add gift card") || buttonText.includes("update selection") || buttonText.includes("in den warenkorb") || buttonText.includes("auswahl aktualisieren") || buttonText.includes("zum warenkorb hinzufügen")) {
           status = "in stock";
@@ -790,7 +790,7 @@ async function runSingleRegionVerification(regionCode) {
 }
 
 async function runTestStock() {
-  const testUrl = "https://intl.drsquatch.com/products/harry-potter-4-pack";
+  const testUrl = "https://intl.drsquatch.com/en-eu/products/summer-citrus-shampoo?variant=42106525581365&currency=EUR";
   let browser;
   try {
     browser = await chromium.launch({

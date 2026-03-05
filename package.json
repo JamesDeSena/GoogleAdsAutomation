@@ -18,17 +18,17 @@
     "@slack/web-api": "^7.8.0",
     "adm-zip": "^0.5.16",
     "airtable": "^0.12.2",
-    "axios": "^1.7.7",
+    "axios": "^1.13.5",
     "cheerio": "^1.1.2",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "csv-parse": "^6.1.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
     "google-ads-api": "^21.0.1",
     "google-auth-library": "^9.14.2",
     "googleapis": "^144.0.0",
     "node-schedule": "^2.1.1",
-    "nodemon": "^3.1.7",
+    "nodemon": "^3.1.14",
     "patchright": "^1.52.5"
   }
 }

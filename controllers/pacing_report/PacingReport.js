@@ -153,6 +153,88 @@ async function getAmountGoogleVault() {
   }
 };
 
+// async function getAmountGoogleHSCampaigns() {
+//   const refreshToken_Google = getStoredGoogleToken();
+
+//   if (!refreshToken_Google) {
+//     console.error("Refresh token is missing. Please authenticate.");
+//     return;
+//   }
+
+//   const customer = client.Customer({
+//     customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID_HISKIN,
+//     refresh_token: refreshToken_Google,
+//     login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
+//   });
+
+//   const now = new Date();
+//   const firstDayOfMonth = new Date(
+//     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+//   );
+//   const yesterday = new Date(
+//     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)
+//   );
+
+//   const startDate = formatDateUTC(firstDayOfMonth);
+//   const endDate = formatDateUTC(yesterday);
+
+//   const campaigns = [
+//     "Brand",
+//     "NB",
+//     "PmaxBrand",
+//     "PmaxNB",
+//   ];
+
+//   try {
+//     let totalCosts = {};
+
+//     const campaignFilters = {
+//       PmaxBrand: ["%Pmax%", "%Brand%"],
+//       PmaxNB: ["%Pmax%", "%NB%"],
+//       Brand: ["%Brand%", "%Search%"],
+//       NB: ["%NB%"],
+//     };
+
+//     for (const campaignName of campaigns) {
+//       let whereClause = `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+
+//       const filters = campaignFilters[campaignName] || [`%${campaignName}%`];
+//       for (let filter of filters) {
+//         whereClause += ` AND campaign.name LIKE '${filter}'`;
+//       }
+
+//       const metricsQuery = `
+//         SELECT
+//           campaign.name,
+//           metrics.cost_micros,
+//           segments.date
+//         FROM
+//           campaign
+//         WHERE
+//           ${whereClause}
+//         ORDER BY
+//           segments.date DESC
+//       `;
+
+//       const metricsResponse = await customer.query(metricsQuery);
+
+//       let campaignTotalCost = 0;
+
+//       metricsResponse.forEach((campaign) => {
+//         const costInDollars = campaign.metrics.cost_micros / 1_000_000;
+//         campaignTotalCost += parseFloat(costInDollars);
+//       });
+
+//       totalCosts[campaignName] = parseFloat(campaignTotalCost.toFixed(2));
+//     }
+
+//     return totalCosts;
+//   } catch (error) {
+//     console.error("Error fetching Google Ads Hi Skin data:", error.message);
+//     throw new Error(`Error fetching Google Ads Hi Skin data: ${error.message}`);
+//   }
+// };
+
 async function getAmountGoogleHSCampaigns() {
   const refreshToken_Google = getStoredGoogleToken();
 
@@ -178,62 +260,83 @@ async function getAmountGoogleHSCampaigns() {
   const startDate = formatDateUTC(firstDayOfMonth);
   const endDate = formatDateUTC(yesterday);
 
-  const campaigns = [
-    "Brand",
-    "NB",
-    "PmaxBrand",
-    "PmaxNB",
-  ];
+  const regionTotals = {
+    TX: 0,
+    AZ: 0,
+    DMV: 0,
+  };
 
   try {
-    let totalCosts = {};
+    const metricsQuery = `
+      SELECT
+        segments.geo_target_region,
+        metrics.cost_micros
+      FROM
+        geographic_view
+      WHERE
+        segments.date BETWEEN '${startDate}' AND '${endDate}'
+        AND metrics.cost_micros > 0
+    `;
 
-    const campaignFilters = {
-      PmaxBrand: ["%Pmax%", "%Brand%"],
-      PmaxNB: ["%Pmax%", "%NB%"],
-      Brand: ["%Brand%", "%Search%"],
-      NB: ["%NB%"],
-    };
+    const rows = await customer.query(metricsQuery);
 
-    for (const campaignName of campaigns) {
-      let whereClause = `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+    const geoIds = [
+      ...new Set(rows.map(r => r.segments.geo_target_region).filter(Boolean))
+    ];
 
-      const filters = campaignFilters[campaignName] || [`%${campaignName}%`];
-      for (let filter of filters) {
-        whereClause += ` AND campaign.name LIKE '${filter}'`;
+    if (!geoIds.length) return regionTotals;
+
+    const geoQuery = `
+      SELECT
+        geo_target_constant.resource_name,
+        geo_target_constant.name
+      FROM
+        geo_target_constant
+      WHERE
+        geo_target_constant.resource_name IN (${geoIds
+          .map(id => `'${id}'`)
+          .join(",")})
+    `;
+
+    const geoRows = await customer.query(geoQuery);
+
+    const geoMap = {};
+    geoRows.forEach(g => {
+      geoMap[g.geo_target_constant.resource_name] =
+        g.geo_target_constant.name;
+    });
+
+    rows.forEach(row => {
+      const geoId = row.segments.geo_target_region;
+      if (!geoId) return;
+
+      const regionName = geoMap[geoId];
+      const cost = row.metrics.cost_micros / 1_000_000;
+
+      if (regionName === "Texas") {
+        regionTotals.TX += cost;
+      } else if (regionName === "Arizona") {
+        regionTotals.AZ += cost;
+      } else if (
+        regionName === "Virginia" ||
+        regionName === "Maryland" ||
+        regionName === "District of Columbia"
+      ) {
+        regionTotals.DMV += cost;
       }
+    });
 
-      const metricsQuery = `
-        SELECT
-          campaign.name,
-          metrics.cost_micros,
-          segments.date
-        FROM
-          campaign
-        WHERE
-          ${whereClause}
-        ORDER BY
-          segments.date DESC
-      `;
+    Object.keys(regionTotals).forEach(key => {
+      regionTotals[key] = parseFloat(regionTotals[key].toFixed(2));
+    });
 
-      const metricsResponse = await customer.query(metricsQuery);
+    return regionTotals;
 
-      let campaignTotalCost = 0;
-
-      metricsResponse.forEach((campaign) => {
-        const costInDollars = campaign.metrics.cost_micros / 1_000_000;
-        campaignTotalCost += parseFloat(costInDollars);
-      });
-
-      totalCosts[campaignName] = parseFloat(campaignTotalCost.toFixed(2));
-    }
-
-    return totalCosts;
   } catch (error) {
-    console.error("Error fetching Google Ads Hi Skin data:", error.message);
-    throw new Error(`Error fetching Google Ads Hi Skin data: ${error.message}`);
+    console.error("Error fetching regional cost data:", error.message);
+    throw new Error(`Error fetching regional cost data: ${error.message}`);
   }
-};
+}
 
 async function getAmountGoogleAZ() {
   try {
@@ -301,24 +404,6 @@ async function getAmountGoogleST() {
   }
 };
 
-async function getAmountGoogleFLX1() {
-  const types = ["SHOPPING", "SEARCH", "PERFORMANCE_MAX"];
-  const totalCost = await getGoogleAdsCost(
-    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
-    types
-  );
-  return { GoogleFLX1: totalCost };
-}
-
-async function getAmountGoogleFLX2() {
-  const types = ["DEMAND_GEN", "VIDEO"];
-  const totalCost = await getGoogleAdsCost(
-    process.env.GOOGLE_ADS_CUSTOMER_ID_FLX,
-    types
-  );
-  return { GoogleFLX2: totalCost };
-}
-
 async function getAmountGoogleNPL() {
   try {
     const totalCost = await getGoogleAdsCost(
@@ -359,25 +444,21 @@ async function getAllMetrics() {
     const googleMNR = await getAmountGoogleMNR();
     const googleNB = await getAmountGoogleNB();
     const googleST = await getAmountGoogleST();
-    const googleFLX1 = await getAmountGoogleFLX1();
-    const googleFLX2 = await getAmountGoogleFLX2();
     const googleNPL = await getAmountGoogleNPL();
     
     const metrics = {
       data: {
-        ...bingTotal,
-        ...googleLPC,
-        ...googleVault,
-        ...googleCampaigns,
-        ...googleDripAZ,
-        ...googleDripLV,
-        ...googleDripNYC,
-        ...googleMNR,
-        ...googleNB,
-        ...googleST,
-        ...googleFLX1,
-        ...googleFLX2,
-        ...googleNPL,
+        Bing: bingTotal,
+        LPC: googleLPC,
+        Vault: googleVault,
+        HS: googleCampaigns,
+        DripAZ: googleDripAZ,
+        DripLV: googleDripLV,
+        DripNYC: googleDripNYC,
+        MNR: googleMNR,
+        NB: googleNB,
+        ST: googleST,
+        NPL: googleNPL,
       },
     };
 
@@ -417,22 +498,19 @@ const sendPacingReportToGoogleSheets = async () => {
     const record = await getAllMetrics();
     console.log(record)
     const newRows = [
-      ["LP+C", "Google", dateCST, datePST, record.data.GoogleLPC],
-      ["LP+C", "Bing", dateCST, datePST, record.data.BingLPC],
-      ["The Vault", "Google", dateCST, datePST, record.data.GoogleVault],
-      ["The Vault", "Bing", dateCST, datePST, record.data.BingVault],
-      ["Hi, Skin", "Brand", dateCST, datePST, record.data.Brand],
-      ["Hi, Skin", "NB", dateCST, datePST, record.data.NB],
-      ["Hi, Skin", "Pmax Brand", dateCST, datePST, record.data.PmaxBrand],
-      ["Hi, Skin", "Pmax NB", dateCST, datePST, record.data.PmaxNB],
-      ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.data.AZ],
-      ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.data.LV],
-      ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.NYC],
-      ["Menerals", "Google", dateCST, datePST, record.data.GoogleMenerals],
-      ["Sleepy Tie", "Google", dateCST, datePST, record.data.GoogleST],
-      ["Flex", "Search, Shopping, Pmax", dateCST, datePST, record.data.GoogleFLX1],
-      ["Flex", "DemandGen, Video", dateCST, datePST, record.data.GoogleFLX2],
-      ["Nations Photo Lab", "Google", dateCST, datePST, record.data.GoogleNPL],
+      ["LP+C", "Google", dateCST, datePST, record.data.LPC.GoogleLPC],
+      ["LP+C", "Bing", dateCST, datePST, record.data.Bing.BingLPC],
+      ["The Vault", "Google", dateCST, datePST, record.data.Vault.GoogleVault],
+      ["The Vault", "Bing", dateCST, datePST, record.data.Bing.BingVault],
+      ["Hi, Skin", "TX", dateCST, datePST, record.data.HS.TX],
+      ["Hi, Skin", "AZ", dateCST, datePST, record.data.HS.AZ],
+      ["Hi, Skin", "DMV", dateCST, datePST, record.data.HS.DMV],
+      ["Mobile IV Drip AZ", "Arizona", dateCST, datePST, record.DripAZ.data.AZ],
+      ["Mobile IV Drip LV", "Las Vegas", dateCST, datePST, record.DripLV.data.LV],
+      ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.DripNYC.data.NYC],
+      ["Menerals", "Google", dateCST, datePST, record.data.MNR.GoogleMenerals],
+      ["Sleepy Tie", "Google", dateCST, datePST, record.data.ST.GoogleST],
+      ["Nations Photo Lab", "Google", dateCST, datePST, record.NPL.data.GoogleNPL],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({
