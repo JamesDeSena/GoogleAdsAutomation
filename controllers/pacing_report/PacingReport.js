@@ -510,7 +510,7 @@ const sendPacingReportToGoogleSheets = async () => {
       ["Mobile IV Drip NYC", "New York", dateCST, datePST, record.data.DripNYC.NYC],
       ["Menerals", "Google", dateCST, datePST, record.data.MNR.GoogleMenerals],
       ["Sleepy Tie", "Google", dateCST, datePST, record.data.ST.GoogleST],
-      ["Nations Photo Lab", "Google", dateCST, datePST, record.NPL.data.GoogleNPL],
+      ["Nations Photo Lab", "Google", dateCST, datePST, record.data.NPL.GoogleNPL],
     ];
 
     const existingData = await sheets.spreadsheets.values.get({
