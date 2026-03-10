@@ -68,6 +68,30 @@ const getOrGenerateDateRanges = (inputStartDate = null) => {
 
 setInterval(getOrGenerateDateRanges, 24 * 60 * 60 * 1000);
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const isRetryableGoogleAdsError = (error) => {
+  const code = error?.code || error?.cause?.code;
+  const status = error?.errors?.[0]?.error_code || error?.cause?.status;
+  return code === 503 || status === "UNAVAILABLE";
+};
+
+const withRetry = async (fn, retries = 5, baseDelay = 2000) => {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt++;
+      if (!isRetryableGoogleAdsError(error) || attempt > retries) {
+        throw error;
+      }
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 1000);
+      console.log(`Retry ${attempt}/${retries} after ${delay}ms due to Google Ads 503 UNAVAILABLE`);
+      await sleep(delay);
+    }
+  }
+};
+
 async function generateHSBing() {
   const token = getStoredBingToken();
   if (!token.accessToken_Bing) {
@@ -322,13 +346,39 @@ const aggregateWeeklyDataFromCSV = async () => {
   return result;
 };
 
+const createAggregatedDataMap = (dateRanges) => {
+  const aggregatedDataMap = {};
+  const dateToWeekMap = {};
+
+  dateRanges.forEach(({ start, end }) => {
+    const key = `${start} - ${end}`;
+    aggregatedDataMap[key] = {
+      date: key,
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      step1Value: 0,
+      step5Value: 0,
+      step6Value: 0,
+      bookingConfirmed: 0,
+      purchase: 0,
+    };
+    
+    // Map every specific day in this range to this week's label
+    let current = new Date(start);
+    const endObj = new Date(end);
+    while (current <= endObj) {
+      dateToWeekMap[current.toISOString().split('T')[0]] = key;
+      current.setDate(current.getDate() + 1);
+    }
+  });
+
+  return { aggregatedDataMap, dateToWeekMap };
+};
+
 const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
   const refreshToken_Google = getStoredGoogleToken();
-
-  if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
-    return;
-  }
+  if (!refreshToken_Google) return;
 
   try {
     const customer = client.Customer({
@@ -337,106 +387,62 @@ const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    // const dateRanges = getOrGenerateDateRanges();
+    const fullStartDate = dateRanges[0].start;
+    const fullEndDate = dateRanges[dateRanges.length - 1].end;
+    const { aggregatedDataMap, dateToWeekMap } = createAggregatedDataMap(dateRanges);
 
-    const aggregateDataForWeek = async (startDate, endDate) => {
-      const aggregatedData = {
-        date: `${startDate} - ${endDate}`,
-        impressions: 0,
-        clicks: 0,
-        cost: 0,
-        step1Value: 0,
-        step5Value: 0,
-        step6Value: 0,
-        bookingConfirmed: 0,
-        purchase: 0,
-      };
+    const metricsQuery = `
+      SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, segments.date
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+      ORDER BY segments.date DESC
+    `;
 
-      const metricsQuery = `
-        SELECT
-          campaign.id,
-          campaign.name,
-          metrics.impressions,
-          metrics.clicks,
-          metrics.cost_micros,
-          segments.date
-        FROM
-          campaign
-        WHERE
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-        ORDER BY
-          segments.date DESC
-      `;
+    const conversionQuery = `
+      SELECT campaign.id, metrics.all_conversions, segments.conversion_action_name, segments.date 
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
+      ORDER BY segments.date DESC
+    `;
 
-      const conversionQuery = `
-        SELECT 
-          campaign.id,
-          metrics.all_conversions,
-          segments.conversion_action_name,
-          segments.date 
-        FROM 
-          campaign
-        WHERE 
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
-        ORDER BY 
-          segments.date DESC
-      `;
+    const metricsResponse = await withRetry(() => customer.query(metricsQuery));
+    metricsResponse.forEach((campaign) => {
+      const weekKey = dateToWeekMap[campaign.segments.date];
+      if (weekKey) {
+        aggregatedDataMap[weekKey].impressions += campaign.metrics.impressions || 0;
+        aggregatedDataMap[weekKey].clicks += campaign.metrics.clicks || 0;
+        aggregatedDataMap[weekKey].cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
+      }
+    });
 
-      let metricsPageToken = null;
-      do {
-        const metricsResponse = await customer.query(metricsQuery);
-        metricsResponse.forEach((campaign) => {
-          aggregatedData.impressions += campaign.metrics.impressions || 0;
-          aggregatedData.clicks += campaign.metrics.clicks || 0;
-          aggregatedData.cost +=
-            (campaign.metrics.cost_micros || 0) / 1_000_000;
-        });
-        metricsPageToken = metricsResponse.next_page_token;
-      } while (metricsPageToken);
+    const conversionBatchResponse = await withRetry(() => customer.query(conversionQuery));
+    conversionBatchResponse.forEach((conversion) => {
+      const weekKey = dateToWeekMap[conversion.segments.date];
+      if (weekKey) {
+        const value = conversion.metrics.all_conversions || 0;
+        const action = conversion.segments.conversion_action_name;
+        if (action === "Book Now - Step 1: Locations") aggregatedDataMap[weekKey].step1Value += value;
+        else if (action === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") aggregatedDataMap[weekKey].step5Value += value;
+        else if (action === "Book Now - Step 6: Booking Confirmation") aggregatedDataMap[weekKey].step6Value += value;
+        else if (action === "BookingConfirmed") aggregatedDataMap[weekKey].bookingConfirmed += value;
+        else if (action === "Purchase") aggregatedDataMap[weekKey].purchase += value;
+      }
+    });
 
-      let conversionPageToken = null;
-      do {
-        const conversionBatchResponse = await customer.query(conversionQuery);
-        conversionBatchResponse.forEach((conversion) => {
-          const conversionValue = conversion.metrics.all_conversions || 0;
-          if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
-            aggregatedData.step1Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
-            aggregatedData.step5Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
-            aggregatedData.step6Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
-            aggregatedData.bookingConfirmed += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Purchase") {
-            aggregatedData.purchase += conversionValue;
-          }
-        });
-        conversionPageToken = conversionBatchResponse.next_page_token;
-      } while (conversionPageToken);
-
-      return aggregatedData;
-    };
-
-    const allWeeklyData = [];
-    for (const { start, end } of dateRanges) {
-      const weeklyData = await aggregateDataForWeek(start, end);
-      allWeeklyData.push(weeklyData);
-    }
-
-    return allWeeklyData;
+    return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
   } catch (error) {
     console.error("Error fetching report data:", error);
+    // Return empty fallback array to prevent crashes
+    return dateRanges.map(({ start, end }) => ({
+      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
+    }));
   }
 };
 
 const fetchReportDataWeeklySearchHS = async (dateRanges) => {
   const refreshToken_Google = getStoredGoogleToken();
-
-  if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
-    return;
-  }
+  if (!refreshToken_Google) return;
 
   try {
     const customer = client.Customer({
@@ -445,191 +451,63 @@ const fetchReportDataWeeklySearchHS = async (dateRanges) => {
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    // const dateRanges = getOrGenerateDateRanges();
+    const fullStartDate = dateRanges[0].start;
+    const fullEndDate = dateRanges[dateRanges.length - 1].end;
+    const { aggregatedDataMap, dateToWeekMap } = createAggregatedDataMap(dateRanges);
 
-    const aggregateDataForWeek = async (startDate, endDate) => {
-      const aggregatedData = {
-        date: `${startDate} - ${endDate}`,
-        impressions: 0,
-        clicks: 0,
-        cost: 0,
-        step1Value: 0,
-        step5Value: 0,
-        step6Value: 0,
-        bookingConfirmed: 0,
-        purchase: 0,
-      };
+    const metricsQuery = `
+      SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, segments.date
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+        AND campaign.name LIKE '%Search%'
+      ORDER BY segments.date DESC
+    `;
 
-      const metricsQuery = `
-        SELECT
-          campaign.id,
-          campaign.name,
-          metrics.impressions,
-          metrics.clicks,
-          metrics.cost_micros,
-          segments.date
-        FROM
-          campaign
-        WHERE
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND campaign.name LIKE '%Search%'
-        ORDER BY
-          segments.date DESC
-      `;
+    const conversionQuery = `
+      SELECT campaign.id, metrics.all_conversions, segments.conversion_action_name, segments.date 
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+        AND campaign.name LIKE '%Search%'
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
+      ORDER BY segments.date DESC
+    `;
 
-      const conversionQuery = `
-        SELECT 
-          campaign.id,
-          metrics.all_conversions,
-          segments.conversion_action_name,
-          segments.date 
-        FROM 
-          campaign
-        WHERE 
-          segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND campaign.name LIKE '%Search%'
-          AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase') 
-        ORDER BY 
-          segments.date DESC
-      `;
-
-      let metricsPageToken = null;
-      do {
-        const metricsResponse = await customer.query(metricsQuery);
-        metricsResponse.forEach((campaign) => {
-          aggregatedData.impressions += campaign.metrics.impressions || 0;
-          aggregatedData.clicks += campaign.metrics.clicks || 0;
-          aggregatedData.cost +=
-            (campaign.metrics.cost_micros || 0) / 1_000_000;
-        });
-        metricsPageToken = metricsResponse.next_page_token;
-      } while (metricsPageToken);
-
-      let conversionPageToken = null;
-      do {
-        const conversionBatchResponse = await customer.query(conversionQuery);
-        conversionBatchResponse.forEach((conversion) => {
-          const conversionValue = conversion.metrics.all_conversions || 0;
-          if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
-            aggregatedData.step1Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
-            aggregatedData.step5Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
-            aggregatedData.step6Value += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
-            aggregatedData.bookingConfirmed += conversionValue;
-          } else if (conversion.segments.conversion_action_name === "Purchase") {
-            aggregatedData.purchase += conversionValue;
-          }
-        });
-        conversionPageToken = conversionBatchResponse.next_page_token;
-      } while (conversionPageToken);
-
-      return aggregatedData;
-    };
-
-    const allSearchWeeklyData = [];
-    for (const { start, end } of dateRanges) {
-      const weeklySearchData = await aggregateDataForWeek(start, end);
-      allSearchWeeklyData.push(weeklySearchData);
-    }
-
-    return allSearchWeeklyData;
-
-    // res.json(allSearchWeeklyData);
-  } catch (error) {
-    console.error("Error fetching report data:", error);
-    // res.status(300).send("Error fetching report data");
-  }
-};
-
-const aggregateDataForWeek = async (customer, startDate, endDate, campaignNameFilter, brandNBFilter) => {
-  const aggregatedData = {
-    date: `${startDate} - ${endDate}`,
-    impressions: 0,
-    clicks: 0,
-    cost: 0,
-    step1Value: 0,
-    step5Value: 0,
-    step6Value: 0,
-    bookingConfirmed: 0,
-    purchase: 0,
-  };
-
-  const metricsQuery = `
-    SELECT
-      campaign.id,
-      campaign.name,
-      metrics.impressions,
-      metrics.clicks,
-      metrics.cost_micros,
-      segments.date
-    FROM
-      campaign
-    WHERE
-      segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
-    ORDER BY
-      segments.date DESC
-  `;
-
-  const conversionQuery = `
-    SELECT 
-      campaign.id,
-      metrics.all_conversions,
-      segments.conversion_action_name,
-      segments.date 
-    FROM 
-      campaign
-    WHERE 
-      segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
-      AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase')
-    ORDER BY 
-      segments.date DESC
-  `;
-
-  let metricsPageToken = null;
-  do {
-    const metricsResponse = await customer.query(metricsQuery);
+    const metricsResponse = await withRetry(() => customer.query(metricsQuery));
     metricsResponse.forEach((campaign) => {
-      aggregatedData.impressions += campaign.metrics.impressions || 0;
-      aggregatedData.clicks += campaign.metrics.clicks || 0;
-      aggregatedData.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
-    });
-    metricsPageToken = metricsResponse.next_page_token;
-  } while (metricsPageToken);
-
-  let conversionPageToken = null;
-  do {
-    const conversionBatchResponse = await customer.query(conversionQuery);
-    conversionBatchResponse.forEach((conversion) => {
-      const conversionValue = conversion.metrics.all_conversions || 0;
-      if (conversion.segments.conversion_action_name === "Book Now - Step 1: Locations") {
-        aggregatedData.step1Value += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") {
-        aggregatedData.step5Value += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Book Now - Step 6: Booking Confirmation") {
-        aggregatedData.step6Value += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "BookingConfirmed") {
-        aggregatedData.bookingConfirmed += conversionValue;
-      } else if (conversion.segments.conversion_action_name === "Purchase") {
-        aggregatedData.purchase += conversionValue;
+      const weekKey = dateToWeekMap[campaign.segments.date];
+      if (weekKey) {
+        aggregatedDataMap[weekKey].impressions += campaign.metrics.impressions || 0;
+        aggregatedDataMap[weekKey].clicks += campaign.metrics.clicks || 0;
+        aggregatedDataMap[weekKey].cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
       }
     });
-    conversionPageToken = conversionBatchResponse.next_page_token;
-  } while (conversionPageToken);
 
-  return aggregatedData;
+    const conversionBatchResponse = await withRetry(() => customer.query(conversionQuery));
+    conversionBatchResponse.forEach((conversion) => {
+      const weekKey = dateToWeekMap[conversion.segments.date];
+      if (weekKey) {
+        const value = conversion.metrics.all_conversions || 0;
+        const action = conversion.segments.conversion_action_name;
+        if (action === "Book Now - Step 1: Locations") aggregatedDataMap[weekKey].step1Value += value;
+        else if (action === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") aggregatedDataMap[weekKey].step5Value += value;
+        else if (action === "Book Now - Step 6: Booking Confirmation") aggregatedDataMap[weekKey].step6Value += value;
+        else if (action === "BookingConfirmed") aggregatedDataMap[weekKey].bookingConfirmed += value;
+        else if (action === "Purchase") aggregatedDataMap[weekKey].purchase += value;
+      }
+    });
+
+    return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
+  } catch (error) {
+    console.error("Error fetching report data:", error);
+    return dateRanges.map(({ start, end }) => ({
+      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
+    }));
+  }
 };
 
 const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, brandNBFilter, dateRanges) => {
   const refreshToken_Google = getStoredGoogleToken();
-
-  if (!refreshToken_Google) {
-    console.error("Access token is missing. Please authenticate.");
-    return;
-  }
+  if (!refreshToken_Google) return;
 
   try {
     const customer = client.Customer({
@@ -637,19 +515,58 @@ const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, brand
       refresh_token: refreshToken_Google,
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
-    
-    // const dateRanges = getOrGenerateDateRanges();
 
-    const allWeeklyDataPromises = dateRanges.map(({ start, end }) => {
-      return aggregateDataForWeek(customer, start, end, campaignNameFilter, brandNBFilter);
+    const fullStartDate = dateRanges[0].start;
+    const fullEndDate = dateRanges[dateRanges.length - 1].end;
+    const { aggregatedDataMap, dateToWeekMap } = createAggregatedDataMap(dateRanges);
+
+    const metricsQuery = `
+      SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, segments.date
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+        AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
+      ORDER BY segments.date DESC
+    `;
+
+    const conversionQuery = `
+      SELECT campaign.id, metrics.all_conversions, segments.conversion_action_name, segments.date 
+      FROM campaign
+      WHERE segments.date BETWEEN '${fullStartDate}' AND '${fullEndDate}'
+        AND campaign.name LIKE '%${campaignNameFilter}%' AND campaign.name LIKE '%${brandNBFilter}%'
+        AND segments.conversion_action_name IN ('Book Now - Step 1: Locations', 'Book Now - Step 5:Confirm Booking (Initiate Checkout)', 'Book Now - Step 6: Booking Confirmation', 'BookingConfirmed', 'Purchase')
+      ORDER BY segments.date DESC
+    `;
+
+    const metricsResponse = await withRetry(() => customer.query(metricsQuery));
+    metricsResponse.forEach((campaign) => {
+      const weekKey = dateToWeekMap[campaign.segments.date];
+      if (weekKey) {
+        aggregatedDataMap[weekKey].impressions += campaign.metrics.impressions || 0;
+        aggregatedDataMap[weekKey].clicks += campaign.metrics.clicks || 0;
+        aggregatedDataMap[weekKey].cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
+      }
     });
 
-    const allWeeklyData = await Promise.all(allWeeklyDataPromises);
+    const conversionBatchResponse = await withRetry(() => customer.query(conversionQuery));
+    conversionBatchResponse.forEach((conversion) => {
+      const weekKey = dateToWeekMap[conversion.segments.date];
+      if (weekKey) {
+        const value = conversion.metrics.all_conversions || 0;
+        const action = conversion.segments.conversion_action_name;
+        if (action === "Book Now - Step 1: Locations") aggregatedDataMap[weekKey].step1Value += value;
+        else if (action === "Book Now - Step 5:Confirm Booking (Initiate Checkout)") aggregatedDataMap[weekKey].step5Value += value;
+        else if (action === "Book Now - Step 6: Booking Confirmation") aggregatedDataMap[weekKey].step6Value += value;
+        else if (action === "BookingConfirmed") aggregatedDataMap[weekKey].bookingConfirmed += value;
+        else if (action === "Purchase") aggregatedDataMap[weekKey].purchase += value;
+      }
+    });
 
-    return allWeeklyData;
+    return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // res.status(300).send("Error fetching report data");
+    return dateRanges.map(({ start, end }) => ({
+      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
+    }));
   }
 };
 
@@ -701,7 +618,7 @@ const executeSpecificFetchFunctionHS = async (req, res) => {
   const functionName = "fetchReportDataWeeklyHSDSA";
   const dateRanges = getOrGenerateDateRanges();
   if (fetchFunctions[functionName]) {
-    const data = await fetchFunctions[functionName](dateRanges);
+    const data = await fetchFunctions[functionName](req, res, dateRanges);
     res.json(data);
   } else {
     console.error(`Function ${functionName} does not exist.`);
@@ -710,7 +627,7 @@ const executeSpecificFetchFunctionHS = async (req, res) => {
 };
 
 let lastApiCallTime = 0;
-const MIN_DELAY_BETWEEN_CALLS_MS = 3000;
+const MIN_DELAY_BETWEEN_CALLS_MS = 5000;
 
 const createThrottledFetch = (fetchFn) => async (...args) => {
   const now = Date.now();
