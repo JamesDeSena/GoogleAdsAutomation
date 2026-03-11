@@ -26,7 +26,7 @@ const { runDailyExportAndReport } = require('./controllers/lpc/DailyFetch');
 const { sendFinalWeeklyReportToGoogleSheetsLPCAdG } = require('./controllers/lpc/GoogleAdsGroupWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsLPC } = require('./controllers/lpc/GoogleAdsWeekly');
 const { sendLPCMonthlyReport } = require('./controllers/lpc/GoogleAdsMonthly');
-const { sendFinalDailyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
+const { sendFinalDailyReportToGoogleSheetsMIV, sendFinalDailySpentToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsDaily');
 const { sendFinalWeeklyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsWeekly');
 const { sendFinalWeeklyReportToGoogleSheetsMIVDAdG } = require('./controllers/mobile_iv/GoogleAdsGroupWeekly');
 const { sendFinalMonthlyReportToGoogleSheetsMIV } = require('./controllers/mobile_iv/GoogleAdsMonthly');
@@ -92,46 +92,25 @@ const executeSequentialJobs = async (jobs, jobName) => {
 
 pingRenderApp();
 
-const isDSTInLA = () => {
-  const laDate = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
-  const now = new Date(laDate);
-  const jan = new Date(now.getFullYear(), 0, 1);
-  const jul = new Date(now.getFullYear(), 6, 1);
-  const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-  return now.getTimezoneOffset() < stdOffset; // true if DST (PDT)
+const makeRule = (hour, minute) => {
+  const rule = new schedule.RecurrenceRule();
+  rule.hour = hour;
+  rule.minute = minute;
+  rule.tz = 'Asia/Manila';
+  return rule;
 };
 
-const hourBase = isDSTInLA() ? 7 : 6; // PDT → 7, PST → 6
-
-const rule1 = new schedule.RecurrenceRule();
-rule1.hour = hourBase;
-rule1.minute = 0;
-rule1.tz = 'America/Los_Angeles';
-
-const rule2 = new schedule.RecurrenceRule();
-rule2.hour = hourBase + 12;
-rule2.minute = 0;
-rule2.tz = 'America/Los_Angeles';
-
-const rule3 = new schedule.RecurrenceRule();
-rule3.hour = hourBase;
-rule3.minute = 15;
-rule3.tz = 'America/Los_Angeles';
-
-const rule4 = new schedule.RecurrenceRule();
-rule4.hour = hourBase + 12;
-rule4.minute = 15;
-rule4.tz = 'America/Los_Angeles';
-
-const rule5 = new schedule.RecurrenceRule();
-rule5.hour = hourBase;
-rule5.minute = 30;
-rule5.tz = 'America/Los_Angeles';
+const rule1 = makeRule(22, 0);
+const rule2 = makeRule(10, 0);
+const rule3 = makeRule(22, 15);
+const rule4 = makeRule(10, 15);
+const rule5 = makeRule(22, 30);
 
 const morningJobs = [
   sendPacingReportToGoogleSheets,
   sendFinalDailyReportToGoogleSheetsHS,
   sendFinalDailyReportToGoogleSheetsMIV,
+  sendFinalDailySpentToGoogleSheetsMIV,
   sendFinalWeeklyReportToGoogleSheetsHSAdG,
   sendFinalWeeklyReportToGoogleSheetsMIVDAdG,
   sendFinalWeeklyReportToGoogleSheetsLPCAdG,

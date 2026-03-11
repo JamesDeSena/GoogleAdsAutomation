@@ -50,6 +50,7 @@ const {
 const {
   // executeSpecificFetchFunctionMIV,
   sendFinalDailyReportToGoogleSheetsMIV,
+  sendFinalDailySpentToGoogleSheetsMIV,
 } = require('../controllers/mobile_iv/GoogleAdsDaily');
 
 const {
@@ -180,6 +181,16 @@ router.get('/hi_skin_adg/report-final', async (req, res) => {
 router.get('/mobile_iv/report-daily/:date?', async (req, res) => {
   try {
     await sendFinalDailyReportToGoogleSheetsMIV(req, res);
+    res.status(200).send("Process completed successfully.");
+  } catch (error) {
+    console.error("Error processing final report:", error);
+    res.status(500).send("Error processing final report.");
+  }
+});
+
+router.get('/mobile_iv/report-daily2/:date?', async (req, res) => {
+  try {
+    await sendFinalDailySpentToGoogleSheetsMIV(req, res);
     res.status(200).send("Process completed successfully.");
   } catch (error) {
     console.error("Error processing final report:", error);

@@ -433,10 +433,8 @@ const fetchReportDataWeeklyCampaignHS = async (dateRanges) => {
     return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    // Return empty fallback array to prevent crashes
-    return dateRanges.map(({ start, end }) => ({
-      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
-    }));
+    // Throw error to abort the process and protect Google Sheets data
+    throw new Error("Failed to fetch Google Ads Campaign data. Aborting sheet update.");
   }
 };
 
@@ -499,9 +497,8 @@ const fetchReportDataWeeklySearchHS = async (dateRanges) => {
     return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    return dateRanges.map(({ start, end }) => ({
-      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
-    }));
+    // Throw error to abort the process and protect Google Sheets data
+    throw new Error("Failed to fetch Google Ads Search data. Aborting sheet update.");
   }
 };
 
@@ -564,9 +561,8 @@ const fetchReportDataWeeklyHSFilter = async (req, res, campaignNameFilter, brand
     return dateRanges.map(({ start, end }) => aggregatedDataMap[`${start} - ${end}`]);
   } catch (error) {
     console.error("Error fetching report data:", error);
-    return dateRanges.map(({ start, end }) => ({
-      date: `${start} - ${end}`, impressions: 0, clicks: 0, cost: 0, step1Value: 0, step5Value: 0, step6Value: 0, bookingConfirmed: 0, purchase: 0
-    }));
+    // Throw error to abort the process and protect Google Sheets data
+    throw new Error("Failed to fetch Google Ads Filter data. Aborting sheet update.");
   }
 };
 

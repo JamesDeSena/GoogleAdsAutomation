@@ -33,51 +33,57 @@ const getOrGenerateDate = () => {
 setInterval(getOrGenerateDate, 24 * 60 * 60 * 1000);
 
 const aggregateDataForDaily = async (customer, dates, campaignName = '') => {
-  let aggregatedData = dates.map(date => {
-    const dateObj = new Date(date);
+  if (!dates?.length) return [];
+
+  const sortedDates = [...dates].sort();
+  const startDate = sortedDates[0];
+  const endDate = sortedDates[sortedDates.length - 1];
+
+  const dateMap = Object.fromEntries(
+    sortedDates.map(date => {
+      const dateObj = new Date(date);
+      const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getDate().toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+      return [formattedDate, 0];
+    })
+  );
+
+  const campaignFilter = campaignName
+    ? `AND campaign.name LIKE '%${campaignName.replace(/'/g, "\\'")}%'`
+    : '';
+
+  const metricsQuery = `
+    SELECT
+      metrics.cost_micros,
+      segments.date
+    FROM
+      campaign
+    WHERE
+      segments.date BETWEEN '${startDate}' AND '${endDate}'
+      ${campaignFilter}
+    ORDER BY
+      segments.date ASC
+  `;
+
+  const metricsResponse = await customer.query(metricsQuery);
+
+  metricsResponse.forEach((row) => {
+    if (!row.segments?.date) return;
+
+    const dateObj = new Date(row.segments.date);
     const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getDate().toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
-    return {
-      date: formattedDate,
-      cost: 0,
-    };
+
+    if (Object.prototype.hasOwnProperty.call(dateMap, formattedDate)) {
+      dateMap[formattedDate] += (row.metrics.cost_micros || 0) / 1_000_000;
+    }
   });
 
-  const campaignFilter = campaignName ? `AND campaign.name LIKE '%${campaignName}%'` : '';
-
-  for (const date of dates) {
-    const metricsQuery = `
-      SELECT
-        campaign.id,
-        metrics.cost_micros,
-        segments.date
-      FROM
-        campaign
-      WHERE
-        segments.date = '${date}' 
-        ${campaignFilter}
-      ORDER BY
-        segments.date DESC
-    `;
-
-    let metricsPageToken = null;
-    do {
-      const metricsResponse = await customer.query(metricsQuery);
-      metricsResponse.forEach((campaign) => {
-        const dateObj = new Date(date);
-        const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getDate().toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
-        const dataEntry = aggregatedData.find(entry => entry.date === formattedDate);
-        if (dataEntry) {
-          dataEntry.cost += (campaign.metrics.cost_micros || 0) / 1_000_000;
-        }
-      });
-      metricsPageToken = metricsResponse.next_page_token;
-    } while (metricsPageToken);
-  }
-
-  return aggregatedData;
+  return Object.entries(dateMap).map(([date, cost]) => ({
+    date,
+    cost,
+  }));
 };
 
-const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaignNames) => {
+const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaignNames, customDates = null) => {
   const refreshToken_Google = getStoredGoogleToken();
   if (!refreshToken_Google) {
     console.error("Access token is missing. Please authenticate.");
@@ -91,7 +97,7 @@ const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaign
       login_customer_id: process.env.GOOGLE_ADS_MANAGER_ACCOUNT_ID,
     });
 
-    const dates = getOrGenerateDate();
+    const dates = customDates?.length ? customDates : getOrGenerateDate();
 
     const allDailyDataPromises = campaignNames.length
       ? campaignNames.map((name) => aggregateDataForDaily(customer, dates, name))
@@ -106,11 +112,12 @@ const fetchReportDataDailyFilter = async (req, res, campaignNameFilter, campaign
 };
 
 const createFetchFunction = (campaignNameFilter, campaignNames = []) => {
-  return (req, res) => fetchReportDataDailyFilter(req, res, campaignNameFilter, campaignNames);
+  return (req, res, customDates = null) =>
+    fetchReportDataDailyFilter(req, res, campaignNameFilter, campaignNames, customDates);
 };
 
 const fetchFunctions = {
-  fetchReportDataDailyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, ["Phoenix", "Tucson"]),
+  fetchReportDataDailyAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ, ["Phoenix", "Tucson", "Florida"]),
   fetchReportDataDailyAllAZ: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPAZ),
   fetchReportDataDailyLV: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPLV),
   fetchReportDataDailyNYC: createFetchFunction(process.env.GOOGLE_ADS_CUSTOMER_ID_DRIPNYC),
@@ -286,7 +293,137 @@ const sendFinalDailyReportToGoogleSheetsMIV = async (req, res) => {
   }
 };
 
+const sendFinalDailySpentToGoogleSheetsMIV = async (req, res) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'serviceToken.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.SHEET_MIVD_BOOKING_2;
+
+  const targetTabs = {
+    Phoenix: 'Mobile IV Drip AZ',
+    Tucson: 'Mobile IV Drip Tucson',
+    NYC: 'Mobile IV Drip NYC',
+    LV: 'Mobile IV Drip Las Vegas',
+    Florida: 'Mobile IV Drip Florida',
+  };
+
+  try {
+    const ranges = Object.values(targetTabs).map(tab => `${tab}!A2:I`);
+    const batchResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges,
+    });
+
+    const isDateString = value => /^\d{2}\/\d{2}\/\d{4}$/.test(String(value).trim());
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const allSheetDates = new Set();
+
+    batchResponse.data.valueRanges.forEach((sheetResponse) => {
+      const rows = sheetResponse.values || [];
+
+      rows.forEach((row) => {
+        const sheetDate = String(row[0] || '').trim();
+        if (!isDateString(sheetDate)) return;
+
+        const [month, day, year] = sheetDate.split('/').map(Number);
+        const parsedDate = new Date(year, month - 1, day);
+
+        if (parsedDate <= today) {
+          const formattedForAds = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          allSheetDates.add(formattedForAds);
+        }
+      });
+    });
+
+    const dateRanges = Array.from(allSheetDates).sort();
+
+    if (!dateRanges.length) {
+      console.log("No valid dates found in Column A.");
+      return;
+    }
+
+    const [azData, allAZData] = await Promise.all([
+      fetchFunctions.fetchReportDataDailyAZ(req, res, dateRanges),
+      fetchFunctions.fetchReportDataDailyAllAZ(req, res, dateRanges),
+    ]);
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const [lvData, nyData] = await Promise.all([
+      fetchFunctions.fetchReportDataDailyLV(req, res, dateRanges),
+      fetchFunctions.fetchReportDataDailyNYC(req, res, dateRanges),
+    ]);
+
+    const spentByTab = {
+      [targetTabs.Phoenix]: Object.fromEntries(
+        (allAZData?.[0] || []).map(row => [row.date, `$${(row.cost || 0).toFixed(2)}`])
+      ),
+      [targetTabs.Tucson]: Object.fromEntries(
+        (azData?.[1] || []).map(row => [row.date, `$${(row.cost || 0).toFixed(2)}`])
+      ),
+      [targetTabs.Florida]: Object.fromEntries(
+        (azData?.[2] || []).map(row => [row.date, `$${(row.cost || 0).toFixed(2)}`])
+      ),
+      [targetTabs.NYC]: Object.fromEntries(
+        (nyData?.[0] || []).map(row => [row.date, `$${(row.cost || 0).toFixed(2)}`])
+      ),
+      [targetTabs.LV]: Object.fromEntries(
+        (lvData?.[0] || []).map(row => [row.date, `$${(row.cost || 0).toFixed(2)}`])
+      ),
+    };
+
+    const batchUpdates = [];
+
+    batchResponse.data.valueRanges.forEach((sheetResponse, index) => {
+      const tabName = Object.values(targetTabs)[index];
+      const rows = sheetResponse.values || [];
+      const costMap = spentByTab[tabName] || {};
+
+      rows.forEach((row, rowIndex) => {
+        const sheetDate = String(row[0] || '').trim();
+        if (!isDateString(sheetDate)) return;
+
+        if (!Object.prototype.hasOwnProperty.call(costMap, sheetDate)) return;
+
+        const currentValue = String(row[8] || '').trim();
+        const newValue = costMap[sheetDate];
+
+        if (currentValue === newValue) return;
+
+        batchUpdates.push({
+          range: `${tabName}!I${rowIndex + 2}`,
+          values: [[newValue]],
+        });
+      });
+    });
+
+    if (!batchUpdates.length) {
+      console.log("No Google Spent values to update.");
+      return;
+    }
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      resource: {
+        valueInputOption: 'RAW',
+        data: batchUpdates,
+      },
+    });
+
+    console.log("Daily MIVD Google Spent updated successfully!");
+  } catch (error) {
+    console.error("Error updating MIVD Google Spent:", error);
+  }
+};
+
 module.exports = {
   executeSpecificFetchFunctionMIV,
   sendFinalDailyReportToGoogleSheetsMIV,
+  sendFinalDailySpentToGoogleSheetsMIV
 };
